@@ -120,7 +120,7 @@ async function sincronizarPagamentoMistic(env,d) {
     p.status_history.push({status:"recebido",at:new Date().toISOString()});
   }
   await gravarPedido(env,p);
-  if(before!=="approved"&&novoStatus==="approved")await enviarNotificacoes(env,p,"Pagamento aprovado!","Recebemos seu pedido. Acompanhe o preparo por aqui.");
+  if(before!=="approved"&&novoStatus==="approved"){await enviarNotificacoes(env,p,"Pagamento aprovado!","Recebemos seu pedido. Acompanhe o preparo por aqui.");await notificarNovoPedidoPago(env,p);}
   return p;
 }
 async function hmac(key,data) { const k=await crypto.subtle.importKey("raw",key,{name:"HMAC",hash:"SHA-256"},false,["sign"]); return new Uint8Array(await crypto.subtle.sign("HMAC",k,data)); }
@@ -158,6 +158,51 @@ async function enviarNotificacoes(env,p,title,body,requireInteraction=false) {
   return {sent,failed,results};
 }
 
+
+async function listarAssinaturasAdmin(env) {
+  return (await env.ORDERS_KV.get("admin:push:subscriptions", "json")) || [];
+}
+async function salvarAssinaturasAdmin(env, subscriptions) {
+  await env.ORDERS_KV.put("admin:push:subscriptions", JSON.stringify(subscriptions));
+}
+async function registrarAssinaturaAdmin(env, subscription) {
+  let subscriptions = await listarAssinaturasAdmin(env);
+  subscriptions = subscriptions.filter((item) => item.endpoint !== subscription.endpoint);
+  subscriptions.push(subscription);
+  await salvarAssinaturasAdmin(env, subscriptions);
+  return subscriptions.length;
+}
+async function enviarNotificacoesAdmin(env, payload) {
+  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) return { sent: 0, failed: 0, results: [], config_error: "VAPID nao configurado" };
+  const subscriptions = await listarAssinaturasAdmin(env);
+  const valid = [], results = [];
+  let sent = 0, failed = 0;
+  for (const subscription of subscriptions) {
+    try {
+      const response = await push(env, subscription, payload);
+      const responseText = await response.text().catch(() => "");
+      results.push({ status: response.status, ok: response.ok, body: responseText.slice(0, 300) });
+      if (response.ok) { sent++; valid.push(subscription); }
+      else { failed++; if (response.status !== 404 && response.status !== 410) valid.push(subscription); }
+    } catch (error) {
+      failed++;
+      results.push({ status: 0, ok: false, body: error instanceof Error ? error.message : String(error) });
+    }
+  }
+  await salvarAssinaturasAdmin(env, valid);
+  return { sent, failed, results, subscriptions: valid.length };
+}
+async function notificarNovoPedidoPago(env, pedido) {
+  return enviarNotificacoesAdmin(env, {
+    title: "Novo pedido pago!",
+    body: `${pedido.customer?.name || "Cliente"} • ${Number(pedido.total || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} • ${pedido.order_id}`,
+    tag: `admin-${pedido.order_id}`,
+    url: "https://geradorlipejb.com/painel/",
+    icon: "https://geradorlipejb.com/painel/icon-192.png",
+    requireInteraction: true
+  });
+}
+
 export default { async fetch(request,env) {
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:CORS}); const url=new URL(request.url);
   if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY)});
@@ -180,6 +225,24 @@ export default { async fetch(request,env) {
     if(request.method==="GET"&&url.pathname==="/admin/misticpay-debug"){
       const debug=await env.ORDERS_KV.get("debug:misticpay:last","json");
       return debug?responder({ok:true,debug}):responder({erro:"Nenhum diagnostico da MisticPay foi gravado ainda."},404);
+    }
+    if(request.method==="POST"&&url.pathname==="/admin/push-subscribe"){
+      const b=await request.json().catch(()=>({}));
+      const subscription=b.subscription;
+      if(!subscription?.endpoint||!subscription?.keys?.p256dh||!subscription?.keys?.auth)return responder({erro:"Assinatura administrativa invalida ou incompleta."},400);
+      const total=await registrarAssinaturaAdmin(env,subscription);
+      let test={sent:0,failed:0,results:[]};
+      if(b.test)test=await enviarNotificacoesAdmin(env,{title:"Alertas do painel ativados!",body:"O celular recebera novos pedidos pagos mesmo com o aplicativo fechado.",tag:"admin-push-teste",url:"https://geradorlipejb.com/painel/",icon:"https://geradorlipejb.com/painel/icon-192.png",requireInteraction:false});
+      if(b.test&&test.sent<1)return responder({erro:"A assinatura foi salva, mas o servico Push recusou a notificacao de teste.",detalhes:test.results,total_assinaturas:total},502);
+      return responder({ok:true,test_sent:test.sent>0,total_assinaturas:total,diagnostico:test});
+    }
+    if(request.method==="GET"&&url.pathname==="/admin/push-status"){
+      const subscriptions=await listarAssinaturasAdmin(env);
+      return responder({ok:true,total_assinaturas:subscriptions.length});
+    }
+    if(request.method==="POST"&&url.pathname==="/admin/test-admin-push"){
+      const test=await enviarNotificacoesAdmin(env,{title:"Teste do painel",body:"Web Push em segundo plano esta funcionando.",tag:"admin-push-manual",url:"https://geradorlipejb.com/painel/",icon:"https://geradorlipejb.com/painel/icon-192.png",requireInteraction:true});
+      return responder({ok:test.sent>0,...test},test.sent>0?200:502);
     }
     if(request.method==="POST"&&url.pathname==="/admin/test-push"){const b=await request.json();const p=await pedidoPorToken(env,texto(b.token,200));if(!p)return responder({erro:"Pedido nao encontrado."},404);const test=await enviarNotificacoes(env,p,"Teste Espetinho Perus","A notificacao do cliente esta funcionando.");return responder({ok:test.sent>0,...test},test.sent>0?200:502)}
     const m=url.pathname.match(/^\/admin\/orders\/([^/]+)$/);if(request.method==="PATCH"&&m){const p=await buscarPedido(env,decodeURIComponent(m[1]));if(!p)return responder({erro:"Pedido nao encontrado."},404);const b=await request.json();const ok=["recebido","em_preparo","pronto_retirada","saiu_entrega","finalizado","cancelado"];if(!ok.includes(b.order_status))return responder({erro:"Status invalido."},400);p.order_status=b.order_status;p.estimated_minutes=Number.isFinite(Number(b.estimated_minutes))?Math.max(0,Math.min(240,Number(b.estimated_minutes))):(p.estimated_minutes||25);p.status_history=p.status_history||[];p.status_history.push({status:b.order_status,at:new Date().toISOString()});await gravarPedido(env,p);await enviarNotificacoes(env,p,STATUS_LABELS[b.order_status]||"Atualizacao do pedido", b.order_status==="pronto_retirada"?"Seu pedido está pronto para retirada.":b.order_status==="saiu_entrega"?"Seu pedido está a caminho.":`Status atualizado: ${STATUS_LABELS[b.order_status]||b.order_status}.`);return responder({pedido:p})}
