@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "summer-field-09b7",
+  "main": "worker.js",
+  "compatibility_date": "2026-07-24",
+  "workers_dev": true,
+  "keep_vars": true,
+  "kv_namespaces": [
+    {
+      "binding": "ORDERS_KV"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "espetinho-perus-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloudflare Worker para Pix Mercado Pago e painel de pedidos do Espetinho Perus",
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "check": "node --check worker.js"
+  },
+  "devDependencies": {
+    "wrangler": "^4.68.0"
+  }
+}
