@@ -53,259 +53,90 @@ const PRECOS = {
   "Petit Gateau": 25.00, "Brownie de chocolate": 25.00, "Bolo de pote": 20.00
 };
 
+const STATUS_LABELS = {
+  aguardando_pagamento: "Aguardando pagamento",
+  recebido: "Pedido recebido",
+  em_preparo: "Pedido em preparo",
+  pronto_retirada: "Pronto para retirada",
+  saiu_entrega: "Saiu para entrega",
+  finalizado: "Pedido finalizado",
+  cancelado: "Pedido cancelado"
+};
+const enc = new TextEncoder();
+const b64url = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
+const fromB64url = s => Uint8Array.from(atob(String(s).replace(/-/g,"+").replace(/_/g,"/")+"===".slice((String(s).length+3)%4)), c=>c.charCodeAt(0));
+const concat = (...arrays) => { const n=arrays.reduce((s,a)=>s+a.length,0), out=new Uint8Array(n); let p=0; for(const a of arrays){out.set(a,p);p+=a.length} return out; };
+
 function responder(dados, status = 200) {
-  return new Response(JSON.stringify(dados), {
-    status,
-    headers: { ...CORS, "Content-Type": "application/json; charset=UTF-8", "Cache-Control": "no-store" }
-  });
+  return new Response(JSON.stringify(dados), { status, headers: { ...CORS, "Content-Type": "application/json; charset=UTF-8", "Cache-Control": "no-store" } });
 }
-
-function emailValido(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-function texto(valor, limite = 500) {
-  return String(valor ?? "").trim().slice(0, limite);
-}
-
-function adminAutorizado(request, env) {
-  const recebido = request.headers.get("X-Admin-Key") || "";
-  return Boolean(env.ADMIN_KEY) && recebido === env.ADMIN_KEY;
-}
-
+function emailValido(email) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
+function texto(valor, limite = 500) { return String(valor ?? "").trim().slice(0, limite); }
+function adminAutorizado(request, env) { return Boolean(env.ADMIN_KEY) && (request.headers.get("X-Admin-Key") || "") === env.ADMIN_KEY; }
 async function gravarPedido(env, pedido) {
-  if (!env.ORDERS_KV) throw new Error("ORDERS_KV nao configurado.");
   pedido.updated_at = new Date().toISOString();
   await env.ORDERS_KV.put(`order:${pedido.order_id}`, JSON.stringify(pedido));
   if (pedido.payment_id) await env.ORDERS_KV.put(`payment:${pedido.payment_id}`, pedido.order_id);
+  if (pedido.tracking_token) await env.ORDERS_KV.put(`tracking:${pedido.tracking_token}`, pedido.order_id);
   return pedido;
 }
-
-async function buscarPedido(env, orderId) {
-  if (!env.ORDERS_KV) return null;
-  return env.ORDERS_KV.get(`order:${orderId}`, "json");
+async function buscarPedido(env, id) { return env.ORDERS_KV?.get(`order:${id}`, "json"); }
+async function pedidoPorToken(env, token) { const id=await env.ORDERS_KV?.get(`tracking:${token}`); return id ? buscarPedido(env,id) : null; }
+function pedidoPublico(p) { return { order_id:p.order_id, created_at:p.created_at, updated_at:p.updated_at, paid_at:p.paid_at, customer:{name:p.customer?.name,fulfillment:p.customer?.fulfillment,address:p.customer?.address}, items:p.items, total:p.total, payment_status:p.payment_status, order_status:p.order_status, status_history:p.status_history||[], estimated_minutes:p.estimated_minutes||25 }; }
+async function consultarMercadoPago(env,id) { const r=await fetch(`https://api.mercadopago.com/v1/payments/${id}`,{headers:{Authorization:`Bearer ${env.MP_ACCESS_TOKEN}`}}); return {ok:r.ok,status:r.status,data:await r.json()}; }
+async function listarPedidos(env) { const l=await env.ORDERS_KV.list({prefix:"order:",limit:1000}), a=[]; for(const k of l.keys){const p=await env.ORDERS_KV.get(k.name,"json");if(p)a.push(p)} return a.sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))); }
+async function sincronizarPagamento(env,d) {
+  if(!d?.id)return null; let id=await env.ORDERS_KV.get(`payment:${d.id}`); if(!id)id=texto(d.external_reference,100); if(!id)return null;
+  const p=await buscarPedido(env,id); if(!p)return null; const before=p.payment_status;
+  p.payment_id=String(d.id); p.payment_status=texto(d.status,50)||p.payment_status; p.payment_status_detail=texto(d.status_detail,100); p.paid_at=d.date_approved||p.paid_at||null;
+  if(d.status==="approved"&&p.order_status==="aguardando_pagamento"){p.order_status="recebido";p.status_history=p.status_history||[];p.status_history.push({status:"recebido",at:new Date().toISOString()})}
+  await gravarPedido(env,p); if(before!=="approved"&&d.status==="approved") await enviarNotificacoes(env,p,"Pagamento aprovado!","Recebemos seu pedido. Acompanhe o preparo por aqui."); return p;
+}
+async function hmac(key,data) { const k=await crypto.subtle.importKey("raw",key,{name:"HMAC",hash:"SHA-256"},false,["sign"]); return new Uint8Array(await crypto.subtle.sign("HMAC",k,data)); }
+async function hkdfExtract(salt,ikm) { return hmac(salt,ikm); }
+async function hkdfExpand(prk,info,len) { let t=new Uint8Array(),out=new Uint8Array(),i=1; while(out.length<len){t=await hmac(prk,concat(t,info,new Uint8Array([i++])));out=concat(out,t)} return out.slice(0,len); }
+async function vapidJwt(env, endpoint) {
+  const pub=fromB64url(env.VAPID_PUBLIC_KEY), priv=fromB64url(env.VAPID_PRIVATE_KEY), x=pub.slice(1,33), y=pub.slice(33,65);
+  const key=await crypto.subtle.importKey("jwk",{kty:"EC",crv:"P-256",x:b64url(x),y:b64url(y),d:b64url(priv),ext:true},{name:"ECDSA",namedCurve:"P-256"},false,["sign"]);
+  const head=b64url(enc.encode(JSON.stringify({typ:"JWT",alg:"ES256"}))); const aud=new URL(endpoint).origin;
+  const body=b64url(enc.encode(JSON.stringify({aud,exp:Math.floor(Date.now()/1000)+43200,sub:env.VAPID_SUBJECT||"mailto:contato@geradorlipejb.com"}))); const input=`${head}.${body}`;
+  const sig=await crypto.subtle.sign({name:"ECDSA",hash:"SHA-256"},key,enc.encode(input)); return `${input}.${b64url(sig)}`;
+}
+async function push(env, sub, payload) {
+  const ua=fromB64url(sub.keys.p256dh), auth=fromB64url(sub.keys.auth), eph=await crypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
+  const uaKey=await crypto.subtle.importKey("raw",ua,{name:"ECDH",namedCurve:"P-256"},false,[]); const shared=new Uint8Array(await crypto.subtle.deriveBits({name:"ECDH",public:uaKey},eph.privateKey,256));
+  const asPub=new Uint8Array(await crypto.subtle.exportKey("raw",eph.publicKey)); const prkKey=await hkdfExtract(auth,shared); const ikm=await hkdfExpand(prkKey,concat(enc.encode("WebPush: info"),new Uint8Array([0]),ua,asPub),32);
+  const salt=crypto.getRandomValues(new Uint8Array(16)); const prk=await hkdfExtract(salt,ikm); const cek=await hkdfExpand(prk,concat(enc.encode("Content-Encoding: aes128gcm"),new Uint8Array([0])),16); const nonce=await hkdfExpand(prk,concat(enc.encode("Content-Encoding: nonce"),new Uint8Array([0])),12);
+  const plain=concat(enc.encode(JSON.stringify(payload)),new Uint8Array([2])); const aes=await crypto.subtle.importKey("raw",cek,"AES-GCM",false,["encrypt"]); const cipher=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv:nonce,tagLength:128},aes,plain));
+  const rs=new Uint8Array([0,0,16,0]); const body=concat(salt,rs,new Uint8Array([asPub.length]),asPub,cipher); const jwt=await vapidJwt(env,sub.endpoint);
+  return fetch(sub.endpoint,{method:"POST",headers:{"Content-Encoding":"aes128gcm","Content-Type":"application/octet-stream","TTL":"86400","Authorization":`vapid t=${jwt}, k=${env.VAPID_PUBLIC_KEY}`},body});
+}
+async function enviarNotificacoes(env,p,title,body) {
+  if(!env.VAPID_PUBLIC_KEY||!env.VAPID_PRIVATE_KEY)return; const subs=Array.isArray(p.push_subscriptions)?p.push_subscriptions:[]; const valid=[];
+  for(const s of subs){try{const r=await push(env,s,{title,body,tag:p.order_id,url:`${p.site_url||"https://geradorlipejb.com"}/pedido.html?token=${encodeURIComponent(p.tracking_token)}`,icon:`${p.site_url||"https://geradorlipejb.com"}/icon-192.png`});if(r.status!==404&&r.status!==410)valid.push(s)}catch(e){console.error("push",e)}}
+  p.push_subscriptions=valid; await gravarPedido(env,p);
 }
 
-async function sincronizarPagamento(env, paymentData) {
-  if (!env.ORDERS_KV || !paymentData?.id) return null;
-  let orderId = await env.ORDERS_KV.get(`payment:${paymentData.id}`);
-  if (!orderId) orderId = texto(paymentData.external_reference, 100);
-  if (!orderId) return null;
-  const pedido = await buscarPedido(env, orderId);
-  if (!pedido) return null;
-  pedido.payment_id = String(paymentData.id);
-  pedido.payment_status = texto(paymentData.status, 50) || pedido.payment_status;
-  pedido.payment_status_detail = texto(paymentData.status_detail, 100);
-  pedido.paid_at = paymentData.date_approved || pedido.paid_at || null;
-  if (paymentData.status === "approved" && pedido.order_status === "aguardando_pagamento") {
-    pedido.order_status = "recebido";
+export default { async fetch(request,env) {
+  if(request.method==="OPTIONS")return new Response(null,{status:204,headers:CORS}); const url=new URL(request.url);
+  if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",servico:"Pix, acompanhamento e notificacoes - Espetinho Perus",mercado_pago:Boolean(env.MP_ACCESS_TOKEN),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY)});
+  if(request.method==="GET"&&url.pathname==="/vapid-public-key")return responder({publicKey:env.VAPID_PUBLIC_KEY||""});
+  if(request.method==="GET"&&url.pathname==="/pedido-status"){const token=texto(url.searchParams.get("token"),200);const p=await pedidoPorToken(env,token);return p?responder({pedido:pedidoPublico(p)}):responder({erro:"Pedido nao encontrado."},404)}
+  if(request.method==="POST"&&url.pathname==="/pedido-subscribe"){const b=await request.json();const p=await pedidoPorToken(env,texto(b.token,200));if(!p)return responder({erro:"Pedido nao encontrado."},404);if(!b.subscription?.endpoint)return responder({erro:"Assinatura invalida."},400);p.push_subscriptions=Array.isArray(p.push_subscriptions)?p.push_subscriptions:[];p.push_subscriptions=p.push_subscriptions.filter(s=>s.endpoint!==b.subscription.endpoint);p.push_subscriptions.push(b.subscription);await gravarPedido(env,p);return responder({ok:true})}
+  if(url.pathname.startsWith("/admin/")){
+    if(!adminAutorizado(request,env))return responder({erro:"Senha administrativa invalida."},401);if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);
+    if(request.method==="GET"&&url.pathname==="/admin/orders")return responder({pedidos:await listarPedidos(env)});
+    const m=url.pathname.match(/^\/admin\/orders\/([^/]+)$/);if(request.method==="PATCH"&&m){const p=await buscarPedido(env,decodeURIComponent(m[1]));if(!p)return responder({erro:"Pedido nao encontrado."},404);const b=await request.json();const ok=["recebido","em_preparo","pronto_retirada","saiu_entrega","finalizado","cancelado"];if(!ok.includes(b.order_status))return responder({erro:"Status invalido."},400);p.order_status=b.order_status;p.estimated_minutes=Number.isFinite(Number(b.estimated_minutes))?Math.max(0,Math.min(240,Number(b.estimated_minutes))):(p.estimated_minutes||25);p.status_history=p.status_history||[];p.status_history.push({status:b.order_status,at:new Date().toISOString()});await gravarPedido(env,p);await enviarNotificacoes(env,p,STATUS_LABELS[b.order_status]||"Atualizacao do pedido", b.order_status==="pronto_retirada"?"Seu pedido está pronto para retirada.":b.order_status==="saiu_entrega"?"Seu pedido está a caminho.":`Status atualizado: ${STATUS_LABELS[b.order_status]||b.order_status}.`);return responder({pedido:p})}
+    return responder({erro:"Rota administrativa nao encontrada."},404);
   }
-  await gravarPedido(env, pedido);
-  return pedido;
-}
-
-async function consultarMercadoPago(env, paymentId) {
-  const mp = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
-    headers: { Authorization: `Bearer ${env.MP_ACCESS_TOKEN}` }
-  });
-  const data = await mp.json();
-  return { ok: mp.ok, status: mp.status, data };
-}
-
-async function listarPedidos(env) {
-  const lista = await env.ORDERS_KV.list({ prefix: "order:", limit: 1000 });
-  const pedidos = [];
-  for (const chave of lista.keys) {
-    const pedido = await env.ORDERS_KV.get(chave.name, "json");
-    if (pedido) pedidos.push(pedido);
-  }
-  pedidos.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
-  return pedidos;
-}
-
-export default {
-  async fetch(request, env) {
-    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
-    const url = new URL(request.url);
-
-    if (request.method === "GET" && url.pathname === "/") {
-      return responder({
-        status: "online",
-        servico: "Pix e Painel de Pedidos - Espetinho Perus",
-        mercado_pago: Boolean(env.MP_ACCESS_TOKEN),
-        pedidos_kv: Boolean(env.ORDERS_KV),
-        admin: Boolean(env.ADMIN_KEY)
-      });
-    }
-
-    if (url.pathname.startsWith("/admin/")) {
-      if (!adminAutorizado(request, env)) return responder({ erro: "Senha administrativa invalida." }, 401);
-      if (!env.ORDERS_KV) return responder({ erro: "ORDERS_KV nao configurado." }, 500);
-
-      if (request.method === "GET" && url.pathname === "/admin/orders") {
-        return responder({ pedidos: await listarPedidos(env) });
-      }
-
-      const match = url.pathname.match(/^\/admin\/orders\/([^/]+)$/);
-      if (request.method === "PATCH" && match) {
-        const orderId = decodeURIComponent(match[1]);
-        const pedido = await buscarPedido(env, orderId);
-        if (!pedido) return responder({ erro: "Pedido nao encontrado." }, 404);
-        const body = await request.json();
-        const permitidos = ["recebido", "em_preparo", "saiu_entrega", "finalizado", "cancelado"];
-        if (!permitidos.includes(body.order_status)) return responder({ erro: "Status invalido." }, 400);
-        pedido.order_status = body.order_status;
-        pedido.status_history = Array.isArray(pedido.status_history) ? pedido.status_history : [];
-        pedido.status_history.push({ status: body.order_status, at: new Date().toISOString() });
-        await gravarPedido(env, pedido);
-        return responder({ pedido });
-      }
-      return responder({ erro: "Rota administrativa nao encontrada." }, 404);
-    }
-
-    if (!env.MP_ACCESS_TOKEN) return responder({ erro: "MP_ACCESS_TOKEN nao configurado." }, 500);
-
-    if (request.method === "GET" && url.pathname === "/pagamento-status") {
-      const id = url.searchParams.get("id");
-      if (!id || !/^\d+$/.test(id)) return responder({ erro: "ID de pagamento invalido." }, 400);
-      const consulta = await consultarMercadoPago(env, id);
-      if (!consulta.ok) return responder({ erro: "Nao foi possivel consultar o pagamento.", detalhes: consulta.data }, consulta.status);
-      const pedido = await sincronizarPagamento(env, consulta.data);
-      return responder({
-        id: consulta.data.id,
-        status: consulta.data.status,
-        status_detail: consulta.data.status_detail,
-        pedido: pedido ? { order_id: pedido.order_id, order_status: pedido.order_status } : null
-      });
-    }
-
-    if (request.method === "POST" && url.pathname === "/webhook-mercado-pago") {
-      try {
-        const body = await request.json().catch(() => ({}));
-        const id = body?.data?.id || url.searchParams.get("data.id") || url.searchParams.get("id");
-        if (id && /^\d+$/.test(String(id))) {
-          const consulta = await consultarMercadoPago(env, String(id));
-          if (consulta.ok) await sincronizarPagamento(env, consulta.data);
-        }
-      } catch (erro) {
-        console.error("Webhook Mercado Pago:", erro);
-      }
-      return responder({ recebido: true });
-    }
-
-    if (request.method !== "POST" || url.pathname !== "/criar-pix") {
-      return responder({ erro: "Rota nao encontrada." }, 404);
-    }
-
-    try {
-      if (!env.ORDERS_KV) return responder({ erro: "ORDERS_KV nao configurado." }, 500);
-      const entrada = await request.json();
-      if (!Array.isArray(entrada.items) || entrada.items.length === 0) return responder({ erro: "O carrinho esta vazio." }, 400);
-
-      const email = texto(entrada.customer?.email || entrada.email, 150).toLowerCase();
-      if (!emailValido(email)) return responder({ erro: "Informe um e-mail valido para gerar o Pix." }, 400);
-
-      let total = 0;
-      const itens = entrada.items.map((item, index) => {
-        const nome = texto(item.name || item.nome || item.title, 150);
-        const quantidade = Number(item.quantity || item.quantidade);
-        if (!Object.prototype.hasOwnProperty.call(PRECOS, nome)) throw new Error(`Produto nao reconhecido na posicao ${index + 1}: ${nome || "sem nome"}`);
-        if (!Number.isInteger(quantidade) || quantidade < 1 || quantidade > 50) throw new Error(`Quantidade invalida para ${nome}.`);
-        const unit_price = PRECOS[nome];
-        total += unit_price * quantidade;
-        return { name: nome, quantity: quantidade, unit_price, subtotal: Math.round(unit_price * quantidade * 100) / 100 };
-      });
-      total = Math.round(total * 100) / 100;
-
-      const numeroPedido = texto(entrada.order_id || entrada.numero_pedido, 100) || `EP-${Date.now()}`;
-      const nomeCliente = texto(entrada.customer?.name || entrada.nome || "Cliente", 100);
-      const agora = new Date().toISOString();
-      let pedido = {
-        order_id: numeroPedido,
-        created_at: agora,
-        updated_at: agora,
-        customer: {
-          name: nomeCliente,
-          email,
-          phone: texto(entrada.customer?.phone, 30),
-          fulfillment: texto(entrada.customer?.fulfillment, 50),
-          address: texto(entrada.customer?.address, 500),
-          notes: texto(entrada.customer?.notes, 500)
-        },
-        items: itens,
-        total,
-        payment_id: null,
-        payment_status: "creating",
-        payment_status_detail: "",
-        order_status: "aguardando_pagamento",
-        paid_at: null,
-        status_history: [{ status: "aguardando_pagamento", at: agora }]
-      };
-      await gravarPedido(env, pedido);
-
-      const pagamento = {
-        transaction_amount: total,
-        description: `Pedido ${numeroPedido} - Espetinho Perus`,
-        payment_method_id: "pix",
-        external_reference: numeroPedido,
-        notification_url: `${url.origin}/webhook-mercado-pago`,
-        payer: {
-          email,
-          first_name: nomeCliente.split(/\s+/)[0] || "Cliente",
-          last_name: nomeCliente.split(/\s+/).slice(1).join(" ") || "Espetinho Perus"
-        },
-        additional_info: {
-          items: itens.map((item, index) => ({ id: String(index + 1), title: item.name, quantity: item.quantity, unit_price: item.unit_price }))
-        },
-        metadata: {
-          numero_pedido: numeroPedido,
-          cliente: nomeCliente,
-          telefone: pedido.customer.phone,
-          recebimento: pedido.customer.fulfillment,
-          endereco: pedido.customer.address,
-          observacoes: pedido.customer.notes
-        }
-      };
-
-      const respostaMP = await fetch("https://api.mercadopago.com/v1/payments", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${env.MP_ACCESS_TOKEN}`,
-          "Content-Type": "application/json",
-          "X-Idempotency-Key": crypto.randomUUID()
-        },
-        body: JSON.stringify(pagamento)
-      });
-      const resultado = await respostaMP.json();
-      if (!respostaMP.ok) {
-        pedido.payment_status = "error";
-        pedido.payment_status_detail = texto(resultado?.message || resultado?.error || "Mercado Pago recusou", 200);
-        await gravarPedido(env, pedido);
-        console.error("Mercado Pago:", resultado);
-        return responder({ erro: "O Mercado Pago recusou a criacao do Pix.", detalhes: resultado }, respostaMP.status);
-      }
-
-      pedido.payment_id = String(resultado.id);
-      pedido.payment_status = texto(resultado.status, 50);
-      pedido.payment_status_detail = texto(resultado.status_detail, 100);
-      await gravarPedido(env, pedido);
-
-      const dadosPix = resultado.point_of_interaction?.transaction_data || {};
-      if (!dadosPix.qr_code || !dadosPix.qr_code_base64) return responder({ erro: "O Mercado Pago nao retornou o QR Code Pix.", detalhes: resultado }, 502);
-
-      return responder({
-        payment_id: resultado.id,
-        numero_pedido: numeroPedido,
-        status: resultado.status,
-        total,
-        qr_code: dadosPix.qr_code,
-        qr_code_base64: dadosPix.qr_code_base64,
-        ticket_url: dadosPix.ticket_url || null,
-        resumo: itens.map(i => `${i.quantity}x ${i.name}`).join(", ")
-      }, 201);
-    } catch (erro) {
-      console.error(erro);
-      return responder({ erro: "Erro ao criar o Pix.", detalhes: erro instanceof Error ? erro.message : String(erro) }, 500);
-    }
-  }
-};
+  if(!env.MP_ACCESS_TOKEN)return responder({erro:"MP_ACCESS_TOKEN nao configurado."},500);
+  if(request.method==="GET"&&url.pathname==="/pagamento-status"){const id=url.searchParams.get("id");if(!id||!/^\d+$/.test(id))return responder({erro:"ID de pagamento invalido."},400);const c=await consultarMercadoPago(env,id);if(!c.ok)return responder({erro:"Nao foi possivel consultar o pagamento.",detalhes:c.data},c.status);const p=await sincronizarPagamento(env,c.data);return responder({id:c.data.id,status:c.data.status,status_detail:c.data.status_detail,pedido:p?{order_id:p.order_id,order_status:p.order_status,tracking_token:p.tracking_token}:null})}
+  if(request.method==="POST"&&url.pathname==="/webhook-mercado-pago"){try{const b=await request.json().catch(()=>({}));const id=b?.data?.id||url.searchParams.get("data.id")||url.searchParams.get("id");if(id&&/^\d+$/.test(String(id))){const c=await consultarMercadoPago(env,String(id));if(c.ok)await sincronizarPagamento(env,c.data)}}catch(e){console.error(e)}return responder({recebido:true})}
+  if(request.method!=="POST"||url.pathname!=="/criar-pix")return responder({erro:"Rota nao encontrada."},404);
+  try{if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);const entrada=await request.json();if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);const email=texto(entrada.customer?.email||entrada.email,150).toLowerCase();if(!emailValido(email))return responder({erro:"Informe um e-mail valido para gerar o Pix."},400);
+    let total=0;const itens=entrada.items.map((item,index)=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!Object.prototype.hasOwnProperty.call(PRECOS,nome))throw new Error(`Produto nao reconhecido: ${nome}`);if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const unit_price=PRECOS[nome];total+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100}});total=Math.round(total*100)/100;
+    const orderId=texto(entrada.order_id||entrada.numero_pedido,100)||`EP-${Date.now()}`, nome=texto(entrada.customer?.name||entrada.nome||"Cliente",100), agora=new Date().toISOString();let p={order_id:orderId,tracking_token:crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16),site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),notes:texto(entrada.customer?.notes,500)},items:itens,total,payment_id:null,payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};await gravarPedido(env,p);
+    const pay={transaction_amount:total,description:`Pedido ${orderId} - Espetinho Perus`,payment_method_id:"pix",external_reference:orderId,notification_url:`${url.origin}/webhook-mercado-pago`,payer:{email,first_name:nome.split(/\s+/)[0]||"Cliente",last_name:nome.split(/\s+/).slice(1).join(" ")||"Espetinho Perus"},additional_info:{items:itens.map((i,j)=>({id:String(j+1),title:i.name,quantity:i.quantity,unit_price:i.unit_price}))},metadata:{numero_pedido:orderId,cliente:nome,telefone:p.customer.phone,recebimento:p.customer.fulfillment,endereco:p.customer.address,observacoes:p.customer.notes}};
+    const r=await fetch("https://api.mercadopago.com/v1/payments",{method:"POST",headers:{Authorization:`Bearer ${env.MP_ACCESS_TOKEN}`,"Content-Type":"application/json","X-Idempotency-Key":crypto.randomUUID()},body:JSON.stringify(pay)}),d=await r.json();if(!r.ok){p.payment_status="error";p.payment_status_detail=texto(d?.message||d?.error,200);await gravarPedido(env,p);return responder({erro:"O Mercado Pago recusou a criacao do Pix.",detalhes:d},r.status)}p.payment_id=String(d.id);p.payment_status=texto(d.status,50);p.payment_status_detail=texto(d.status_detail,100);await gravarPedido(env,p);const pix=d.point_of_interaction?.transaction_data||{};if(!pix.qr_code||!pix.qr_code_base64)return responder({erro:"O Mercado Pago nao retornou o QR Code Pix."},502);return responder({payment_id:d.id,numero_pedido:orderId,tracking_token:p.tracking_token,status:d.status,total,qr_code:pix.qr_code,qr_code_base64:pix.qr_code_base64,ticket_url:pix.ticket_url||null,resumo:itens.map(i=>`${i.quantity}x ${i.name}`).join(", ")},201);
+  }catch(e){console.error(e);return responder({erro:"Erro ao criar o Pix.",detalhes:e instanceof Error?e.message:String(e)},500)}
+} };
