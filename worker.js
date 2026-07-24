@@ -83,14 +83,38 @@ async function gravarPedido(env, pedido) {
 async function buscarPedido(env, id) { return env.ORDERS_KV?.get(`order:${id}`, "json"); }
 async function pedidoPorToken(env, token) { const id=await env.ORDERS_KV?.get(`tracking:${token}`); return id ? buscarPedido(env,id) : null; }
 function pedidoPublico(p) { return { order_id:p.order_id, created_at:p.created_at, updated_at:p.updated_at, paid_at:p.paid_at, customer:{name:p.customer?.name,fulfillment:p.customer?.fulfillment,address:p.customer?.address}, items:p.items, total:p.total, payment_status:p.payment_status, order_status:p.order_status, status_history:p.status_history||[], estimated_minutes:p.estimated_minutes||25 }; }
-async function consultarMercadoPago(env,id) { const r=await fetch(`https://api.mercadopago.com/v1/payments/${id}`,{headers:{Authorization:`Bearer ${env.MP_ACCESS_TOKEN}`}}); return {ok:r.ok,status:r.status,data:await r.json()}; }
+async function consultarMisticPay(env,id) {
+  const r=await fetch("https://api.misticpay.com/api/transactions/check",{
+    method:"POST",
+    headers:{ci:env.MISTICPAY_CI||"",cs:env.MISTICPAY_CS||"","Content-Type":"application/json"},
+    body:JSON.stringify({transactionId:id})
+  });
+  return {ok:r.ok,status:r.status,data:await r.json().catch(()=>({}))};
+}
 async function listarPedidos(env) { const l=await env.ORDERS_KV.list({prefix:"order:",limit:1000}), a=[]; for(const k of l.keys){const p=await env.ORDERS_KV.get(k.name,"json");if(p)a.push(p)} return a.sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))); }
-async function sincronizarPagamento(env,d) {
-  if(!d?.id)return null; let id=await env.ORDERS_KV.get(`payment:${d.id}`); if(!id)id=texto(d.external_reference,100); if(!id)return null;
-  const p=await buscarPedido(env,id); if(!p)return null; const before=p.payment_status;
-  p.payment_id=String(d.id); p.payment_status=texto(d.status,50)||p.payment_status; p.payment_status_detail=texto(d.status_detail,100); p.paid_at=d.date_approved||p.paid_at||null;
-  if(d.status==="approved"&&p.order_status==="aguardando_pagamento"){p.order_status="recebido";p.status_history=p.status_history||[];p.status_history.push({status:"recebido",at:new Date().toISOString()})}
-  await gravarPedido(env,p); if(before!=="approved"&&d.status==="approved") await enviarNotificacoes(env,p,"Pagamento aprovado!","Recebemos seu pedido. Acompanhe o preparo por aqui."); return p;
+async function sincronizarPagamentoMistic(env,d) {
+  const tx=d?.transaction || d?.data || d;
+  const providerId=tx?.transactionId ?? d?.transactionId;
+  if(providerId===undefined||providerId===null)return null;
+  const providerKey=String(providerId);
+  let id=await env.ORDERS_KV.get(`payment:${providerKey}`);
+  if(!id) id=await env.ORDERS_KV.get(`mistic-client:${providerKey}`);
+  if(!id)return null;
+  const p=await buscarPedido(env,id);if(!p)return null;
+  const before=p.payment_status;
+  const state=texto(tx?.transactionState||d?.status,50).toUpperCase();
+  const normalized=state==="COMPLETO"?"approved":state==="FALHA"?"rejected":"pending";
+  p.payment_id=providerKey;
+  p.payment_status=normalized;
+  p.payment_status_detail=state;
+  if(state==="COMPLETO")p.paid_at=p.paid_at||new Date().toISOString();
+  if(state==="COMPLETO"&&p.order_status==="aguardando_pagamento"){
+    p.order_status="recebido";p.status_history=p.status_history||[];
+    p.status_history.push({status:"recebido",at:new Date().toISOString()});
+  }
+  await gravarPedido(env,p);
+  if(before!=="approved"&&state==="COMPLETO") await enviarNotificacoes(env,p,"Pagamento aprovado!","Recebemos seu pedido. Acompanhe o preparo por aqui.");
+  return p;
 }
 async function hmac(key,data) { const k=await crypto.subtle.importKey("raw",key,{name:"HMAC",hash:"SHA-256"},false,["sign"]); return new Uint8Array(await crypto.subtle.sign("HMAC",k,data)); }
 async function hkdfExtract(salt,ikm) { return hmac(salt,ikm); }
@@ -129,7 +153,7 @@ async function enviarNotificacoes(env,p,title,body,requireInteraction=false) {
 
 export default { async fetch(request,env) {
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:CORS}); const url=new URL(request.url);
-  if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",servico:"Pix, acompanhamento e notificacoes - Espetinho Perus",mercado_pago:Boolean(env.MP_ACCESS_TOKEN),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY)});
+  if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY)});
   if(request.method==="GET"&&url.pathname==="/vapid-public-key")return responder({publicKey:env.VAPID_PUBLIC_KEY||""});
   if(request.method==="GET"&&url.pathname==="/pedido-status"){const token=texto(url.searchParams.get("token"),200);const p=await pedidoPorToken(env,token);return p?responder({pedido:pedidoPublico(p)}):responder({erro:"Pedido nao encontrado."},404)}
   if(request.method==="POST"&&url.pathname==="/pedido-subscribe"){
@@ -150,14 +174,46 @@ export default { async fetch(request,env) {
     const m=url.pathname.match(/^\/admin\/orders\/([^/]+)$/);if(request.method==="PATCH"&&m){const p=await buscarPedido(env,decodeURIComponent(m[1]));if(!p)return responder({erro:"Pedido nao encontrado."},404);const b=await request.json();const ok=["recebido","em_preparo","pronto_retirada","saiu_entrega","finalizado","cancelado"];if(!ok.includes(b.order_status))return responder({erro:"Status invalido."},400);p.order_status=b.order_status;p.estimated_minutes=Number.isFinite(Number(b.estimated_minutes))?Math.max(0,Math.min(240,Number(b.estimated_minutes))):(p.estimated_minutes||25);p.status_history=p.status_history||[];p.status_history.push({status:b.order_status,at:new Date().toISOString()});await gravarPedido(env,p);await enviarNotificacoes(env,p,STATUS_LABELS[b.order_status]||"Atualizacao do pedido", b.order_status==="pronto_retirada"?"Seu pedido está pronto para retirada.":b.order_status==="saiu_entrega"?"Seu pedido está a caminho.":`Status atualizado: ${STATUS_LABELS[b.order_status]||b.order_status}.`);return responder({pedido:p})}
     return responder({erro:"Rota administrativa nao encontrada."},404);
   }
-  if(!env.MP_ACCESS_TOKEN)return responder({erro:"MP_ACCESS_TOKEN nao configurado."},500);
-  if(request.method==="GET"&&url.pathname==="/pagamento-status"){const id=url.searchParams.get("id");if(!id||!/^\d+$/.test(id))return responder({erro:"ID de pagamento invalido."},400);const c=await consultarMercadoPago(env,id);if(!c.ok)return responder({erro:"Nao foi possivel consultar o pagamento.",detalhes:c.data},c.status);const p=await sincronizarPagamento(env,c.data);return responder({id:c.data.id,status:c.data.status,status_detail:c.data.status_detail,pedido:p?{order_id:p.order_id,order_status:p.order_status,tracking_token:p.tracking_token}:null})}
-  if(request.method==="POST"&&url.pathname==="/webhook-mercado-pago"){try{const b=await request.json().catch(()=>({}));const id=b?.data?.id||url.searchParams.get("data.id")||url.searchParams.get("id");if(id&&/^\d+$/.test(String(id))){const c=await consultarMercadoPago(env,String(id));if(c.ok)await sincronizarPagamento(env,c.data)}}catch(e){console.error(e)}return responder({recebido:true})}
+  if(!env.MISTICPAY_CI||!env.MISTICPAY_CS)return responder({erro:"MISTICPAY_CI ou MISTICPAY_CS nao configurado."},500);
+  if(request.method==="GET"&&url.pathname==="/pagamento-status"){
+    const id=texto(url.searchParams.get("id"),100);if(!id)return responder({erro:"ID de pagamento invalido."},400);
+    const c=await consultarMisticPay(env,id);if(!c.ok)return responder({erro:"Nao foi possivel consultar o pagamento na MisticPay.",detalhes:c.data},c.status);
+    const p=await sincronizarPagamentoMistic(env,c.data);
+    const tx=c.data?.transaction||c.data?.data||{};const state=texto(tx.transactionState||c.data?.status,50).toUpperCase();
+    const normalized=state==="COMPLETO"?"approved":state==="FALHA"?"rejected":"pending";
+    return responder({id,status:normalized,status_detail:state,pedido:p?{order_id:p.order_id,order_status:p.order_status,tracking_token:p.tracking_token}:null});
+  }
+  if(request.method==="POST"&&url.pathname==="/webhook-misticpay"){
+    try{const b=await request.json().catch(()=>({}));await sincronizarPagamentoMistic(env,b)}catch(e){console.error("webhook misticpay",e)}
+    return responder({recebido:true});
+  }
   if(request.method!=="POST"||url.pathname!=="/criar-pix")return responder({erro:"Rota nao encontrada."},404);
-  try{if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);const entrada=await request.json();if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);const email=texto(entrada.customer?.email||entrada.email,150).toLowerCase();if(!emailValido(email))return responder({erro:"Informe um e-mail valido para gerar o Pix."},400);
-    let total=0;const itens=entrada.items.map((item,index)=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!Object.prototype.hasOwnProperty.call(PRECOS,nome))throw new Error(`Produto nao reconhecido: ${nome}`);if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const unit_price=PRECOS[nome];total+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100}});total=Math.round(total*100)/100;
-    const orderId=texto(entrada.order_id||entrada.numero_pedido,100)||`EP-${Date.now()}`, nome=texto(entrada.customer?.name||entrada.nome||"Cliente",100), agora=new Date().toISOString();let p={order_id:orderId,tracking_token:crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16),site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),notes:texto(entrada.customer?.notes,500)},items:itens,total,payment_id:null,payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};await gravarPedido(env,p);
-    const pay={transaction_amount:total,description:`Pedido ${orderId} - Espetinho Perus`,payment_method_id:"pix",external_reference:orderId,notification_url:`${url.origin}/webhook-mercado-pago`,payer:{email,first_name:nome.split(/\s+/)[0]||"Cliente",last_name:nome.split(/\s+/).slice(1).join(" ")||"Espetinho Perus"},additional_info:{items:itens.map((i,j)=>({id:String(j+1),title:i.name,quantity:i.quantity,unit_price:i.unit_price}))},metadata:{numero_pedido:orderId,cliente:nome,telefone:p.customer.phone,recebimento:p.customer.fulfillment,endereco:p.customer.address,observacoes:p.customer.notes}};
-    const r=await fetch("https://api.mercadopago.com/v1/payments",{method:"POST",headers:{Authorization:`Bearer ${env.MP_ACCESS_TOKEN}`,"Content-Type":"application/json","X-Idempotency-Key":crypto.randomUUID()},body:JSON.stringify(pay)}),d=await r.json();if(!r.ok){p.payment_status="error";p.payment_status_detail=texto(d?.message||d?.error,200);await gravarPedido(env,p);return responder({erro:"O Mercado Pago recusou a criacao do Pix.",detalhes:d},r.status)}p.payment_id=String(d.id);p.payment_status=texto(d.status,50);p.payment_status_detail=texto(d.status_detail,100);await gravarPedido(env,p);const pix=d.point_of_interaction?.transaction_data||{};if(!pix.qr_code||!pix.qr_code_base64)return responder({erro:"O Mercado Pago nao retornou o QR Code Pix."},502);return responder({payment_id:d.id,numero_pedido:orderId,tracking_token:p.tracking_token,status:d.status,total,qr_code:pix.qr_code,qr_code_base64:pix.qr_code_base64,ticket_url:pix.ticket_url||null,resumo:itens.map(i=>`${i.quantity}x ${i.name}`).join(", ")},201);
-  }catch(e){console.error(e);return responder({erro:"Erro ao criar o Pix.",detalhes:e instanceof Error?e.message:String(e)},500)}
+  try{
+    if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);
+    const entrada=await request.json();
+    if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);
+    const email=texto(entrada.customer?.email||entrada.email,150).toLowerCase();
+    if(email&&!emailValido(email))return responder({erro:"Informe um e-mail valido."},400);
+    let total=0;
+    const itens=entrada.items.map((item)=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!Object.prototype.hasOwnProperty.call(PRECOS,nome))throw new Error(`Produto nao reconhecido: ${nome}`);if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const unit_price=PRECOS[nome];total+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100}});
+    total=Math.round(total*100)/100;
+    const orderId=texto(entrada.order_id||entrada.numero_pedido,100)||`EP-${Date.now()}`;
+    const nome=texto(entrada.customer?.name||entrada.nome||"Cliente",100)||"Cliente";
+    const agora=new Date().toISOString();
+    let p={order_id:orderId,tracking_token:crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16),site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),notes:texto(entrada.customer?.notes,500)},items:itens,total,payment_provider:"misticpay",payment_id:null,payment_status:"pending",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};
+    await gravarPedido(env,p);
+    const documento=texto(entrada.customer?.document||entrada.customer?.cpf||entrada.cpf||env.MISTICPAY_PAYER_DOCUMENT,30).replace(/\D/g,"");
+    const pay={amount:total,payerName:nome,transactionId:orderId,description:`Pedido ${orderId} - Espetinho Perus`,projectWebhook:`${url.origin}/webhook-misticpay`};
+    if(documento)pay.payerDocument=documento;
+    const r=await fetch("https://api.misticpay.com/api/transactions/create",{method:"POST",headers:{ci:env.MISTICPAY_CI,cs:env.MISTICPAY_CS,"Content-Type":"application/json"},body:JSON.stringify(pay)});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){p.payment_status="error";p.payment_status_detail=texto(d?.message||d?.error||JSON.stringify(d),300);await gravarPedido(env,p);return responder({erro:"A MisticPay recusou a criacao do Pix.",detalhes:d,cpf_enviado:Boolean(documento)},r.status)}
+    const tx=d?.data||d;const providerId=tx?.transactionId;
+    if(providerId===undefined||providerId===null)return responder({erro:"A MisticPay nao retornou o ID da transacao.",detalhes:d},502);
+    p.payment_id=String(providerId);const initialState=texto(tx.transactionState||"PENDENTE",50).toUpperCase();p.payment_status=initialState==="COMPLETO"?"approved":initialState==="FALHA"?"rejected":"pending";p.payment_status_detail=initialState;
+    await gravarPedido(env,p);await env.ORDERS_KV.put(`mistic-client:${orderId}`,orderId);
+    const copyPaste=texto(tx.copyPaste,10000);let qrBase64=texto(tx.qrCodeBase64,2000000);if(qrBase64.startsWith("data:"))qrBase64=qrBase64.split(",",2)[1]||"";
+    if(!copyPaste&&!qrBase64&&!tx.qrcodeUrl)return responder({erro:"A MisticPay nao retornou os dados do QR Code Pix.",detalhes:d},502);
+    return responder({payment_id:providerId,numero_pedido:orderId,tracking_token:p.tracking_token,status:p.payment_status,total,qr_code:copyPaste,qr_code_base64:qrBase64,ticket_url:tx.qrcodeUrl||null,resumo:itens.map(i=>`${i.quantity}x ${i.name}`).join(", "),provider:"misticpay"},201);
+  }catch(e){console.error(e);return responder({erro:"Erro ao criar o Pix pela MisticPay.",detalhes:e instanceof Error?e.message:String(e)},500)}
 } };
