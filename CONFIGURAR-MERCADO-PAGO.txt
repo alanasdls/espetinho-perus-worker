@@ -1,0 +1,25 @@
+MERCADO PAGO + CLOUDFLARE WORKER — ESPETINHO PERUS
+
+WORKER JÁ CONFIGURADO NO SITE:
+https://summer-field-09b7.alanasdls.workers.dev/criar-pagamento
+
+1. Abra o Worker summer-field-09b7 na Cloudflare.
+2. Clique em Edit code.
+3. Apague todo o código atual (Ctrl+A e Delete).
+4. Abra o arquivo worker.js deste pacote no Bloco de Notas.
+5. Copie todo o conteúdo do Bloco de Notas e cole no editor da Cloudflare.
+6. Clique em Deploy.
+7. Abra https://summer-field-09b7.alanasdls.workers.dev
+   Deve aparecer: status online / Mercado Pago - Espetinho Perus.
+8. Publique a pasta espetinho-perus-site no seu projeto estático da Cloudflare.
+9. Faça um pedido pequeno e teste o botão Pagar online com Mercado Pago.
+
+SEGURANÇA:
+- O Access Token NÃO está dentro do ZIP.
+- Ele permanece salvo como Secret MP_ACCESS_TOKEN no Worker.
+- O Worker valida os nomes e preços dos 132 produtos no servidor.
+- Como o token apareceu em fotos, troque-o depois do teste real.
+
+OBSERVAÇÃO:
+- Checkout Pro aceita as formas de pagamento disponíveis na sua conta Mercado Pago.
+- A Public Key não é necessária para esta integração por redirecionamento.
