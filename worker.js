@@ -111,10 +111,20 @@ async function push(env, sub, payload) {
   const rs=new Uint8Array([0,0,16,0]); const body=concat(salt,rs,new Uint8Array([asPub.length]),asPub,cipher); const jwt=await vapidJwt(env,sub.endpoint);
   return fetch(sub.endpoint,{method:"POST",headers:{"Content-Encoding":"aes128gcm","Content-Type":"application/octet-stream","TTL":"86400","Authorization":`vapid t=${jwt}, k=${env.VAPID_PUBLIC_KEY}`},body});
 }
-async function enviarNotificacoes(env,p,title,body) {
-  if(!env.VAPID_PUBLIC_KEY||!env.VAPID_PRIVATE_KEY)return; const subs=Array.isArray(p.push_subscriptions)?p.push_subscriptions:[]; const valid=[];
-  for(const s of subs){try{const r=await push(env,s,{title,body,tag:p.order_id,url:`${p.site_url||"https://geradorlipejb.com"}/pedido.html?token=${encodeURIComponent(p.tracking_token)}`,icon:`${p.site_url||"https://geradorlipejb.com"}/icon-192.png`});if(r.status!==404&&r.status!==410)valid.push(s)}catch(e){console.error("push",e)}}
+async function enviarNotificacoes(env,p,title,body,requireInteraction=false) {
+  if(!env.VAPID_PUBLIC_KEY||!env.VAPID_PRIVATE_KEY) return {sent:0,failed:0,results:[],config_error:"VAPID nao configurado"};
+  const subs=Array.isArray(p.push_subscriptions)?p.push_subscriptions:[], valid=[], results=[];
+  let sent=0, failed=0;
+  for(const s of subs){
+    try{
+      const r=await push(env,s,{title,body,tag:p.order_id,url:`${p.site_url||"https://geradorlipejb.com"}/pedido.html?token=${encodeURIComponent(p.tracking_token)}`,icon:`${p.site_url||"https://geradorlipejb.com"}/icon-192.png`,requireInteraction});
+      const responseText=await r.text().catch(()=>"");
+      results.push({status:r.status,ok:r.ok,body:responseText.slice(0,300)});
+      if(r.ok){sent++;valid.push(s)} else {failed++;if(r.status!==404&&r.status!==410)valid.push(s)}
+    }catch(e){failed++;results.push({status:0,ok:false,body:e instanceof Error?e.message:String(e)});console.error("push",e)}
+  }
   p.push_subscriptions=valid; await gravarPedido(env,p);
+  return {sent,failed,results};
 }
 
 export default { async fetch(request,env) {
@@ -122,10 +132,21 @@ export default { async fetch(request,env) {
   if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",servico:"Pix, acompanhamento e notificacoes - Espetinho Perus",mercado_pago:Boolean(env.MP_ACCESS_TOKEN),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY)});
   if(request.method==="GET"&&url.pathname==="/vapid-public-key")return responder({publicKey:env.VAPID_PUBLIC_KEY||""});
   if(request.method==="GET"&&url.pathname==="/pedido-status"){const token=texto(url.searchParams.get("token"),200);const p=await pedidoPorToken(env,token);return p?responder({pedido:pedidoPublico(p)}):responder({erro:"Pedido nao encontrado."},404)}
-  if(request.method==="POST"&&url.pathname==="/pedido-subscribe"){const b=await request.json();const p=await pedidoPorToken(env,texto(b.token,200));if(!p)return responder({erro:"Pedido nao encontrado."},404);if(!b.subscription?.endpoint)return responder({erro:"Assinatura invalida."},400);p.push_subscriptions=Array.isArray(p.push_subscriptions)?p.push_subscriptions:[];p.push_subscriptions=p.push_subscriptions.filter(s=>s.endpoint!==b.subscription.endpoint);p.push_subscriptions.push(b.subscription);await gravarPedido(env,p);return responder({ok:true})}
+  if(request.method==="POST"&&url.pathname==="/pedido-subscribe"){
+    const b=await request.json();const p=await pedidoPorToken(env,texto(b.token,200));
+    if(!p)return responder({erro:"Pedido nao encontrado."},404);
+    if(!b.subscription?.endpoint||!b.subscription?.keys?.p256dh||!b.subscription?.keys?.auth)return responder({erro:"Assinatura invalida ou incompleta."},400);
+    p.push_subscriptions=Array.isArray(p.push_subscriptions)?p.push_subscriptions:[];
+    p.push_subscriptions=p.push_subscriptions.filter(s=>s.endpoint!==b.subscription.endpoint);p.push_subscriptions.push(b.subscription);await gravarPedido(env,p);
+    let test={sent:0,failed:0,results:[]};
+    if(b.test) test=await enviarNotificacoes(env,p,"Notificacoes ativadas!","Voce recebera aqui as atualizacoes do seu pedido.");
+    if(b.test&&test.sent<1)return responder({erro:"A assinatura foi salva, mas o navegador recusou a notificacao de teste.",detalhes:test.results},502);
+    return responder({ok:true,test_sent:test.sent>0,diagnostico:test});
+  }
   if(url.pathname.startsWith("/admin/")){
     if(!adminAutorizado(request,env))return responder({erro:"Senha administrativa invalida."},401);if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);
     if(request.method==="GET"&&url.pathname==="/admin/orders")return responder({pedidos:await listarPedidos(env)});
+    if(request.method==="POST"&&url.pathname==="/admin/test-push"){const b=await request.json();const p=await pedidoPorToken(env,texto(b.token,200));if(!p)return responder({erro:"Pedido nao encontrado."},404);const test=await enviarNotificacoes(env,p,"Teste Espetinho Perus","A notificacao do cliente esta funcionando.");return responder({ok:test.sent>0,...test},test.sent>0?200:502)}
     const m=url.pathname.match(/^\/admin\/orders\/([^/]+)$/);if(request.method==="PATCH"&&m){const p=await buscarPedido(env,decodeURIComponent(m[1]));if(!p)return responder({erro:"Pedido nao encontrado."},404);const b=await request.json();const ok=["recebido","em_preparo","pronto_retirada","saiu_entrega","finalizado","cancelado"];if(!ok.includes(b.order_status))return responder({erro:"Status invalido."},400);p.order_status=b.order_status;p.estimated_minutes=Number.isFinite(Number(b.estimated_minutes))?Math.max(0,Math.min(240,Number(b.estimated_minutes))):(p.estimated_minutes||25);p.status_history=p.status_history||[];p.status_history.push({status:b.order_status,at:new Date().toISOString()});await gravarPedido(env,p);await enviarNotificacoes(env,p,STATUS_LABELS[b.order_status]||"Atualizacao do pedido", b.order_status==="pronto_retirada"?"Seu pedido está pronto para retirada.":b.order_status==="saiu_entrega"?"Seu pedido está a caminho.":`Status atualizado: ${STATUS_LABELS[b.order_status]||b.order_status}.`);return responder({pedido:p})}
     return responder({erro:"Rota administrativa nao encontrada."},404);
   }
