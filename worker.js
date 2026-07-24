@@ -83,14 +83,45 @@ async function gravarPedido(env, pedido) {
 async function buscarPedido(env, id) { return env.ORDERS_KV?.get(`order:${id}`, "json"); }
 async function pedidoPorToken(env, token) { const id=await env.ORDERS_KV?.get(`tracking:${token}`); return id ? buscarPedido(env,id) : null; }
 function pedidoPublico(p) { return { order_id:p.order_id, created_at:p.created_at, updated_at:p.updated_at, paid_at:p.paid_at, customer:{name:p.customer?.name,fulfillment:p.customer?.fulfillment,address:p.customer?.address}, items:p.items, total:p.total, payment_status:p.payment_status, order_status:p.order_status, status_history:p.status_history||[], estimated_minutes:p.estimated_minutes||25 }; }
-async function consultarMercadoPago(env,id) { const r=await fetch(`https://api.mercadopago.com/v1/payments/${id}`,{headers:{Authorization:`Bearer ${env.MP_ACCESS_TOKEN}`}}); return {ok:r.ok,status:r.status,data:await r.json()}; }
+function statusMisticParaSite(status) {
+  const s=texto(status,50).toUpperCase();
+  if(s==="COMPLETO") return "approved";
+  if(s==="FALHA"||s==="CANCELADO") return "rejected";
+  return "pending";
+}
+async function consultarMisticPay(env,id) {
+  const r=await fetch("https://api.misticpay.com/api/transactions/check",{
+    method:"POST",
+    headers:{ci:env.MISTICPAY_CI,cs:env.MISTICPAY_CS,"Content-Type":"application/json"},
+    body:JSON.stringify({transactionId:String(id)})
+  });
+  let data={}; try{data=await r.json()}catch{data={erro:"Resposta invalida da MisticPay"}}
+  return {ok:r.ok,status:r.status,data};
+}
 async function listarPedidos(env) { const l=await env.ORDERS_KV.list({prefix:"order:",limit:1000}), a=[]; for(const k of l.keys){const p=await env.ORDERS_KV.get(k.name,"json");if(p)a.push(p)} return a.sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))); }
-async function sincronizarPagamento(env,d) {
-  if(!d?.id)return null; let id=await env.ORDERS_KV.get(`payment:${d.id}`); if(!id)id=texto(d.external_reference,100); if(!id)return null;
-  const p=await buscarPedido(env,id); if(!p)return null; const before=p.payment_status;
-  p.payment_id=String(d.id); p.payment_status=texto(d.status,50)||p.payment_status; p.payment_status_detail=texto(d.status_detail,100); p.paid_at=d.date_approved||p.paid_at||null;
-  if(d.status==="approved"&&p.order_status==="aguardando_pagamento"){p.order_status="recebido";p.status_history=p.status_history||[];p.status_history.push({status:"recebido",at:new Date().toISOString()})}
-  await gravarPedido(env,p); if(before!=="approved"&&d.status==="approved") await enviarNotificacoes(env,p,"Pagamento aprovado!","Recebemos seu pedido. Acompanhe o preparo por aqui."); return p;
+async function sincronizarPagamentoMistic(env,d) {
+  const tx=d?.transaction||d?.data||d;
+  const paymentId=tx?.transactionId??tx?.id;
+  if(paymentId===undefined||paymentId===null)return null;
+  let orderId=await env.ORDERS_KV.get(`payment:${paymentId}`);
+  if(!orderId)orderId=texto(tx?.clientTransactionId||tx?.external_reference,100);
+  if(!orderId)return null;
+  const p=await buscarPedido(env,orderId); if(!p)return null;
+  const novoStatus=statusMisticParaSite(tx?.transactionState||tx?.status);
+  const before=p.payment_status;
+  p.payment_id=String(paymentId);
+  p.payment_provider="misticpay";
+  p.payment_status=novoStatus;
+  p.payment_status_detail=texto(tx?.transactionState||tx?.status,100);
+  if(novoStatus==="approved")p.paid_at=tx?.updatedAt||new Date().toISOString();
+  if(novoStatus==="approved"&&p.order_status==="aguardando_pagamento"){
+    p.order_status="recebido";
+    p.status_history=p.status_history||[];
+    p.status_history.push({status:"recebido",at:new Date().toISOString()});
+  }
+  await gravarPedido(env,p);
+  if(before!=="approved"&&novoStatus==="approved")await enviarNotificacoes(env,p,"Pagamento aprovado!","Recebemos seu pedido. Acompanhe o preparo por aqui.");
+  return p;
 }
 async function hmac(key,data) { const k=await crypto.subtle.importKey("raw",key,{name:"HMAC",hash:"SHA-256"},false,["sign"]); return new Uint8Array(await crypto.subtle.sign("HMAC",k,data)); }
 async function hkdfExtract(salt,ikm) { return hmac(salt,ikm); }
@@ -129,7 +160,7 @@ async function enviarNotificacoes(env,p,title,body,requireInteraction=false) {
 
 export default { async fetch(request,env) {
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:CORS}); const url=new URL(request.url);
-  if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",servico:"Pix, acompanhamento e notificacoes - Espetinho Perus",mercado_pago:Boolean(env.MP_ACCESS_TOKEN),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY)});
+  if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY)});
   if(request.method==="GET"&&url.pathname==="/vapid-public-key")return responder({publicKey:env.VAPID_PUBLIC_KEY||""});
   if(request.method==="GET"&&url.pathname==="/pedido-status"){const token=texto(url.searchParams.get("token"),200);const p=await pedidoPorToken(env,token);return p?responder({pedido:pedidoPublico(p)}):responder({erro:"Pedido nao encontrado."},404)}
   if(request.method==="POST"&&url.pathname==="/pedido-subscribe"){
@@ -146,18 +177,73 @@ export default { async fetch(request,env) {
   if(url.pathname.startsWith("/admin/")){
     if(!adminAutorizado(request,env))return responder({erro:"Senha administrativa invalida."},401);if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);
     if(request.method==="GET"&&url.pathname==="/admin/orders")return responder({pedidos:await listarPedidos(env)});
+    if(request.method==="GET"&&url.pathname==="/admin/misticpay-debug"){
+      const debug=await env.ORDERS_KV.get("debug:misticpay:last","json");
+      return debug?responder({ok:true,debug}):responder({erro:"Nenhum diagnostico da MisticPay foi gravado ainda."},404);
+    }
     if(request.method==="POST"&&url.pathname==="/admin/test-push"){const b=await request.json();const p=await pedidoPorToken(env,texto(b.token,200));if(!p)return responder({erro:"Pedido nao encontrado."},404);const test=await enviarNotificacoes(env,p,"Teste Espetinho Perus","A notificacao do cliente esta funcionando.");return responder({ok:test.sent>0,...test},test.sent>0?200:502)}
     const m=url.pathname.match(/^\/admin\/orders\/([^/]+)$/);if(request.method==="PATCH"&&m){const p=await buscarPedido(env,decodeURIComponent(m[1]));if(!p)return responder({erro:"Pedido nao encontrado."},404);const b=await request.json();const ok=["recebido","em_preparo","pronto_retirada","saiu_entrega","finalizado","cancelado"];if(!ok.includes(b.order_status))return responder({erro:"Status invalido."},400);p.order_status=b.order_status;p.estimated_minutes=Number.isFinite(Number(b.estimated_minutes))?Math.max(0,Math.min(240,Number(b.estimated_minutes))):(p.estimated_minutes||25);p.status_history=p.status_history||[];p.status_history.push({status:b.order_status,at:new Date().toISOString()});await gravarPedido(env,p);await enviarNotificacoes(env,p,STATUS_LABELS[b.order_status]||"Atualizacao do pedido", b.order_status==="pronto_retirada"?"Seu pedido está pronto para retirada.":b.order_status==="saiu_entrega"?"Seu pedido está a caminho.":`Status atualizado: ${STATUS_LABELS[b.order_status]||b.order_status}.`);return responder({pedido:p})}
     return responder({erro:"Rota administrativa nao encontrada."},404);
   }
-  if(!env.MP_ACCESS_TOKEN)return responder({erro:"MP_ACCESS_TOKEN nao configurado."},500);
-  if(request.method==="GET"&&url.pathname==="/pagamento-status"){const id=url.searchParams.get("id");if(!id||!/^\d+$/.test(id))return responder({erro:"ID de pagamento invalido."},400);const c=await consultarMercadoPago(env,id);if(!c.ok)return responder({erro:"Nao foi possivel consultar o pagamento.",detalhes:c.data},c.status);const p=await sincronizarPagamento(env,c.data);return responder({id:c.data.id,status:c.data.status,status_detail:c.data.status_detail,pedido:p?{order_id:p.order_id,order_status:p.order_status,tracking_token:p.tracking_token}:null})}
-  if(request.method==="POST"&&url.pathname==="/webhook-mercado-pago"){try{const b=await request.json().catch(()=>({}));const id=b?.data?.id||url.searchParams.get("data.id")||url.searchParams.get("id");if(id&&/^\d+$/.test(String(id))){const c=await consultarMercadoPago(env,String(id));if(c.ok)await sincronizarPagamento(env,c.data)}}catch(e){console.error(e)}return responder({recebido:true})}
+  if(!env.MISTICPAY_CI||!env.MISTICPAY_CS)return responder({erro:"MISTICPAY_CI ou MISTICPAY_CS nao configurado."},500);
+  if(request.method==="GET"&&url.pathname==="/pagamento-status"){
+    const id=texto(url.searchParams.get("id"),100);if(!id)return responder({erro:"ID de pagamento invalido."},400);
+    const c=await consultarMisticPay(env,id);if(!c.ok)return responder({erro:"Nao foi possivel consultar o pagamento na MisticPay.",detalhes:c.data},c.status);
+    const tx=c.data?.transaction||c.data?.data||c.data;const p=await sincronizarPagamentoMistic(env,c.data);const status=statusMisticParaSite(tx?.transactionState||tx?.status);
+    return responder({id:String(tx?.transactionId??id),status,status_detail:tx?.transactionState||tx?.status||"",pedido:p?{order_id:p.order_id,order_status:p.order_status,tracking_token:p.tracking_token}:null});
+  }
+  if(request.method==="POST"&&url.pathname==="/webhook-misticpay"){
+    try{
+      const b=await request.json().catch(()=>({}));const id=b?.transactionId??b?.data?.transactionId??url.searchParams.get("id");
+      if(id!==undefined&&id!==null){const c=await consultarMisticPay(env,String(id));if(c.ok)await sincronizarPagamentoMistic(env,c.data)}
+    }catch(e){console.error("webhook-misticpay",e)}
+    return responder({recebido:true});
+  }
   if(request.method!=="POST"||url.pathname!=="/criar-pix")return responder({erro:"Rota nao encontrada."},404);
   try{if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);const entrada=await request.json();if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);const email=texto(entrada.customer?.email||entrada.email,150).toLowerCase();if(!emailValido(email))return responder({erro:"Informe um e-mail valido para gerar o Pix."},400);
     let total=0;const itens=entrada.items.map((item,index)=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!Object.prototype.hasOwnProperty.call(PRECOS,nome))throw new Error(`Produto nao reconhecido: ${nome}`);if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const unit_price=PRECOS[nome];total+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100}});total=Math.round(total*100)/100;
     const orderId=texto(entrada.order_id||entrada.numero_pedido,100)||`EP-${Date.now()}`, nome=texto(entrada.customer?.name||entrada.nome||"Cliente",100), agora=new Date().toISOString();let p={order_id:orderId,tracking_token:crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16),site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),notes:texto(entrada.customer?.notes,500)},items:itens,total,payment_id:null,payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};await gravarPedido(env,p);
-    const pay={transaction_amount:total,description:`Pedido ${orderId} - Espetinho Perus`,payment_method_id:"pix",external_reference:orderId,notification_url:`${url.origin}/webhook-mercado-pago`,payer:{email,first_name:nome.split(/\s+/)[0]||"Cliente",last_name:nome.split(/\s+/).slice(1).join(" ")||"Espetinho Perus"},additional_info:{items:itens.map((i,j)=>({id:String(j+1),title:i.name,quantity:i.quantity,unit_price:i.unit_price}))},metadata:{numero_pedido:orderId,cliente:nome,telefone:p.customer.phone,recebimento:p.customer.fulfillment,endereco:p.customer.address,observacoes:p.customer.notes}};
-    const r=await fetch("https://api.mercadopago.com/v1/payments",{method:"POST",headers:{Authorization:`Bearer ${env.MP_ACCESS_TOKEN}`,"Content-Type":"application/json","X-Idempotency-Key":crypto.randomUUID()},body:JSON.stringify(pay)}),d=await r.json();if(!r.ok){p.payment_status="error";p.payment_status_detail=texto(d?.message||d?.error,200);await gravarPedido(env,p);return responder({erro:"O Mercado Pago recusou a criacao do Pix.",detalhes:d},r.status)}p.payment_id=String(d.id);p.payment_status=texto(d.status,50);p.payment_status_detail=texto(d.status_detail,100);await gravarPedido(env,p);const pix=d.point_of_interaction?.transaction_data||{};if(!pix.qr_code||!pix.qr_code_base64)return responder({erro:"O Mercado Pago nao retornou o QR Code Pix."},502);return responder({payment_id:d.id,numero_pedido:orderId,tracking_token:p.tracking_token,status:d.status,total,qr_code:pix.qr_code,qr_code_base64:pix.qr_code_base64,ticket_url:pix.ticket_url||null,resumo:itens.map(i=>`${i.quantity}x ${i.name}`).join(", ")},201);
+    const pay={amount:total,payerName:nome,transactionId:orderId,description:`Pedido ${orderId} - Espetinho Perus`,projectWebhook:`${url.origin}/webhook-misticpay`};
+    const documento=texto(entrada.customer?.document||entrada.customer?.cpf||entrada.payerDocument||env.MISTICPAY_PAYER_DOCUMENT,30).replace(/\D/g,"");
+    if(documento)pay.payerDocument=documento;
+    const r=await fetch("https://api.misticpay.com/api/transactions/create",{method:"POST",headers:{ci:env.MISTICPAY_CI,cs:env.MISTICPAY_CS,"Content-Type":"application/json"},body:JSON.stringify(pay)});
+    let d={};try{d=await r.json()}catch{d={erro:"Resposta invalida da MisticPay"}}
+    const diagnosticoCriacao={
+      registrado_em:new Date().toISOString(),
+      http_status:r.status,
+      http_status_text:r.statusText,
+      endpoint:"https://api.misticpay.com/api/transactions/create",
+      payload_enviado:{...pay,payerDocument:pay.payerDocument?`${pay.payerDocument.slice(0,3)}*****${pay.payerDocument.slice(-2)}`:"nao informado"},
+      resposta_misticpay:d
+    };
+    console.log("MisticPay create resposta",diagnosticoCriacao);
+    await env.ORDERS_KV.put("debug:misticpay:last",JSON.stringify(diagnosticoCriacao),{expirationTtl:86400});
+    if(!r.ok){
+      const mensagemApi=texto(
+        d?.message||d?.error||d?.erro||d?.detail||d?.details||
+        d?.data?.message||d?.data?.error||d?.data?.erro||
+        d?.response?.message||d?.response?.error||
+        (typeof d==="string"?d:JSON.stringify(d)),
+        900
+      )||"Resposta sem mensagem";
+      p.payment_status="error";
+      p.payment_status_detail=`HTTP ${r.status}: ${mensagemApi}`;
+      await gravarPedido(env,p);
+      console.error("MisticPay create recusado",{status:r.status,statusText:r.statusText,resposta:d,payload:{...pay,payerDocument:pay.payerDocument?"[INFORMADO]":undefined}});
+      return responder({
+        erro:`MisticPay recusou o Pix (HTTP ${r.status}): ${mensagemApi}`,
+        codigo_http:r.status,
+        status_http:r.statusText,
+        mensagem_misticpay:mensagemApi,
+        detalhes:d,
+        dados_enviados:{amount:pay.amount,payerName:pay.payerName,transactionId:pay.transactionId,description:pay.description,projectWebhook:pay.projectWebhook,payerDocument:pay.payerDocument?"informado":"nao informado"},
+        teste_sem_cpf:!documento
+      },r.status)
+    }
+    const tx=d?.data||d?.transaction||d;const paymentId=tx?.transactionId??tx?.id;if(paymentId===undefined||paymentId===null){p.payment_status="error";p.payment_status_detail="MisticPay nao retornou transactionId";await gravarPedido(env,p);return responder({erro:"A MisticPay nao retornou o ID da transacao.",detalhes:d},502)}
+    const copiaCola=tx?.copyPaste||tx?.qrCode||tx?.qr_code;let qrBase64=texto(tx?.qrCodeBase64||tx?.qrcodeBase64||tx?.qr_code_base64,2000000);qrBase64=qrBase64.replace(/^data:image\/[^;]+;base64,/i,"");
+    if(!copiaCola||!qrBase64){p.payment_status="error";p.payment_status_detail="QR Code ausente na resposta";await gravarPedido(env,p);return responder({erro:"A MisticPay nao retornou o QR Code Pix completo.",detalhes:d},502)}
+    p.payment_id=String(paymentId);p.payment_provider="misticpay";p.payment_status=statusMisticParaSite(tx?.transactionState||"PENDENTE");p.payment_status_detail=texto(tx?.transactionState||"PENDENTE",100);await gravarPedido(env,p);
+    return responder({payment_id:String(paymentId),numero_pedido:orderId,tracking_token:p.tracking_token,status:p.payment_status,total,qr_code:copiaCola,qr_code_base64:qrBase64,ticket_url:tx?.qrcodeUrl||tx?.qrCodeUrl||null,resumo:itens.map(i=>`${i.quantity}x ${i.name}`).join(", "),diagnostico_disponivel:true},201);
   }catch(e){console.error(e);return responder({erro:"Erro ao criar o Pix.",detalhes:e instanceof Error?e.message:String(e)},500)}
 } };

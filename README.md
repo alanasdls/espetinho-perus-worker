@@ -1,35 +1,37 @@
-# Espetinho Perus — Worker
+# Espetinho Perus — Worker MisticPay V4.1
 
 Worker da Cloudflare responsável por:
 
-- gerar Pix pelo Mercado Pago;
-- registrar pedidos no Workers KV;
-- receber o webhook do Mercado Pago;
-- atualizar automaticamente o status do pagamento;
-- disponibilizar as rotas do painel administrativo.
+- gerar cobranças PIX pela MisticPay;
+- consultar o pagamento;
+- receber o webhook da MisticPay;
+- registrar e acompanhar pedidos no Workers KV;
+- manter painel administrativo e Web Push.
 
-## Configurações existentes na Cloudflare
+## Variáveis e secrets na Cloudflare
 
-O Worker deve possuir estes Secrets:
+- `MISTICPAY_CI` — variável com o Client ID
+- `MISTICPAY_CS` — Secret com o Client Secret
+- `ADMIN_KEY` — Secret do painel
+- `VAPID_PUBLIC_KEY`
+- `VAPID_PRIVATE_KEY` — Secret
+- `VAPID_SUBJECT`
+- binding KV: `ORDERS_KV`
 
-- `MP_ACCESS_TOKEN`
-- `ADMIN_KEY`
+Opcional: `MISTICPAY_PAYER_DOCUMENT`. Só use caso a API da sua conta recuse transações sem `payerDocument`.
 
-O projeto também usa o binding KV:
+## Rotas de pagamento
 
-- `ORDERS_KV`
+- `POST /criar-pix` — cria a cobrança PIX
+- `GET /pagamento-status?id=...` — consulta a MisticPay
+- `POST /webhook-misticpay` — recebe o aviso e confirma o status consultando a API
 
-O arquivo `wrangler.jsonc` declara esse binding. No primeiro deploy pelo GitHub, a Cloudflare pode provisionar automaticamente um namespace KV para ele.
+## Teste
 
-## Rotas
+Após publicar, abra a raiz do Worker. O retorno deve conter:
 
-- `GET /` — verifica o serviço.
-- `POST /criar-pix` — cria o Pix.
-- `GET /pagamento-status?id=...` — consulta o pagamento.
-- `POST /webhook-mercado-pago` — recebe notificações do Mercado Pago.
-- `GET /admin/orders` — lista pedidos com o cabeçalho `X-Admin-Key`.
-- `PATCH /admin/orders/:id` — altera o status do pedido.
+```json
+{"status":"online","misticpay":true}
+```
 
-## Deploy automático
-
-Qualquer commit na branch `main` dispara o build na Cloudflare.
+A primeira tentativa é feita sem CPF. Caso a conta exija `payerDocument`, a resposta da MisticPay aparecerá no campo `detalhes`.
