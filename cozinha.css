@@ -1,0 +1,23 @@
+
+*{box-sizing:border-box}body{margin:0;background:#0d0906;color:#fff;font-family:Arial,sans-serif}
+header{position:sticky;top:0;z-index:10;padding:10px 18px;display:flex;justify-content:space-between;align-items:center;background:#17100c;border-bottom:1px solid #ffffff18}
+header>div{display:flex;align-items:center;gap:11px}header img{width:58px;height:58px;border-radius:14px;object-fit:cover}
+header small{color:#f0ad3b;font-weight:900;letter-spacing:.1em}header h1{margin:3px 0;font-size:1.4rem}
+header aside{text-align:right;color:#d2c3b9}header aside span,header aside b{display:block;margin:3px}
+main{padding:14px}.kitchen-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:13px}
+.kitchen-summary article{padding:13px;border-radius:15px;background:#21150f;border:1px solid #ffffff14}
+.kitchen-summary span{color:#bca99d}.kitchen-summary strong{display:block;font-size:1.8rem;margin-top:5px}
+.kitchen-board{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.kitchen-column{border-radius:17px;background:#211712;overflow:hidden}.kitchen-column>h2{margin:0;padding:13px 15px;font-size:1.05rem;background:#3a2418}
+.kitchen-column.new>h2{background:#326fc0}.kitchen-column.preparing>h2{background:#c2781e}.kitchen-column.ready>h2{background:#6d50b8}
+.kitchen-body{padding:9px;min-height:220px}.kitchen-order{margin-bottom:9px;padding:14px;border-radius:14px;background:#fff;color:#20150f;border-left:7px solid #32aa64}
+.kitchen-order.warn{border-left-color:#e4a12a}.kitchen-order.late{border-left-color:#dc3545}
+.kitchen-order header{position:static;padding:0;background:transparent;color:#20150f;border:0}
+.kitchen-order header strong{font-size:1rem}.kitchen-order header b{font-size:1.1rem}
+.kitchen-order h3{margin:9px 0;font-size:1.25rem}.kitchen-order p{margin:5px 0;font-size:1rem}.kitchen-order footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+.kitchen-order button{min-height:43px;padding:0 14px;border:0;border-radius:11px;color:#fff;background:#21140d;font-weight:900}
+.kitchen-login{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:#0d0906}
+.kitchen-login[hidden]{display:none}.kitchen-login form{width:min(400px,90%);padding:25px;border-radius:21px;background:#fff;color:#24170f;text-align:center}
+.kitchen-login img{width:130px;border-radius:18px}.kitchen-login input,.kitchen-login button{width:100%;min-height:50px;margin-top:10px;border-radius:12px}
+.kitchen-login input{padding:0 13px;border:1px solid #d5c6bc}.kitchen-login button{border:0;color:#fff;background:#25150d;font-weight:900}
+@media(max-width:900px){.kitchen-board{grid-template-columns:1fr}.kitchen-summary{grid-template-columns:repeat(2,1fr)}}

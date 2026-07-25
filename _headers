@@ -1,0 +1,40 @@
+/admin.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+/admin.js
+  Cache-Control: no-cache, must-revalidate
+/admin.css
+  Cache-Control: no-cache, must-revalidate
+/painel/
+  Cache-Control: no-cache, no-store, must-revalidate
+/painel/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/painel/admin.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/painel/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+/painel/admin.js
+  Cache-Control: no-cache, must-revalidate
+/painel/admin.css
+  Cache-Control: no-cache, must-revalidate
+
+/
+  Cache-Control: no-cache, no-store, must-revalidate
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/og-whatsapp-v2.jpg
+  Cache-Control: public, max-age=300
+  Content-Type: image/jpeg
+
+/og-whatsapp-v3.jpg
+  Cache-Control: public, max-age=300
+
+/og-whatsapp-v4.jpg
+  Cache-Control: public, max-age=300
+
+/og-whatsapp-v5.jpg
+  Cache-Control: public, max-age=300
+
+/og-whatsapp-v6.jpg
+  Cache-Control: public, max-age=300
