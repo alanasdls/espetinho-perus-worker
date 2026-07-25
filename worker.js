@@ -72,6 +72,16 @@ function responder(dados, status = 200) {
 }
 function emailValido(email) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
 function texto(valor, limite = 500) { return String(valor ?? "").trim().slice(0, limite); }
+function normalizarTexto(valor) { return String(valor ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase(); }
+function calcularEntrega(entrada) {
+  const fulfillment = texto(entrada.customer?.fulfillment, 50);
+  if (fulfillment !== "Entrega") return { fee: 0, bairro: texto(entrada.customer?.bairro, 100) };
+  const bairro = texto(entrada.customer?.bairro, 100);
+  if (normalizarTexto(bairro) !== "perus") throw new Error("Entrega automática disponível somente para o bairro Perus. Consulte o frete pelo WhatsApp.");
+  const feeInformada = Number(entrada.delivery_fee ?? 10);
+  if (feeInformada !== 10) throw new Error("Taxa de entrega inválida.");
+  return { fee: 10, bairro };
+}
 function adminAutorizado(request, env) { return Boolean(env.ADMIN_KEY) && (request.headers.get("X-Admin-Key") || "") === env.ADMIN_KEY; }
 async function gravarPedido(env, pedido) {
   pedido.updated_at = new Date().toISOString();
@@ -82,7 +92,7 @@ async function gravarPedido(env, pedido) {
 }
 async function buscarPedido(env, id) { return env.ORDERS_KV?.get(`order:${id}`, "json"); }
 async function pedidoPorToken(env, token) { const id=await env.ORDERS_KV?.get(`tracking:${token}`); return id ? buscarPedido(env,id) : null; }
-function pedidoPublico(p) { return { order_id:p.order_id, created_at:p.created_at, updated_at:p.updated_at, paid_at:p.paid_at, customer:{name:p.customer?.name,fulfillment:p.customer?.fulfillment,address:p.customer?.address}, items:p.items, total:p.total, payment_status:p.payment_status, order_status:p.order_status, status_history:p.status_history||[], estimated_minutes:p.estimated_minutes||25 }; }
+function pedidoPublico(p) { return { order_id:p.order_id, created_at:p.created_at, updated_at:p.updated_at, paid_at:p.paid_at, customer:{name:p.customer?.name,fulfillment:p.customer?.fulfillment,address:p.customer?.address}, items:p.items, subtotal:p.subtotal, delivery_fee:p.delivery_fee||0, total:p.total, payment_status:p.payment_status, order_status:p.order_status, status_history:p.status_history||[], estimated_minutes:p.estimated_minutes||25 }; }
 function statusMisticParaSite(status) {
   const s=texto(status,50).toUpperCase();
   if(s==="COMPLETO") return "approved";
@@ -203,9 +213,54 @@ async function notificarNovoPedidoPago(env, pedido) {
   });
 }
 
+
+function pagBankBase(env){ return env.PAGBANK_ENV === "production" ? "https://api.pagseguro.com" : "https://sandbox.api.pagseguro.com"; }
+function pagBankToken(env){ return env.PAGBANK_ENV === "production" ? env.PAGBANK_TOKEN : env.PAGBANK_SANDBOX_TOKEN; }
+function normalizarStatusPagBank(status){
+  const s=texto(status,50).toUpperCase();
+  if(s==="PAID"||s==="AUTHORIZED") return "approved";
+  if(s==="DECLINED"||s==="CANCELED"||s==="EXPIRED") return "rejected";
+  return "pending";
+}
+async function sincronizarPagBank(env, payload){
+  const reference=texto(payload?.reference_id||payload?.referenceId||payload?.data?.reference_id,100);
+  const checkoutId=texto(payload?.id||payload?.checkout_id||payload?.data?.id,100);
+  let orderId=reference;
+  if(!orderId&&checkoutId) orderId=await env.ORDERS_KV.get(`pagbank:${checkoutId}`);
+  if(!orderId) return null;
+  const p=await buscarPedido(env,orderId); if(!p) return null;
+  const charges=payload?.charges||payload?.payments||payload?.data?.charges||[];
+  const charge=Array.isArray(charges)?charges[0]:charges;
+  const rawStatus=charge?.status||payload?.status||payload?.data?.status||"WAITING";
+  const novoStatus=normalizarStatusPagBank(rawStatus), before=p.payment_status;
+  p.payment_provider="pagbank";
+  p.payment_id=texto(charge?.id||checkoutId||p.payment_id,100);
+  p.checkout_id=checkoutId||p.checkout_id;
+  p.payment_status=novoStatus;
+  p.payment_status_detail=texto(rawStatus,100);
+  p.payment_method=texto(charge?.payment_method?.type||p.payment_method||"CARTAO",50);
+  p.installments=Number(charge?.payment_method?.installments||p.installments||1);
+  if(novoStatus==="approved") p.paid_at=charge?.paid_at||new Date().toISOString();
+  if(novoStatus==="approved"&&p.order_status==="aguardando_pagamento"){
+    p.order_status="recebido"; p.status_history=p.status_history||[]; p.status_history.push({status:"recebido",at:new Date().toISOString(),origem:"pagbank"});
+  }
+  await gravarPedido(env,p);
+  if(before!=="approved"&&novoStatus==="approved"){
+    await enviarNotificacoes(env,p,"Pagamento aprovado!","Recebemos seu pedido. Acompanhe o preparo por aqui.");
+    await notificarNovoPedidoPago(env,p);
+  }
+  return p;
+}
+async function consultarCheckoutPagBank(env,checkoutId){
+  const token=pagBankToken(env); if(!token) return {ok:false,status:500,data:{erro:"Token PagBank nao configurado."}};
+  const r=await fetch(`${pagBankBase(env)}/checkouts/${encodeURIComponent(checkoutId)}`,{headers:{Authorization:`Bearer ${token}`,Accept:"application/json"}});
+  let data={}; try{data=await r.json()}catch{data={erro:"Resposta invalida do PagBank"}}
+  return {ok:r.ok,status:r.status,data};
+}
+
 export default { async fetch(request,env) {
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:CORS}); const url=new URL(request.url);
-  if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY)});
+  if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),pagbank_sandbox:Boolean(env.PAGBANK_SANDBOX_TOKEN),pagbank_producao:Boolean(env.PAGBANK_TOKEN)});
   if(request.method==="GET"&&url.pathname==="/vapid-public-key")return responder({publicKey:env.VAPID_PUBLIC_KEY||""});
   if(request.method==="GET"&&url.pathname==="/pedido-status"){const token=texto(url.searchParams.get("token"),200);const p=await pedidoPorToken(env,token);return p?responder({pedido:pedidoPublico(p)}):responder({erro:"Pedido nao encontrado."},404)}
   if(request.method==="POST"&&url.pathname==="/pedido-subscribe"){
@@ -248,6 +303,42 @@ export default { async fetch(request,env) {
     const m=url.pathname.match(/^\/admin\/orders\/([^/]+)$/);if(request.method==="PATCH"&&m){const p=await buscarPedido(env,decodeURIComponent(m[1]));if(!p)return responder({erro:"Pedido nao encontrado."},404);const b=await request.json();const ok=["recebido","em_preparo","pronto_retirada","saiu_entrega","finalizado","cancelado"];if(!ok.includes(b.order_status))return responder({erro:"Status invalido."},400);p.order_status=b.order_status;p.estimated_minutes=Number.isFinite(Number(b.estimated_minutes))?Math.max(0,Math.min(240,Number(b.estimated_minutes))):(p.estimated_minutes||25);p.status_history=p.status_history||[];p.status_history.push({status:b.order_status,at:new Date().toISOString()});await gravarPedido(env,p);await enviarNotificacoes(env,p,STATUS_LABELS[b.order_status]||"Atualizacao do pedido", b.order_status==="pronto_retirada"?"Seu pedido está pronto para retirada.":b.order_status==="saiu_entrega"?"Seu pedido está a caminho.":`Status atualizado: ${STATUS_LABELS[b.order_status]||b.order_status}.`);return responder({pedido:p})}
     return responder({erro:"Rota administrativa nao encontrada."},404);
   }
+  if(request.method==="POST"&&url.pathname==="/criar-checkout-pagbank"){
+    try{
+      if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);
+      const token=pagBankToken(env); if(!token)return responder({erro:"Token do PagBank nao configurado no Worker."},500);
+      const entrada=await request.json(); if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);
+      const email=texto(entrada.customer?.email||entrada.email,150).toLowerCase(); if(!emailValido(email))return responder({erro:"Informe um e-mail valido."},400);
+      let subtotal=0; const itens=entrada.items.map(item=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!Object.prototype.hasOwnProperty.call(PRECOS,nome))throw new Error(`Produto nao reconhecido: ${nome}`);if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const unit_price=PRECOS[nome];subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100}}); subtotal=Math.round(subtotal*100)/100;
+      const entrega=calcularEntrega(entrada); const deliveryFee=entrega.fee; const total=Math.round((subtotal+deliveryFee)*100)/100;
+      const orderId=texto(entrada.order_id||entrada.numero_pedido,64)||`EP-${Date.now()}`,nome=texto(entrada.customer?.name||"Cliente",100),agora=new Date().toISOString();
+      const tracking=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16);
+      const method=entrada.payment_method==="DEBIT_CARD"?"DEBIT_CARD":"CREDIT_CARD";
+      let p={order_id:orderId,tracking_token:tracking,site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500)},items:itens,subtotal,delivery_fee:deliveryFee,total,payment_id:null,checkout_id:null,payment_provider:"pagbank",payment_method:method,payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]}; await gravarPedido(env,p);
+      const site=p.site_url.replace(/\/$/,""); const webhook=`${url.origin}/webhook-pagbank`;
+      const body={reference_id:orderId,customer_modifiable:true,items:[...itens.map((i,n)=>({reference_id:`${orderId}-${n+1}`,name:i.name,quantity:i.quantity,unit_amount:Math.round(i.unit_price*100)})),...(deliveryFee>0?[{reference_id:`${orderId}-frete`,name:"Taxa de entrega - Perus",quantity:1,unit_amount:Math.round(deliveryFee*100)}]:[])],payment_methods:[{type:method}],payment_methods_configs:method==="CREDIT_CARD"?[{type:"CREDIT_CARD",config_options:[{option:"INSTALLMENTS_LIMIT",value:String(Math.max(1,Math.min(12,Number(env.PAGBANK_INSTALLMENTS_LIMIT||3))))}]}]:undefined,notification_urls:[webhook],payment_notification_urls:[webhook],redirect_url:`${site}/pedido.html?token=${encodeURIComponent(tracking)}`,return_url:`${site}/pedido.html?token=${encodeURIComponent(tracking)}`,redirect_waiting_time:5};
+      if(!body.payment_methods_configs)delete body.payment_methods_configs;
+      const r=await fetch(`${pagBankBase(env)}/checkouts`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify(body)}); let d={};try{d=await r.json()}catch{d={erro:"Resposta invalida do PagBank"}};
+      if(!r.ok){console.error("PagBank checkout recusado",JSON.stringify({status:r.status,resposta:d,payload:body}));p.payment_status="error";p.payment_status_detail=texto(JSON.stringify(d),500);await gravarPedido(env,p);return responder({erro:"PagBank recusou a criacao do checkout.",status_pagbank:r.status,detalhes:d},r.status)}
+      const payLink=(d.links||[]).find(l=>l.rel==="PAY")?.href; if(!d.id||!payLink)return responder({erro:"PagBank nao retornou o link de pagamento.",detalhes:d},502);
+      p.checkout_id=String(d.id);p.payment_id=String(d.id);p.payment_status="pending";p.payment_status_detail=texto(d.status||"ACTIVE",100);await gravarPedido(env,p);await env.ORDERS_KV.put(`pagbank:${d.id}`,orderId);
+      return responder({checkout_id:d.id,checkout_url:payLink,numero_pedido:orderId,tracking_token:tracking,status:p.payment_status,total},201);
+    }catch(e){console.error("criar-checkout-pagbank",e);return responder({erro:"Erro ao criar checkout PagBank.",detalhes:e instanceof Error?e.message:String(e)},500)}
+  }
+  if(request.method==="POST"&&url.pathname==="/webhook-pagbank"){
+    try{
+      const b=await request.json().catch(()=>({})); let payload=b;
+      const checkoutId=texto(b?.id||b?.checkout_id||b?.data?.id,100);
+      if(checkoutId&&String(checkoutId).startsWith("CHEC_")){const c=await consultarCheckoutPagBank(env,checkoutId);if(c.ok)payload=c.data;}
+      await sincronizarPagBank(env,payload);
+    }catch(e){console.error("webhook-pagbank",e)}
+    return responder({recebido:true});
+  }
+  if(request.method==="GET"&&url.pathname==="/pagbank-status"){
+    const checkoutId=texto(url.searchParams.get("id"),100);if(!checkoutId)return responder({erro:"ID do checkout invalido."},400);
+    const c=await consultarCheckoutPagBank(env,checkoutId);if(!c.ok)return responder({erro:"Nao foi possivel consultar o PagBank.",detalhes:c.data},c.status);
+    const p=await sincronizarPagBank(env,c.data);return responder({checkout_id:checkoutId,status:p?.payment_status||normalizarStatusPagBank(c.data?.status),pedido:p?{order_id:p.order_id,order_status:p.order_status,tracking_token:p.tracking_token}:null});
+  }
   if(!env.MISTICPAY_CI||!env.MISTICPAY_CS)return responder({erro:"MISTICPAY_CI ou MISTICPAY_CS nao configurado."},500);
   if(request.method==="GET"&&url.pathname==="/pagamento-status"){
     const id=texto(url.searchParams.get("id"),100);if(!id)return responder({erro:"ID de pagamento invalido."},400);
@@ -264,8 +355,8 @@ export default { async fetch(request,env) {
   }
   if(request.method!=="POST"||url.pathname!=="/criar-pix")return responder({erro:"Rota nao encontrada."},404);
   try{if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);const entrada=await request.json();if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);const email=texto(entrada.customer?.email||entrada.email,150).toLowerCase();if(!emailValido(email))return responder({erro:"Informe um e-mail valido para gerar o Pix."},400);
-    let total=0;const itens=entrada.items.map((item,index)=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!Object.prototype.hasOwnProperty.call(PRECOS,nome))throw new Error(`Produto nao reconhecido: ${nome}`);if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const unit_price=PRECOS[nome];total+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100}});total=Math.round(total*100)/100;
-    const orderId=texto(entrada.order_id||entrada.numero_pedido,100)||`EP-${Date.now()}`, nome=texto(entrada.customer?.name||entrada.nome||"Cliente",100), agora=new Date().toISOString();let p={order_id:orderId,tracking_token:crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16),site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),notes:texto(entrada.customer?.notes,500)},items:itens,total,payment_id:null,payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};await gravarPedido(env,p);
+    let subtotal=0;const itens=entrada.items.map((item,index)=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!Object.prototype.hasOwnProperty.call(PRECOS,nome))throw new Error(`Produto nao reconhecido: ${nome}`);if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const unit_price=PRECOS[nome];subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100}});subtotal=Math.round(subtotal*100)/100;const entrega=calcularEntrega(entrada);const deliveryFee=entrega.fee;const total=Math.round((subtotal+deliveryFee)*100)/100;
+    const orderId=texto(entrada.order_id||entrada.numero_pedido,100)||`EP-${Date.now()}`, nome=texto(entrada.customer?.name||entrada.nome||"Cliente",100), agora=new Date().toISOString();let p={order_id:orderId,tracking_token:crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16),site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500)},items:itens,subtotal,delivery_fee:deliveryFee,total,payment_id:null,payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};await gravarPedido(env,p);
     const pay={amount:total,payerName:nome,transactionId:orderId,description:`Pedido ${orderId} - Espetinho Perus`,projectWebhook:`${url.origin}/webhook-misticpay`};
     const documento=texto(entrada.customer?.document||entrada.customer?.cpf||entrada.payerDocument||env.MISTICPAY_PAYER_DOCUMENT,30).replace(/\D/g,"");
     if(documento)pay.payerDocument=documento;
