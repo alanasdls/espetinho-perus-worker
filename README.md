@@ -1,37 +1,31 @@
-# Espetinho Perus — Worker MisticPay V4.1
+# Espetinho Perus — Painel em tempo real
 
-Worker da Cloudflare responsável por:
+Projeto dividido em:
 
-- gerar cobranças PIX pela MisticPay;
-- consultar o pagamento;
-- receber o webhook da MisticPay;
-- registrar e acompanhar pedidos no Workers KV;
-- manter painel administrativo e Web Push.
+- `worker/`: Cloudflare Worker V6 com KV, pagamentos, WebSocket e Durable Object hibernável.
+- `site/`: site e painel para Cloudflare Pages.
 
-## Variáveis e secrets na Cloudflare
+## 1. Publicar o Worker pelo GitHub
 
-- `MISTICPAY_CI` — variável com o Client ID
-- `MISTICPAY_CS` — Secret com o Client Secret
-- `ADMIN_KEY` — Secret do painel
-- `VAPID_PUBLIC_KEY`
-- `VAPID_PRIVATE_KEY` — Secret
-- `VAPID_SUBJECT`
-- binding KV: `ORDERS_KV`
+No Cloudflare, abra **Workers & Pages**, conecte o repositório e configure:
 
-Opcional: `MISTICPAY_PAYER_DOCUMENT`. Só use caso a API da sua conta recuse transações sem `payerDocument`.
+- Diretório raiz: `worker`
+- Comando de deploy: `npx wrangler deploy`
 
-## Rotas de pagamento
+Mantenha no Worker as variáveis e segredos já usados na versão anterior, incluindo `ADMIN_KEY`, credenciais de pagamento, VAPID e o binding KV `ORDERS_KV`.
 
-- `POST /criar-pix` — cria a cobrança PIX
-- `GET /pagamento-status?id=...` — consulta a MisticPay
-- `POST /webhook-misticpay` — recebe o aviso e confirma o status consultando a API
+O `wrangler.jsonc` já contém o binding `ORDER_REALTIME` e a migração SQLite do Durable Object `OrderRealtime`.
 
-## Teste
+## 2. Publicar o site pelo GitHub
 
-Após publicar, abra a raiz do Worker. O retorno deve conter:
+Crie ou atualize o projeto Pages:
 
-```json
-{"status":"online","misticpay":true}
-```
+- Diretório raiz: `site`
+- Comando de build: deixar vazio
+- Diretório de saída: `.`
 
-A primeira tentativa é feita sem CPF. Caso a conta exija `payerDocument`, a resposta da MisticPay aparecerá no campo `detalhes`.
+## Funcionamento
+
+O painel abre `/admin/realtime` por WebSocket. Quando qualquer pedido é criado, pago ou atualizado, o Worker transmite um pequeno evento. O painel então faz uma única leitura para obter a lista atualizada.
+
+Caso o WebSocket caia, existe fallback de 60 segundos. Quando a aba fica oculta, a conexão é encerrada e reaberta ao voltar, reduzindo ainda mais o uso.
