@@ -73,14 +73,20 @@ function responder(dados, status = 200) {
 function emailValido(email) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
 function texto(valor, limite = 500) { return String(valor ?? "").trim().slice(0, limite); }
 function normalizarTexto(valor) { return String(valor ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase(); }
+const PERUS_CEP_PREFIXES = new Set(["05201","05202","05203","05204","05205","05206","05207","05208","05209","05210","05211","05212","05215","05230"]);
+function cepAtendidoPerus(valor) {
+  const cep = String(valor ?? "").replace(/\D/g, "");
+  return cep.length === 8 && PERUS_CEP_PREFIXES.has(cep.slice(0, 5));
+}
 function calcularEntrega(entrada) {
   const fulfillment = texto(entrada.customer?.fulfillment, 50);
-  if (fulfillment !== "Entrega") return { fee: 0, bairro: texto(entrada.customer?.bairro, 100) };
   const bairro = texto(entrada.customer?.bairro, 100);
-  if (normalizarTexto(bairro) !== "perus") throw new Error("Entrega automática disponível somente para o bairro Perus. Consulte o frete pelo WhatsApp.");
+  const cep = texto(entrada.customer?.cep, 12);
+  if (fulfillment !== "Entrega") return { fee: 0, bairro, cep };
+  if (!cepAtendidoPerus(cep)) throw new Error("CEP fora da área de entrega automática de Perus. Consulte o frete pelo WhatsApp.");
   const feeInformada = Number(entrada.delivery_fee ?? 10);
   if (feeInformada !== 10) throw new Error("Taxa de entrega inválida.");
-  return { fee: 10, bairro };
+  return { fee: 10, bairro, cep };
 }
 function adminAutorizado(request, env) { return Boolean(env.ADMIN_KEY) && (request.headers.get("X-Admin-Key") || "") === env.ADMIN_KEY; }
 async function gravarPedido(env, pedido) {
