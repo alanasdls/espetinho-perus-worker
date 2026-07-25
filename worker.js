@@ -264,8 +264,28 @@ async function consultarCheckoutPagBank(env,checkoutId){
   return {ok:r.ok,status:r.status,data};
 }
 
+function horarioPedidos(){
+  const partes=new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",weekday:"short",hour:"2-digit",minute:"2-digit",hour12:false}).formatToParts(new Date());
+  const dados=Object.fromEntries(partes.map(p=>[p.type,p.value]));
+  const dias={"dom.":0,"seg.":1,"ter.":2,"qua.":3,"qui.":4,"sex.":5,"sáb.":6,"sab.":6};
+  const dia=dias[dados.weekday]??-1;
+  const minutos=Number(dados.hour)*60+Number(dados.minute);
+  let fecha=null;
+  if([0,3,4].includes(dia))fecha=22*60;
+  if([5,6].includes(dia))fecha=23*60;
+  return {aberto:fecha!==null&&minutos>=18*60&&minutos<fecha,dia,minutos,fecha};
+}
+function proximaAbertura(){
+  const nomes=["domingo","segunda-feira","terça-feira","quarta-feira","quinta-feira","sexta-feira","sábado"];
+  const atual=horarioPedidos();
+  if(atual.fecha!==null&&atual.minutos<18*60)return "hoje às 18h";
+  for(let i=1;i<=7;i++){const d=(atual.dia+i)%7;if([0,3,4,5,6].includes(d))return `${nomes[d]} às 18h`;}
+  return "quarta-feira às 18h";
+}
+
 export default { async fetch(request,env) {
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:CORS}); const url=new URL(request.url);
+  if(request.method==="POST"&&["/criar-pix","/criar-checkout-pagbank"].includes(url.pathname)&&!horarioPedidos().aberto)return responder({erro:`Pedidos fechados no momento. Próxima abertura: ${proximaAbertura()}.`},403);
   if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),pagbank_sandbox:Boolean(env.PAGBANK_SANDBOX_TOKEN),pagbank_producao:Boolean(env.PAGBANK_TOKEN)});
   if(request.method==="GET"&&url.pathname==="/vapid-public-key")return responder({publicKey:env.VAPID_PUBLIC_KEY||""});
   if(request.method==="GET"&&url.pathname==="/pedido-status"){const token=texto(url.searchParams.get("token"),200);const p=await pedidoPorToken(env,token);return p?responder({pedido:pedidoPublico(p)}):responder({erro:"Pedido nao encontrado."},404)}
