@@ -9,5 +9,19 @@
     {
       "binding": "ORDERS_KV"
     }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "ORDER_REALTIME",
+        "class_name": "OrderRealtime"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1-realtime",
+      "new_sqlite_classes": ["OrderRealtime"]
+    }
   ]
 }

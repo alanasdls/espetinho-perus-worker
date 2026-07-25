@@ -1,3 +1,67 @@
+
+export class OrderRealtime {
+  constructor(ctx, env) {
+    this.ctx = ctx;
+    this.env = env;
+  }
+
+  async fetch(request) {
+    const url = new URL(request.url);
+    if (request.headers.get("Upgrade") === "websocket") {
+      const pair = new WebSocketPair();
+      const [client, server] = Object.values(pair);
+      this.ctx.acceptWebSocket(server);
+      server.serializeAttachment({ connected_at: new Date().toISOString() });
+      server.send(JSON.stringify({ type: "connected", at: new Date().toISOString() }));
+      return new Response(null, { status: 101, webSocket: client });
+    }
+    if (request.method === "POST" && url.pathname === "/broadcast") {
+      const payload = await request.text();
+      let enviados = 0;
+      for (const ws of this.ctx.getWebSockets()) {
+        try { ws.send(payload); enviados++; } catch (_) {}
+      }
+      return new Response(JSON.stringify({ ok: true, enviados }), {
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+    return new Response("Not found", { status: 404 });
+  }
+
+  async webSocketMessage(ws, message) {
+    if (String(message) === "ping") ws.send("pong");
+  }
+
+  async webSocketClose(ws, code, reason) {
+    try { ws.close(code, reason); } catch (_) {}
+  }
+
+  async webSocketError(ws) {
+    try { ws.close(1011, "WebSocket error"); } catch (_) {}
+  }
+}
+
+async function avisarTempoReal(env, tipo, pedido) {
+  if (!env.ORDER_REALTIME) return;
+  try {
+    const id = env.ORDER_REALTIME.idFromName("espetinho-perus");
+    const stub = env.ORDER_REALTIME.get(id);
+    await stub.fetch("https://realtime.internal/broadcast", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: tipo || "order_updated",
+        order_id: pedido?.order_id || null,
+        payment_status: pedido?.payment_status || null,
+        order_status: pedido?.order_status || null,
+        updated_at: pedido?.updated_at || new Date().toISOString()
+      })
+    });
+  } catch (error) {
+    console.error("Falha ao avisar WebSocket", error);
+  }
+}
+
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,PATCH,OPTIONS",
@@ -94,6 +158,7 @@ async function gravarPedido(env, pedido) {
   await env.ORDERS_KV.put(`order:${pedido.order_id}`, JSON.stringify(pedido));
   if (pedido.payment_id) await env.ORDERS_KV.put(`payment:${pedido.payment_id}`, pedido.order_id);
   if (pedido.tracking_token) await env.ORDERS_KV.put(`tracking:${pedido.tracking_token}`, pedido.order_id);
+  await avisarTempoReal(env, "order_updated", pedido);
   return pedido;
 }
 async function buscarPedido(env, id) { return env.ORDERS_KV?.get(`order:${id}`, "json"); }
@@ -288,6 +353,14 @@ export default { async fetch(request,env) {
   if(request.method==="POST"&&["/criar-pix","/criar-checkout-pagbank"].includes(url.pathname)&&!horarioPedidos().aberto)return responder({erro:`Pedidos fechados no momento. Próxima abertura: ${proximaAbertura()}.`},403);
   if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),pagbank_sandbox:Boolean(env.PAGBANK_SANDBOX_TOKEN),pagbank_producao:Boolean(env.PAGBANK_TOKEN)});
   if(request.method==="GET"&&url.pathname==="/vapid-public-key")return responder({publicKey:env.VAPID_PUBLIC_KEY||""});
+  if(request.method==="GET"&&url.pathname==="/admin/realtime"){
+    const suppliedKey=url.searchParams.get("key")||(request.headers.get("X-Admin-Key")||"");
+    if(!env.ADMIN_KEY||suppliedKey!==env.ADMIN_KEY)return responder({erro:"Senha administrativa invalida."},401);
+    if(request.headers.get("Upgrade")!=="websocket")return responder({erro:"Esta rota exige WebSocket."},426);
+    if(!env.ORDER_REALTIME)return responder({erro:"Durable Object ORDER_REALTIME nao configurado."},500);
+    const id=env.ORDER_REALTIME.idFromName("espetinho-perus");
+    return env.ORDER_REALTIME.get(id).fetch(request);
+  }
   if(request.method==="GET"&&url.pathname==="/pedido-status"){const token=texto(url.searchParams.get("token"),200);const p=await pedidoPorToken(env,token);return p?responder({pedido:pedidoPublico(p)}):responder({erro:"Pedido nao encontrado."},404)}
   if(request.method==="POST"&&url.pathname==="/pedido-subscribe"){
     const b=await request.json();const p=await pedidoPorToken(env,texto(b.token,200));
