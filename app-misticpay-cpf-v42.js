@@ -437,6 +437,7 @@ if(mpButton){
 
 // ===== Horário de pedidos — Espetinho Perus =====
 const STORE_TIMEZONE='America/Sao_Paulo';
+let deliveryRuntimeState=null;
 function storeNowParts(){
   const parts=new Intl.DateTimeFormat('pt-BR',{timeZone:STORE_TIMEZONE,weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date());
   const obj=Object.fromEntries(parts.map(p=>[p.type,p.value]));
@@ -448,18 +449,23 @@ function storeScheduleInfo(){
   let open=1080,close=null;
   if([3,4,0].includes(day)) close=1320;
   if([5,6].includes(day)) close=1380;
-  const isOpen=close!==null&&minutes>=open&&minutes<close;
-  return {isOpen,day,minutes,time,close};
+  const scheduledOpen=close!==null&&minutes>=open&&minutes<close;
+  const isOpen=deliveryRuntimeState ? Boolean(deliveryRuntimeState.aberto) : scheduledOpen;
+  return {isOpen,scheduledOpen,day,minutes,time,close,mode:deliveryRuntimeState?.modo||'automatic',remaining:deliveryRuntimeState?.remaining_seconds||0};
 }
 function nextOpeningLabel(){
   const names=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
   const now=storeScheduleInfo();
   if(now.close!==null&&now.minutes<1080) return `Hoje às 18h`;
-  for(let add=1;add<=7;add++){
-    const d=(now.day+add)%7;
-    if([0,3,4,5,6].includes(d)) return `${names[d][0].toUpperCase()+names[d].slice(1)} às 18h`;
-  }
+  for(let add=1;add<=7;add++){const d=(now.day+add)%7;if([0,3,4,5,6].includes(d))return `${names[d][0].toUpperCase()+names[d].slice(1)} às 18h`;}
   return 'Quarta-feira às 18h';
+}
+async function refreshDeliveryRuntime(){
+  try{
+    const response=await fetch(`${API_BASE}/delivery-status`,{cache:'no-store'});
+    if(response.ok) deliveryRuntimeState=await response.json();
+  }catch(_){ }
+  applyStoreSchedule();
 }
 function applyStoreSchedule(){
   const info=storeScheduleInfo();
@@ -469,15 +475,22 @@ function applyStoreSchedule(){
   const box=document.querySelector('#storeSchedule');
   const checkoutButtons=[document.querySelector('#mercadoPagoCheckout'),document.querySelector('#pagBankCheckout'),document.querySelector('#checkout')].filter(Boolean);
   if(info.isOpen){
-    if(title) title.textContent=`Pedidos abertos agora • até ${info.close===1380?'23h':'22h'}`;
-    if(desc) desc.textContent='Monte seu pedido e escolha entrega ou retirada.';
-    if(status) status.textContent=`Aberto agora • até ${info.close===1380?'23h':'22h'}`;
+    if(info.mode==='manual_open'){
+      const mins=Math.max(1,Math.ceil(Number(info.remaining||0)/60));
+      if(title) title.textContent='Pedidos abertos temporariamente';
+      if(desc) desc.textContent=`Abertura manual ativa por mais aproximadamente ${mins} min.`;
+      if(status) status.textContent=`Aberto manualmente • ${mins} min restantes`;
+    }else{
+      if(title) title.textContent=`Pedidos abertos agora • até ${info.close===1380?'23h':'22h'}`;
+      if(desc) desc.textContent='Monte seu pedido e escolha entrega ou retirada.';
+      if(status) status.textContent=`Aberto agora • até ${info.close===1380?'23h':'22h'}`;
+    }
     box?.classList.add('open'); box?.classList.remove('closed');
     checkoutButtons.forEach(btn=>{btn.disabled=false;btn.classList.remove('store-closed-button');btn.removeAttribute('data-store-closed')});
   }else{
     if(title) title.textContent='Pedidos fechados no momento';
-    if(desc) desc.textContent=`Próxima abertura: ${nextOpeningLabel()}. Você pode consultar o cardápio e montar o carrinho.`;
-    if(status) status.textContent=`Fechado agora • abre ${nextOpeningLabel().toLowerCase()}`;
+    if(desc) desc.textContent=info.mode==='manual_closed'?'Delivery fechado manualmente pela equipe.':`Próxima abertura: ${nextOpeningLabel()}. Você pode consultar o cardápio e montar o carrinho.`;
+    if(status) status.textContent=info.mode==='manual_closed'?'Fechado manualmente':`Fechado agora • abre ${nextOpeningLabel().toLowerCase()}`;
     box?.classList.add('closed'); box?.classList.remove('open');
     checkoutButtons.forEach(btn=>{btn.disabled=true;btn.classList.add('store-closed-button');btn.dataset.storeClosed='1'});
   }
@@ -485,11 +498,10 @@ function applyStoreSchedule(){
 }
 function ensureStoreOpen(){
   if(storeScheduleInfo().isOpen) return true;
-  alert(`Pedidos fechados no momento. Próxima abertura: ${nextOpeningLabel()}.`);
+  alert(deliveryRuntimeState?.modo==='manual_closed'?'O delivery foi fechado manualmente.':`Pedidos fechados no momento. Próxima abertura: ${nextOpeningLabel()}.`);
   return false;
 }
-window.addEventListener('DOMContentLoaded',()=>{applyStoreSchedule();setInterval(applyStoreSchedule,30000)});
-// Proteção adicional caso algum manipulador tente finalizar fora do horário.
+window.addEventListener('DOMContentLoaded',()=>{applyStoreSchedule();refreshDeliveryRuntime();setInterval(refreshDeliveryRuntime,15000)});
 document.addEventListener('click',e=>{
   const btn=e.target.closest('#mercadoPagoCheckout,#pagBankCheckout,#checkout');
   if(btn&&!storeScheduleInfo().isOpen){e.preventDefault();e.stopImmediatePropagation();ensureStoreOpen();}

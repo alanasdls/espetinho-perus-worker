@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest-admin.webmanifest">
   <link rel="icon" href="icon-192.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <link rel="stylesheet" href="admin.css?v=20260725-v10-realtime">
+  <link rel="stylesheet" href="admin.css?v=20260726-v10-delivery-control">
 </head>
 <body>
 <header class="top">
@@ -52,6 +52,24 @@
     </section>
 
     
+
+    <section class="delivery-control-card" aria-labelledby="deliveryControlTitle">
+      <div class="delivery-control-copy">
+        <small>CONTROLE DO DELIVERY</small>
+        <h2 id="deliveryControlTitle">Abertura e fechamento</h2>
+        <p id="deliveryControlDescription">Consultando situação do delivery…</p>
+      </div>
+      <div class="delivery-control-status">
+        <span id="deliveryControlBadge" class="delivery-control-badge checking">VERIFICANDO</span>
+        <strong id="deliveryControlTimer">—</strong>
+      </div>
+      <div class="delivery-control-actions">
+        <button id="openDelivery30Btn" type="button" class="delivery-open-btn">Abrir por 30 minutos</button>
+        <button id="closeDeliveryBtn" type="button" class="delivery-close-btn">Fechar agora</button>
+        <button id="automaticDeliveryBtn" type="button" class="delivery-auto-btn">Voltar ao automático</button>
+      </div>
+    </section>
+
     <section class="realtime-command">
       <div class="realtime-status">
         <span class="live-pulse"></span>
@@ -218,7 +236,7 @@
     </section>
   </section>
 </main>
-<script src="admin.js?v=20260725-v10-realtime"></script>
+<script src="admin.js?v=20260726-v10-delivery-control"></script>
 <script>if('serviceWorker'in navigator){navigator.serviceWorker.register('./sw.js?v=20260725-v96-enterprise',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});}</script>
 </body>
 </html>

@@ -199,6 +199,7 @@ function showPanel() {
   $('#login').style.display = 'none';
   $('#panel').hidden = false;
   loadOrders(true);
+  loadDeliveryControl();
   connectOrdersSocket();
   clearInterval(timer);
   timer = setInterval(() => { if (document.visibilityState === 'visible') loadOrders(false); }, 60000);
@@ -828,3 +829,76 @@ document.addEventListener('visibilitychange', () => {
     try { ordersSocket.close(1000, 'painel oculto'); } catch (_) {}
   }
 });
+
+
+// ===== Controle manual do delivery (30 minutos) =====
+let deliveryControlState = null;
+let deliveryControlClock = null;
+
+function deliveryTimeLeft(seconds) {
+  const total = Math.max(0, Number(seconds || 0));
+  const min = Math.floor(total / 60);
+  const sec = total % 60;
+  return `${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+
+function renderDeliveryControl(state) {
+  deliveryControlState = state;
+  const badge = $('#deliveryControlBadge');
+  const timerEl = $('#deliveryControlTimer');
+  const description = $('#deliveryControlDescription');
+  if (!badge || !timerEl || !description) return;
+
+  badge.className = 'delivery-control-badge';
+  if (state.modo === 'manual_open') {
+    badge.textContent = 'ABERTO MANUALMENTE';
+    badge.classList.add('open','manual');
+    description.textContent = 'O delivery ficará aberto por até 30 minutos e depois voltará automaticamente aos dias e horários programados.';
+    timerEl.textContent = `Fecha em ${deliveryTimeLeft(state.remaining_seconds)}`;
+  } else if (state.modo === 'manual_closed') {
+    badge.textContent = 'FECHADO MANUALMENTE';
+    badge.classList.add('closed','manual');
+    description.textContent = 'Novos pedidos estão bloqueados. Os pedidos já recebidos não foram alterados.';
+    timerEl.textContent = 'Sem fechamento automático';
+  } else if (state.aberto) {
+    badge.textContent = 'ABERTO NO HORÁRIO';
+    badge.classList.add('open');
+    description.textContent = 'O delivery está seguindo normalmente os dias e horários já configurados.';
+    timerEl.textContent = 'Modo automático';
+  } else {
+    badge.textContent = 'FECHADO PELO HORÁRIO';
+    badge.classList.add('closed');
+    description.textContent = 'O delivery está fechado conforme os dias e horários já configurados.';
+    timerEl.textContent = 'Modo automático';
+  }
+}
+
+async function loadDeliveryControl() {
+  if (!key) return;
+  try { renderDeliveryControl(await api('/admin/delivery-control')); }
+  catch (error) { const d=$('#deliveryControlDescription'); if(d)d.textContent=error.message; }
+}
+
+async function setDeliveryControl(mode) {
+  const buttons=['#openDelivery30Btn','#closeDeliveryBtn','#automaticDeliveryBtn'].map($).filter(Boolean);
+  buttons.forEach(button=>button.disabled=true);
+  try {
+    const message = mode === 'manual_open' ? 'Abrir o delivery por 30 minutos?' : mode === 'manual_closed' ? 'Fechar o delivery agora?' : 'Voltar ao horário automático?';
+    if (!confirm(message)) return;
+    renderDeliveryControl(await api('/admin/delivery-control',{method:'POST',body:JSON.stringify({mode})}));
+  } catch (error) { alert(`Não foi possível alterar o delivery.\n${error.message}`); }
+  finally { buttons.forEach(button=>button.disabled=false); }
+}
+
+$('#openDelivery30Btn')?.addEventListener('click',()=>setDeliveryControl('manual_open'));
+$('#closeDeliveryBtn')?.addEventListener('click',()=>setDeliveryControl('manual_closed'));
+$('#automaticDeliveryBtn')?.addEventListener('click',()=>setDeliveryControl('automatic'));
+
+deliveryControlClock = setInterval(()=>{
+  if (!deliveryControlState) return;
+  if (deliveryControlState.modo === 'manual_open') {
+    deliveryControlState.remaining_seconds = Math.max(0, Number(deliveryControlState.remaining_seconds || 0)-1);
+    renderDeliveryControl(deliveryControlState);
+    if (deliveryControlState.remaining_seconds <= 0) loadDeliveryControl();
+  }
+},1000);

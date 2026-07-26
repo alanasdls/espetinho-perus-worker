@@ -718,3 +718,11 @@ main{
   .realtime-board-section{margin-inline:-3px;padding:12px}
   .realtime-board{grid-template-columns:repeat(5,82vw)}
 }
+
+
+/* Controle manual do delivery — V10 */
+.delivery-control-card{margin:0 0 16px;padding:18px 20px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px 22px;align-items:center;border:1px solid #e4d5ca;border-radius:22px;background:#fff;box-shadow:0 12px 30px rgba(49,28,16,.08)}
+.delivery-control-copy small{color:#a75a18;font-weight:900;letter-spacing:.1em}.delivery-control-copy h2{margin:4px 0 6px;font-size:1.25rem}.delivery-control-copy p{margin:0;color:#75655b;font-size:.84rem;line-height:1.45}
+.delivery-control-status{text-align:right}.delivery-control-status strong{display:block;margin-top:7px;color:#40291d;font-size:.9rem}.delivery-control-badge{display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:0 12px;border-radius:999px;font-size:.7rem;font-weight:950;letter-spacing:.06em;background:#efe9e4;color:#6d5d53}.delivery-control-badge.open{background:#dff5e8;color:#137a42}.delivery-control-badge.closed{background:#ffe3e5;color:#a9212c}.delivery-control-badge.manual{box-shadow:0 0 0 3px rgba(232,157,44,.16)}
+.delivery-control-actions{grid-column:1/-1;display:flex;gap:9px;flex-wrap:wrap}.delivery-control-actions button{min-height:43px;padding:0 15px;border-radius:12px;font-size:.78rem;font-weight:900}.delivery-open-btn{background:#168b51}.delivery-close-btn{background:#c7323f}.delivery-auto-btn{background:#76675e}.delivery-control-actions button:disabled{opacity:.55;cursor:wait}
+@media(max-width:760px){.delivery-control-card{grid-template-columns:1fr;padding:15px}.delivery-control-status{text-align:left}.delivery-control-actions{grid-column:1}.delivery-control-actions button{flex:1 1 145px}}

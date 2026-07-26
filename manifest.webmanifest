@@ -1,37 +1,16 @@
 {
-  "id": "/admin-pedidos",
-  "name": "Espetinho Perus — Pedidos",
-  "short_name": "Pedidos",
-  "description": "Painel administrativo de pedidos do Espetinho Perus.",
-  "start_url": "/admin.html?modo=pwa",
-  "scope": "/",
+  "name": "Espetinho Perus",
+  "short_name": "Espetinho Perus",
+  "description": "Cardápio e pedidos do Espetinho Perus pelo WhatsApp.",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone"],
   "orientation": "portrait-primary",
-  "background_color": "#17110d",
-  "theme_color": "#17110d",
+  "background_color": "#120d09",
+  "theme_color": "#120d09",
   "lang": "pt-BR",
-  "categories": ["business", "food"],
   "icons": [
-    {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "Abrir painel",
-      "short_name": "Painel",
-      "url": "/admin.html?modo=pwa",
-      "icons": [{"src":"/icon-192.png","sizes":"192x192","type":"image/png"}]
-    }
+    {"src":"icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
+    {"src":"icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
   ]
 }
