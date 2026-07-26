@@ -404,6 +404,8 @@ function consumerAutorizado(request, env, url) {
     auth,
     request.headers.get("X-Access-Token"),
     request.headers.get("X-Api-Token"),
+    request.headers.get("X-Api-Key"),
+    request.headers.get("xapikey"),
     request.headers.get("Token"),
     url.searchParams.get("token")
   ].map(v => String(v || "").trim());
@@ -435,18 +437,25 @@ function codigoExternoFallback(nome, index) {
 function separarEndereco(customer = {}) {
   const endereco = String(customer.address || "").trim();
   const partes = endereco.split(",").map(x => x.trim()).filter(Boolean);
-  const rua = partes[0] || "Retirada no local";
+  const rua = partes[0] || "Rua nao informada";
   const numero = partes[1] || "S/N";
+  const complemento = partes.slice(2).join(", ") || null;
+  const bairro = String(customer.bairro || "Perus").trim();
+  const cidade = "São Paulo";
+  const estado = "SP";
+  const cep = somenteDigitos(customer.cep).slice(0, 8) || "05200000";
   return {
+    reference: customer.notes || null,
     country: "BR",
-    state: "SP",
-    city: "São Paulo",
-    postalCode: somenteDigitos(customer.cep).slice(0, 8) || "05200000",
     streetName: rua,
+    formattedAddress: [rua, numero, complemento, bairro, `${cidade} - ${estado}`].filter(Boolean).join(", "),
     streetNumber: numero,
-    neighborhood: customer.bairro || "Perus",
-    complement: partes.slice(2).join(", ") || null,
-    reference: customer.notes || null
+    city: cidade,
+    postalCode: cep,
+    coordinates: { latitude: 0, longitude: 0 },
+    neighborhood: bairro,
+    state: estado,
+    complement: complemento
   };
 }
 function metodoPagamentoConsumer(p) {
@@ -459,117 +468,116 @@ function metodoPagamentoConsumer(p) {
   return "OTHER";
 }
 function detalheConsumer(p, env) {
-  const entrega = p.customer?.fulfillment === "Entrega";
+  const entrega = normalizarTexto(p.customer?.fulfillment) === "entrega";
   const createdAt = p.created_at || new Date().toISOString();
+  const previsao = new Date(Date.now() + Number(p.estimated_minutes || (entrega ? 40 : 25)) * 60000).toISOString();
   const items = (p.items || []).map((item, index) => {
     const unitPrice = Number(item.unit_price ?? item.price ?? 0);
-    const quantity = Number(item.quantity || 1);
+    const quantity = Math.max(1, Number(item.quantity || 1));
+    const totalPrice = Math.round(unitPrice * quantity * 100) / 100;
+    const externalCode = String(item.external_code || item.externalCode || codigoExternoFallback(item.name, index));
     return {
-      id: item.id || `${p.order_id}-${index + 1}`,
-      uniqueId: item.unique_id || `${p.order_id}-${index + 1}`,
-      index: index + 1,
-      externalCode: String(item.external_code || item.externalCode || codigoExternoFallback(item.name, index)),
-      name: item.name || `Item ${index + 1}`,
-      quantity,
-      unit: "UN",
       unitPrice,
-      price: Math.round(unitPrice * quantity * 100) / 100,
-      totalPrice: Math.round(unitPrice * quantity * 100) / 100,
+      quantity,
+      externalCode,
+      totalPrice,
+      index: index + 1,
+      unit: "UN",
+      ean: null,
+      price: totalPrice,
       observations: item.observations || p.customer?.notes || null,
       imageUrl: item.image_url || null,
-      options: Array.isArray(item.options) ? item.options : null,
+      name: item.name || `Item ${index + 1}`,
+      options: Array.isArray(item.options) && item.options.length ? item.options : null,
+      id: item.id || `${p.order_id}-ITEM-${index + 1}`,
+      uniqueId: item.unique_id || `${p.order_id}-UNIQUE-${index + 1}`,
       optionsPrice: 0,
       addition: 0,
-      scalePrices: null,
-      ean: null
+      scalePrices: null
     };
   });
+
   const amount = Number(p.total || 0);
+  const subtotal = Number(p.subtotal || items.reduce((a, i) => a + i.totalPrice, 0));
   const prepaid = p.payment_status === "approved" ? amount : 0;
-  return {
-    item: {
-      id: p.order_id,
-      displayId: numeroPedidoExibicao(p.order_id),
-      orderType: entrega ? "DELIVERY" : "TAKEOUT",
-      salesChannel: "PARTNER",
-      sourceAppId: "ESPETINHO_PERUS_SITE",
-      virtualBrand: env.CONSUMER_MERCHANT_NAME || "Espetinho Perus",
-      orderTiming: "IMMEDIATE",
-      createdAt,
-      preparationStartDateTime: createdAt,
-      merchant: {
-        id: env.CONSUMER_MERCHANT_ID || "ESPETINHO-PERUS",
-        name: env.CONSUMER_MERCHANT_NAME || "Espetinho Perus"
-      },
-      total: {
-        benefits: 0,
-        deliveryFee: Number(p.delivery_fee || 0),
-        orderAmount: amount,
-        subTotal: Number(p.subtotal || 0),
-        additionalFees: 0
-      },
-      payments: {
-        methods: [{
-          method: metodoPagamentoConsumer(p),
-          prepaid: prepaid > 0,
-          currency: "BRL",
-          type: prepaid > 0 ? "ONLINE" : "OFFLINE",
-          value: amount,
-          cash: null,
-          card: null,
-          wallet: null
-        }],
-        pending: Math.max(0, amount - prepaid),
-        prepaid
-      },
-      customer: {
-        id: p.customer?.phone || p.tracking_token || p.order_id,
-        name: p.customer?.name || "Cliente",
-        phone: {
-          number: p.customer?.phone || "11999999999",
-          localizer: numeroPedidoExibicao(p.order_id),
-          localizerExpiration: new Date(Date.now() + 3600000).toISOString()
-        },
-        documentNumber: p.customer?.document || null,
-        segmentation: "Cliente",
-        ordersCountOnMerchant: null
-      },
-      items,
-      delivery: entrega ? {
-        mode: "DEFAULT",
-        deliveredBy: "MERCHANT",
-        pickupCode: numeroPedidoExibicao(p.order_id),
-        deliveryDateTime: new Date(Date.now() + Number(p.estimated_minutes || 40) * 60000).toISOString(),
-        deliveryAddress: separarEndereco(p.customer),
-        observations: p.customer?.notes || null
-      } : null,
-      takeout: !entrega ? {
-        mode: "DEFAULT",
-        takeoutDateTime: new Date(Date.now() + Number(p.estimated_minutes || 25) * 60000).toISOString(),
-        observations: p.customer?.notes || null
-      } : null,
-      schedule: null,
-      indoor: null,
-      picking: null,
-      benefits: [],
-      additionalFees: null,
-      extraInfo: p.customer?.notes || null,
-      additionalInfometadata: {
-        stockValidation: false,
-        allowUnknownProducts: true,
-        source: "site"
-      }
+  const displayId = numeroPedidoExibicao(p.order_id);
+  const detalhes = {
+    benefits: [],
+    orderType: entrega ? "DELIVERY" : "TAKEOUT",
+    payments: {
+      methods: [{
+        method: metodoPagamentoConsumer(p),
+        prepaid: prepaid > 0,
+        currency: "BRL",
+        type: prepaid > 0 ? "ONLINE" : "OFFLINE",
+        value: amount,
+        cash: null,
+        card: null,
+        wallet: null
+      }],
+      pending: Math.max(0, Math.round((amount - prepaid) * 100) / 100),
+      prepaid
     },
-    statusCode: 0,
-    reasonPhrase: null
+    merchant: {
+      name: env.CONSUMER_MERCHANT_NAME || "Espetinho Perus",
+      id: env.CONSUMER_MERCHANT_ID || "61341548000190"
+    },
+    salesChannel: "PARTNER",
+    picking: null,
+    orderTiming: "IMMEDIATE",
+    createdAt,
+    total: {
+      benefits: 0,
+      deliveryFee: Number(p.delivery_fee || 0),
+      orderAmount: amount,
+      subTotal: subtotal,
+      additionalFees: 0
+    },
+    preparationStartDateTime: createdAt,
+    id: p.order_id,
+    displayId,
+    items,
+    customer: {
+      phone: {
+        number: somenteDigitos(p.customer?.phone) || "11999999999",
+        localizer: displayId,
+        localizerExpiration: new Date(Date.now() + 3600000).toISOString()
+      },
+      documentNumber: p.customer?.document || null,
+      name: p.customer?.name || "Cliente",
+      ordersCountOnMerchant: null,
+      id: p.tracking_token || p.customer?.phone || p.order_id,
+      segmentation: "Cliente"
+    },
+    extraInfo: p.customer?.notes || null,
+    additionalFees: null,
+    delivery: entrega ? {
+      mode: "DEFAULT",
+      pickupCode: displayId,
+      deliveredBy: "Partner",
+      deliveryAddress: separarEndereco(p.customer),
+      deliveryDateTime: previsao,
+      observations: p.customer?.notes || null
+    } : null,
+    schedule: null,
+    indoor: null,
+    takeout: !entrega ? {
+      mode: "DEFAULT",
+      takeoutDateTime: previsao,
+      observations: p.customer?.notes || null
+    } : null,
+    additionalInfometadata: null
   };
+  return { item: detalhes, statusCode: 0, reasonPhrase: null };
 }
 async function pedidosPendentesConsumer(env) {
   const pedidos = await listarPedidos(env);
+  const limite = Date.now() - 72 * 60 * 60 * 1000;
   return pedidos.filter(p =>
     p.payment_status === "approved" &&
-    !["cancelado"].includes(p.order_status) &&
-    p.consumer_sync?.status !== "concluded"
+    ["recebido", "em_preparo", "pronto_retirada", "saiu_entrega"].includes(p.order_status) &&
+    !["accepted", "concluded", "cancelled"].includes(p.consumer_sync?.status) &&
+    new Date(p.created_at || 0).getTime() >= limite
   );
 }
 async function marcarConsumer(env, p, patch = {}) {
@@ -581,7 +589,7 @@ async function marcarConsumer(env, p, patch = {}) {
 
 export default { async fetch(request,env) {
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:CORS}); const url=new URL(request.url);
-  if(request.method==="POST"&&["/criar-pix","/criar-checkout-pagbank"].includes(url.pathname)){const delivery=await estadoDelivery(env);if(!delivery.aberto)return responder({erro:delivery.modo==="manual_closed"?"Delivery fechado manualmente no momento.":`Pedidos fechados no momento. Próxima abertura: ${proximaAbertura()}.`,delivery},403);}
+  if(request.method==="POST"&&["/criar-pix","/criar-checkout-pagbank","/criar-pedido"].includes(url.pathname)){const delivery=await estadoDelivery(env);if(!delivery.aberto)return responder({erro:delivery.modo==="manual_closed"?"Delivery fechado manualmente no momento.":`Pedidos fechados no momento. Próxima abertura: ${proximaAbertura()}.`,delivery},403);}
   if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),pagbank_sandbox:Boolean(env.PAGBANK_SANDBOX_TOKEN),pagbank_producao:Boolean(env.PAGBANK_TOKEN),consumer_api:Boolean(env.CONSUMER_API_TOKEN)});
   if(request.method==="GET"&&url.pathname==="/vapid-public-key")return responder({publicKey:env.VAPID_PUBLIC_KEY||""});
 
@@ -607,8 +615,10 @@ export default { async fetch(request,env) {
       const orderId=decodeURIComponent(detalheGet[1]);
       const p=await buscarPedido(env,orderId);
       if(!p)return responder({statusCode:404,reasonPhrase:"Pedido nao encontrado."},404);
+      const detalhes = detalheConsumer(p,env);
+      await env.ORDERS_KV.put("consumer:debug:last-details-response", JSON.stringify({order_id:orderId,generated_at:new Date().toISOString(),response:detalhes}), {expirationTtl:604800});
       await marcarConsumer(env,p,{status:"details_requested",details_requested_at:new Date().toISOString()});
-      return responder(detalheConsumer(p,env));
+      return responder(detalhes);
     }
 
     // O Consumer possui apenas um campo POST. Esta rota recebe todos os eventos.
@@ -755,6 +765,37 @@ export default { async fetch(request,env) {
     if(request.method==="POST"&&url.pathname==="/admin/test-push"){const b=await request.json();const p=await pedidoPorToken(env,texto(b.token,200));if(!p)return responder({erro:"Pedido nao encontrado."},404);const test=await enviarNotificacoes(env,p,"Teste Espetinho Perus","A notificacao do cliente esta funcionando.");return responder({ok:test.sent>0,...test},test.sent>0?200:502)}
     const m=url.pathname.match(/^\/admin\/orders\/([^/]+)$/);if(request.method==="PATCH"&&m){const p=await buscarPedido(env,decodeURIComponent(m[1]));if(!p)return responder({erro:"Pedido nao encontrado."},404);const b=await request.json();const ok=["recebido","em_preparo","pronto_retirada","saiu_entrega","finalizado","cancelado"];if(!ok.includes(b.order_status))return responder({erro:"Status invalido."},400);p.order_status=b.order_status;p.estimated_minutes=Number.isFinite(Number(b.estimated_minutes))?Math.max(0,Math.min(240,Number(b.estimated_minutes))):(p.estimated_minutes||25);p.status_history=p.status_history||[];p.status_history.push({status:b.order_status,at:new Date().toISOString()});await gravarPedido(env,p);await enviarNotificacoes(env,p,STATUS_LABELS[b.order_status]||"Atualizacao do pedido", b.order_status==="pronto_retirada"?"Seu pedido está pronto para retirada.":b.order_status==="saiu_entrega"?"Seu pedido está a caminho.":`Status atualizado: ${STATUS_LABELS[b.order_status]||b.order_status}.`);return responder({pedido:p})}
     return responder({erro:"Rota administrativa nao encontrada."},404);
+  }
+
+  if(request.method==="POST"&&url.pathname==="/criar-pedido"){
+    try{
+      if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);
+      const entrada=await request.json();
+      if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);
+      const entrega=calcularEntrega(entrada);
+      let subtotal=0;
+      const itens=entrada.items.map(item=>{
+        const nome=texto(item.name||item.nome||item.title,150), q=Number(item.quantity||item.quantidade);
+        if(!nome)throw new Error("Produto sem nome.");
+        if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);
+        const informado=Number(item.unit_price??item.price??item.preco);
+        const unit_price=Object.prototype.hasOwnProperty.call(PRECOS,nome)?PRECOS[nome]:informado;
+        if(!Number.isFinite(unit_price)||unit_price<=0)throw new Error(`Preco invalido para ${nome}`);
+        subtotal+=unit_price*q;
+        return {name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:texto(item.external_code||item.externalCode||item.pdv_code,80)||null,unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)};
+      });
+      subtotal=Math.round(subtotal*100)/100;
+      const total=Math.round((subtotal+entrega.fee)*100)/100;
+      const orderId=texto(entrada.order_id||entrada.numero_pedido,100)||`EP-${Date.now()}`;
+      if(await buscarPedido(env,orderId))return responder({erro:"Pedido duplicado.",order_id:orderId},409);
+      const agora=new Date().toISOString(), tracking=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16);
+      const p={order_id:orderId,tracking_token:tracking,site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,
+        customer:{name:texto(entrada.customer?.name||"Cliente",100),email:texto(entrada.customer?.email,150).toLowerCase(),phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500)},
+        items:itens,subtotal,delivery_fee:entrega.fee,total,payment_id:null,payment_provider:"dinheiro",payment_method:"Dinheiro",change_for:texto(entrada.change_for,50),payment_status:"approved",payment_status_detail:"Pagamento na entrega/retirada",order_status:"recebido",paid_at:agora,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"recebido",at:agora,origem:"site"}],consumer_sync:{status:"pending",created_at:agora}};
+      await gravarPedido(env,p);
+      await notificarNovoPedidoPago(env,p);
+      return responder({ok:true,numero_pedido:orderId,order_id:orderId,tracking_token:tracking,status:"approved",order_status:"recebido",total},201);
+    }catch(e){console.error("criar-pedido",e);return responder({erro:"Erro ao registrar pedido.",detalhes:e instanceof Error?e.message:String(e)},500)}
   }
   if(request.method==="POST"&&url.pathname==="/criar-checkout-pagbank"){
     try{
