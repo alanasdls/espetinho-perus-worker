@@ -65,7 +65,7 @@ async function avisarTempoReal(env, tipo, pedido) {
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,PATCH,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, X-Admin-Key"
+  "Access-Control-Allow-Headers": "Content-Type, X-Admin-Key, Authorization, X-Access-Token, X-Api-Token, Token"
 };
 
 const PRECOS = {
@@ -348,11 +348,311 @@ function proximaAbertura(){
   return "quarta-feira às 18h";
 }
 
+
+// ===== INTEGRACAO CONSUMER API DO PARCEIRO =====
+function consumerAutorizado(request, env, url) {
+  const esperado = String(env.CONSUMER_API_TOKEN || "").trim();
+  if (!esperado) return false;
+  const auth = String(request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
+  const candidatos = [
+    auth,
+    request.headers.get("X-Access-Token"),
+    request.headers.get("X-Api-Token"),
+    request.headers.get("Token"),
+    url.searchParams.get("token")
+  ].map(v => String(v || "").trim());
+  return candidatos.includes(esperado);
+}
+
+function consumerStatusParaSite(status) {
+  const s = normalizarTexto(status).replace(/\s+/g, "_");
+  const mapa = {
+    confirmed: "recebido", accepted: "recebido", confirmado: "recebido", recebida: "recebido",
+    preparation: "em_preparo", preparing: "em_preparo", in_preparation: "em_preparo", em_preparo: "em_preparo",
+    ready_to_pickup: "pronto_retirada", ready: "pronto_retirada", pronto_para_retirada: "pronto_retirada",
+    dispatched: "saiu_entrega", out_for_delivery: "saiu_entrega", saiu_para_entrega: "saiu_entrega",
+    concluded: "finalizado", completed: "finalizado", finalizado: "finalizado",
+    cancelled: "cancelado", canceled: "cancelado", cancelado: "cancelado"
+  };
+  return mapa[s] || null;
+}
+
+function somenteDigitos(v) { return String(v || "").replace(/\D/g, ""); }
+function numeroPedidoExibicao(id) {
+  const digitos = somenteDigitos(id);
+  return (digitos.slice(-8) || String(id || "PEDIDO").slice(-8)).padStart(4, "0");
+}
+function codigoExternoFallback(nome, index) {
+  const slug = normalizarTexto(nome).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 24);
+  return `SITE-${slug || "ITEM"}-${index + 1}`;
+}
+function separarEndereco(customer = {}) {
+  const endereco = String(customer.address || "").trim();
+  const partes = endereco.split(",").map(x => x.trim()).filter(Boolean);
+  const rua = partes[0] || "Retirada no local";
+  const numero = partes[1] || "S/N";
+  return {
+    country: "BR",
+    state: "SP",
+    city: "São Paulo",
+    postalCode: somenteDigitos(customer.cep).slice(0, 8) || "05200000",
+    streetName: rua,
+    streetNumber: numero,
+    neighborhood: customer.bairro || "Perus",
+    complement: partes.slice(2).join(", ") || null,
+    reference: customer.notes || null
+  };
+}
+function metodoPagamentoConsumer(p) {
+  const provider = normalizarTexto(p.payment_provider);
+  const method = normalizarTexto(p.payment_method);
+  if (provider === "misticpay" || provider === "pix" || method.includes("pix")) return "PIX";
+  if (method.includes("debit")) return "DEBIT";
+  if (method.includes("credit")) return "CREDIT";
+  if (method.includes("cash") || method.includes("dinheiro")) return "CASH";
+  return "OTHER";
+}
+function detalheConsumer(p, env) {
+  const entrega = p.customer?.fulfillment === "Entrega";
+  const createdAt = p.created_at || new Date().toISOString();
+  const items = (p.items || []).map((item, index) => {
+    const unitPrice = Number(item.unit_price ?? item.price ?? 0);
+    const quantity = Number(item.quantity || 1);
+    return {
+      id: item.id || `${p.order_id}-${index + 1}`,
+      uniqueId: item.unique_id || `${p.order_id}-${index + 1}`,
+      index: index + 1,
+      externalCode: String(item.external_code || item.externalCode || codigoExternoFallback(item.name, index)),
+      name: item.name || `Item ${index + 1}`,
+      quantity,
+      unit: "UN",
+      unitPrice,
+      price: Math.round(unitPrice * quantity * 100) / 100,
+      totalPrice: Math.round(unitPrice * quantity * 100) / 100,
+      observations: item.observations || p.customer?.notes || null,
+      imageUrl: item.image_url || null,
+      options: Array.isArray(item.options) ? item.options : null,
+      optionsPrice: 0,
+      addition: 0,
+      scalePrices: null,
+      ean: null
+    };
+  });
+  const amount = Number(p.total || 0);
+  const prepaid = p.payment_status === "approved" ? amount : 0;
+  return {
+    item: {
+      id: p.order_id,
+      displayId: numeroPedidoExibicao(p.order_id),
+      orderType: entrega ? "DELIVERY" : "TAKEOUT",
+      salesChannel: "PARTNER",
+      sourceAppId: "ESPETINHO_PERUS_SITE",
+      virtualBrand: env.CONSUMER_MERCHANT_NAME || "Espetinho Perus",
+      orderTiming: "IMMEDIATE",
+      createdAt,
+      preparationStartDateTime: createdAt,
+      merchant: {
+        id: env.CONSUMER_MERCHANT_ID || "ESPETINHO-PERUS",
+        name: env.CONSUMER_MERCHANT_NAME || "Espetinho Perus"
+      },
+      total: {
+        benefits: 0,
+        deliveryFee: Number(p.delivery_fee || 0),
+        orderAmount: amount,
+        subTotal: Number(p.subtotal || 0),
+        additionalFees: 0
+      },
+      payments: {
+        methods: [{
+          method: metodoPagamentoConsumer(p),
+          prepaid: prepaid > 0,
+          currency: "BRL",
+          type: prepaid > 0 ? "ONLINE" : "OFFLINE",
+          value: amount,
+          cash: null,
+          card: null,
+          wallet: null
+        }],
+        pending: Math.max(0, amount - prepaid),
+        prepaid
+      },
+      customer: {
+        id: p.customer?.phone || p.tracking_token || p.order_id,
+        name: p.customer?.name || "Cliente",
+        phone: {
+          number: p.customer?.phone || "11999999999",
+          localizer: numeroPedidoExibicao(p.order_id),
+          localizerExpiration: new Date(Date.now() + 3600000).toISOString()
+        },
+        documentNumber: p.customer?.document || null,
+        segmentation: "Cliente",
+        ordersCountOnMerchant: null
+      },
+      items,
+      delivery: entrega ? {
+        mode: "DEFAULT",
+        deliveredBy: "MERCHANT",
+        pickupCode: numeroPedidoExibicao(p.order_id),
+        deliveryDateTime: new Date(Date.now() + Number(p.estimated_minutes || 40) * 60000).toISOString(),
+        deliveryAddress: separarEndereco(p.customer),
+        observations: p.customer?.notes || null
+      } : null,
+      takeout: !entrega ? {
+        mode: "DEFAULT",
+        takeoutDateTime: new Date(Date.now() + Number(p.estimated_minutes || 25) * 60000).toISOString(),
+        observations: p.customer?.notes || null
+      } : null,
+      schedule: null,
+      indoor: null,
+      picking: null,
+      benefits: [],
+      additionalFees: null,
+      extraInfo: p.customer?.notes || null,
+      additionalInfometadata: {
+        stockValidation: false,
+        allowUnknownProducts: true,
+        source: "site"
+      }
+    },
+    statusCode: 0,
+    reasonPhrase: null
+  };
+}
+async function pedidosPendentesConsumer(env) {
+  const pedidos = await listarPedidos(env);
+  return pedidos.filter(p =>
+    p.payment_status === "approved" &&
+    !["cancelado"].includes(p.order_status) &&
+    p.consumer_sync?.status !== "concluded"
+  );
+}
+async function marcarConsumer(env, p, patch = {}) {
+  p.consumer_sync = { ...(p.consumer_sync || {}), ...patch, updated_at: new Date().toISOString() };
+  await gravarPedido(env, p);
+  return p;
+}
+// ===== FIM INTEGRACAO CONSUMER =====
+
 export default { async fetch(request,env) {
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:CORS}); const url=new URL(request.url);
   if(request.method==="POST"&&["/criar-pix","/criar-checkout-pagbank"].includes(url.pathname)&&!horarioPedidos().aberto)return responder({erro:`Pedidos fechados no momento. Próxima abertura: ${proximaAbertura()}.`},403);
-  if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),pagbank_sandbox:Boolean(env.PAGBANK_SANDBOX_TOKEN),pagbank_producao:Boolean(env.PAGBANK_TOKEN)});
+  if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),pagbank_sandbox:Boolean(env.PAGBANK_SANDBOX_TOKEN),pagbank_producao:Boolean(env.PAGBANK_TOKEN),consumer_api:Boolean(env.CONSUMER_API_TOKEN)});
   if(request.method==="GET"&&url.pathname==="/vapid-public-key")return responder({publicKey:env.VAPID_PUBLIC_KEY||""});
+
+  // Consumer API do Parceiro. Nao consulta estoque e nao bloqueia produtos sem cadastro.
+  if(url.pathname.startsWith("/consumer/")){
+    if(!consumerAutorizado(request,env,url))return responder({statusCode:401,reasonPhrase:"Token Consumer invalido."},401);
+    if(!env.ORDERS_KV)return responder({statusCode:500,reasonPhrase:"ORDERS_KV nao configurado."},500);
+
+    if(request.method==="GET"&&url.pathname==="/consumer/polling"){
+      const pedidos=await pedidosPendentesConsumer(env);
+      const items=pedidos.slice(0,100).map(p=>({
+        id:p.consumer_sync?.event_id||`PLC-${p.order_id}`,
+        orderId:p.order_id,
+        createdAt:p.created_at||new Date().toISOString(),
+        fullCode:"PLACED",
+        code:"PLC"
+      }));
+      return responder({items,statusCode:0,reasonPhrase:null});
+    }
+
+    const detalheGet=url.pathname.match(/^\/consumer\/orders\/([^/]+)$/);
+    if(request.method==="GET"&&detalheGet){
+      const orderId=decodeURIComponent(detalheGet[1]);
+      const p=await buscarPedido(env,orderId);
+      if(!p)return responder({statusCode:404,reasonPhrase:"Pedido nao encontrado."},404);
+      await marcarConsumer(env,p,{status:"details_requested",details_requested_at:new Date().toISOString()});
+      return responder(detalheConsumer(p,env));
+    }
+
+    // O Consumer possui apenas um campo POST. Esta rota recebe todos os eventos.
+    if(request.method==="POST"&&url.pathname==="/consumer/events"){
+      const b=await request.json().catch(()=>({}));
+      const orderId=texto(
+        b.orderId||b.OrderId||b?.item?.id||b.Id||b.id||b.referenceId||b.ReferenceId,
+        100
+      );
+      const statusRecebido=texto(
+        b.status||b.Status||b.orderStatus||b.OrderStatus||b.eventStatus||b.EventStatus,
+        100
+      );
+      const eventCode=texto(
+        b.code||b.Code||b.eventCode||b.EventCode||b.fullCode||b.FullCode||b.EventFullCode||b.EventFull,
+        100
+      );
+
+      await env.ORDERS_KV.put(
+        "consumer:debug:last-event",
+        JSON.stringify({received_at:new Date().toISOString(),body:b}),
+        {expirationTtl:604800}
+      );
+
+      // Atualizacao de status enviada pelo Consumer.
+      const novo=consumerStatusParaSite(statusRecebido||eventCode);
+      if(orderId&&novo){
+        const p=await buscarPedido(env,orderId);
+        if(!p)return responder({statusCode:404,reasonPhrase:"Pedido nao encontrado."},404);
+        p.order_status=novo;
+        p.status_history=p.status_history||[];
+        p.status_history.push({
+          status:novo,
+          at:new Date().toISOString(),
+          source:"consumer",
+          justification:texto(b.justification||b.Justification||b.reason||b.Reason,300)
+        });
+        const finalizado=["finalizado","cancelado"].includes(novo);
+        await marcarConsumer(env,p,{
+          status:finalizado?"concluded":"synced",
+          consumer_status:statusRecebido||eventCode,
+          justification:texto(b.justification||b.Justification||b.reason||b.Reason,300),
+          last_event:b
+        });
+        await enviarNotificacoes(
+          env,p,
+          STATUS_LABELS[novo]||"Atualizacao do pedido",
+          texto(b.justification||b.Justification||b.reason||b.Reason,300)||`Status atualizado: ${STATUS_LABELS[novo]||novo}.`
+        );
+        return responder({statusCode:0,reasonPhrase:`${orderId} alterado para '${statusRecebido||eventCode}'.`});
+      }
+
+      // Confirmacao de que os detalhes do pedido foram recebidos/processados.
+      if(orderId){
+        const p=await buscarPedido(env,orderId);
+        if(p){
+          await marcarConsumer(env,p,{
+            status:"event_received",
+            event_code:eventCode||null,
+            details_sent_at:new Date().toISOString(),
+            last_event:b
+          });
+        }
+      }
+
+      return responder({
+        statusCode:0,
+        reasonPhrase:`${orderId||"Evento"} recebido com sucesso.`
+      });
+    }
+
+    // Compatibilidade temporaria com a versao anterior. O Consumer deve usar /consumer/events.
+    if(request.method==="POST"&&[
+      "/consumer/order-details-events",
+      "/consumer/order-details",
+      "/consumer/status"
+    ].includes(url.pathname)){
+      return responder({
+        statusCode:410,
+        reasonPhrase:"Use o unico endpoint POST: /consumer/events"
+      },410);
+    }
+
+    if(request.method==="GET"&&url.pathname==="/consumer/debug"){
+      const ultimo=await env.ORDERS_KV.get("consumer:debug:last-details","json");
+      return responder({statusCode:0,reasonPhrase:null,lastDetails:ultimo});
+    }
+    return responder({statusCode:404,reasonPhrase:"Rota Consumer nao encontrada."},404);
+  }
+
   if(request.method==="GET"&&url.pathname==="/admin/realtime"){
     const suppliedKey=url.searchParams.get("key")||(request.headers.get("X-Admin-Key")||"");
     if(!env.ADMIN_KEY||suppliedKey!==env.ADMIN_KEY)return responder({erro:"Senha administrativa invalida."},401);
@@ -408,7 +708,7 @@ export default { async fetch(request,env) {
       const token=pagBankToken(env); if(!token)return responder({erro:"Token do PagBank nao configurado no Worker."},500);
       const entrada=await request.json(); if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);
       const email=texto(entrada.customer?.email||entrada.email,150).toLowerCase(); if(!emailValido(email))return responder({erro:"Informe um e-mail valido."},400);
-      let subtotal=0; const itens=entrada.items.map(item=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!Object.prototype.hasOwnProperty.call(PRECOS,nome))throw new Error(`Produto nao reconhecido: ${nome}`);if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const unit_price=PRECOS[nome];subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100}}); subtotal=Math.round(subtotal*100)/100;
+      let subtotal=0; const itens=entrada.items.map(item=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!nome)throw new Error("Produto sem nome.");if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const precoSite=Number(item.unit_price??item.price??item.preco);const unit_price=Object.prototype.hasOwnProperty.call(PRECOS,nome)?PRECOS[nome]:precoSite;if(!Number.isFinite(unit_price)||unit_price<=0)throw new Error(`Preco invalido para ${nome}`);subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:texto(item.external_code||item.externalCode||item.pdv_code,80)||null,unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)}}); subtotal=Math.round(subtotal*100)/100;
       const entrega=calcularEntrega(entrada); const deliveryFee=entrega.fee; const total=Math.round((subtotal+deliveryFee)*100)/100;
       const orderId=texto(entrada.order_id||entrada.numero_pedido,64)||`EP-${Date.now()}`,nome=texto(entrada.customer?.name||"Cliente",100),agora=new Date().toISOString();
       const tracking=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16);
@@ -454,7 +754,7 @@ export default { async fetch(request,env) {
   }
   if(request.method!=="POST"||url.pathname!=="/criar-pix")return responder({erro:"Rota nao encontrada."},404);
   try{if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);const entrada=await request.json();if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);const email=texto(entrada.customer?.email||entrada.email,150).toLowerCase();if(!emailValido(email))return responder({erro:"Informe um e-mail valido para gerar o Pix."},400);
-    let subtotal=0;const itens=entrada.items.map((item,index)=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!Object.prototype.hasOwnProperty.call(PRECOS,nome))throw new Error(`Produto nao reconhecido: ${nome}`);if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const unit_price=PRECOS[nome];subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100}});subtotal=Math.round(subtotal*100)/100;const entrega=calcularEntrega(entrada);const deliveryFee=entrega.fee;const total=Math.round((subtotal+deliveryFee)*100)/100;
+    let subtotal=0;const itens=entrada.items.map((item,index)=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!nome)throw new Error("Produto sem nome.");if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const precoSite=Number(item.unit_price??item.price??item.preco);const unit_price=Object.prototype.hasOwnProperty.call(PRECOS,nome)?PRECOS[nome]:precoSite;if(!Number.isFinite(unit_price)||unit_price<=0)throw new Error(`Preco invalido para ${nome}`);subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:texto(item.external_code||item.externalCode||item.pdv_code,80)||null,unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)}});subtotal=Math.round(subtotal*100)/100;const entrega=calcularEntrega(entrada);const deliveryFee=entrega.fee;const total=Math.round((subtotal+deliveryFee)*100)/100;
     const orderId=texto(entrada.order_id||entrada.numero_pedido,100)||`EP-${Date.now()}`, nome=texto(entrada.customer?.name||entrada.nome||"Cliente",100), agora=new Date().toISOString();let p={order_id:orderId,tracking_token:crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16),site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500)},items:itens,subtotal,delivery_fee:deliveryFee,total,payment_id:null,payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};await gravarPedido(env,p);
     const pay={amount:total,payerName:nome,transactionId:orderId,description:`Pedido ${orderId} - Espetinho Perus`,projectWebhook:`${url.origin}/webhook-misticpay`};
     const documento=texto(entrada.customer?.document||entrada.customer?.cpf||entrada.payerDocument||env.MISTICPAY_PAYER_DOCUMENT,30).replace(/\D/g,"");
