@@ -484,22 +484,41 @@ function detalheConsumer(p, env) {
     const observacaoGenerica = usaGenerico
       ? `ITEM REAL: ${nomeReal} | Quantidade: ${quantity} | Valor unitário: R$ ${unitPrice.toFixed(2).replace(".", ",")}`
       : null;
-    return {
+    // Para itens genéricos, o produto cadastrado no Consumer pode ter preço R$ 0,00.
+    // Nesse caso enviamos o valor real como uma opção/complemento avulso (externalCode "WO"),
+    // para que o total da venda seja contabilizado sem alterar o preço fixo do produto genérico.
+    const opcoesOriginais = Array.isArray(item.options) ? item.options : [];
+    const opcaoValorReal = usaGenerico ? [{
       unitPrice,
+      unit: "UN",
+      ean: null,
+      quantity,
+      externalCode: "WO",
+      price: unitPrice,
+      name: `${nomeReal} — valor do site`,
+      index: 0,
+      id: `${p.order_id}-VALOR-${index + 1}`,
+      addition: 0
+    }] : [];
+    const options = [...opcaoValorReal, ...opcoesOriginais];
+
+    return {
+      // Produto genérico fica com base zero; o valor real vai na opção acima.
+      unitPrice: usaGenerico ? 0 : unitPrice,
       quantity,
       externalCode,
       totalPrice,
       index: index + 1,
       unit: "UN",
       ean: null,
-      price: totalPrice,
+      price: usaGenerico ? 0 : unitPrice,
       observations: [observacaoGenerica, item.observations, p.customer?.notes].filter(Boolean).join(" | ") || null,
       imageUrl: item.image_url || null,
       name: usaGenerico ? String(env.CONSUMER_GENERIC_PRODUCT_NAME || "ITEM DO SITE") : nomeReal,
-      options: Array.isArray(item.options) && item.options.length ? item.options : null,
+      options: options.length ? options : null,
       id: item.id || `${p.order_id}-ITEM-${index + 1}`,
       uniqueId: item.unique_id || `${p.order_id}-UNIQUE-${index + 1}`,
-      optionsPrice: 0,
+      optionsPrice: usaGenerico ? totalPrice : 0,
       addition: 0,
       scalePrices: null
     };
