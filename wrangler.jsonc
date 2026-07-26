@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "summer-field-09b7",
+  "name": "espetinho-perus-api",
   "main": "worker.js",
   "compatibility_date": "2026-07-24",
   "workers_dev": true,

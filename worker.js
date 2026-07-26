@@ -475,7 +475,15 @@ function detalheConsumer(p, env) {
     const unitPrice = Number(item.unit_price ?? item.price ?? 0);
     const quantity = Math.max(1, Number(item.quantity || 1));
     const totalPrice = Math.round(unitPrice * quantity * 100) / 100;
-    const externalCode = String(item.external_code || item.externalCode || codigoExternoFallback(item.name, index));
+    const codigoOriginal = String(item.external_code || item.externalCode || "").trim();
+    const usaGenerico = !codigoOriginal;
+    const externalCode = usaGenerico
+      ? String(env.CONSUMER_GENERIC_PRODUCT_CODE || "602")
+      : codigoOriginal;
+    const nomeReal = item.name || `Item ${index + 1}`;
+    const observacaoGenerica = usaGenerico
+      ? `ITEM REAL: ${nomeReal} | Quantidade: ${quantity} | Valor unitário: R$ ${unitPrice.toFixed(2).replace(".", ",")}`
+      : null;
     return {
       unitPrice,
       quantity,
@@ -485,9 +493,9 @@ function detalheConsumer(p, env) {
       unit: "UN",
       ean: null,
       price: totalPrice,
-      observations: item.observations || p.customer?.notes || null,
+      observations: [observacaoGenerica, item.observations, p.customer?.notes].filter(Boolean).join(" | ") || null,
       imageUrl: item.image_url || null,
-      name: item.name || `Item ${index + 1}`,
+      name: usaGenerico ? String(env.CONSUMER_GENERIC_PRODUCT_NAME || "ITEM DO SITE") : nomeReal,
       options: Array.isArray(item.options) && item.options.length ? item.options : null,
       id: item.id || `${p.order_id}-ITEM-${index + 1}`,
       uniqueId: item.unique_id || `${p.order_id}-UNIQUE-${index + 1}`,
