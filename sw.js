@@ -1,6 +1,6 @@
-const CACHE = 'espetinho-perus-v7-6-validacao-cep-perus';
+const CACHE = 'espetinho-perus-v12-delivery-control';
 const PRECACHE = [
-  './', './index.html', './pedido.html','./cliente.html','./cliente.css?v=20260725-v97','./cliente.js?v=20260725-v97', './pedido.css?v=20260724-v2', './pedido.js?v=20260724-v3', './admin.html', './admin.css?v=20260725-v7-1-1-2', './admin.js?v=20260725-v7-1-1-2', './styles.css?v=20260725-cart-black-v73', './app-misticpay-cpf-v42.js?v=20260725-cart-black-v73', './pagamento-sucesso.html', './pagamento-pendente.html', './pagamento-falhou.html',
+  './', './index.html', './pedido.html','./cliente.html','./cliente.css?v=20260725-v97','./cliente.js?v=20260725-v97', './pedido.css?v=20260724-v2', './pedido.js?v=20260724-v3', './admin.html', './admin.css?v=20260726-v12-delivery-control', './admin.js?v=20260726-v12-delivery-control', './styles.css?v=20260725-cart-black-v73', './app-misticpay-cpf-v42.js?v=20260725-cart-black-v73', './pagamento-sucesso.html', './pagamento-pendente.html', './pagamento-falhou.html',
   './manifest.webmanifest', './manifest-admin.webmanifest', './alerta-pedido.wav?v=20260724-v4', './icon-192.png', './icon-512.png', './apple-touch-icon.png',
   './assets/products/azeitona-20260723.webp',
   './assets/products/batata-com-calabresa-ou-frango-600g-20260723.webp',
@@ -53,7 +53,11 @@ self.addEventListener('fetch', event => {
         caches.open(CACHE).then(cache => cache.put(event.request, copy));
       }
       return response;
-    }).catch(() => caches.match(event.request).then(r => r || caches.match('./index.html')))
+    }).catch(() => caches.match(event.request).then(r => {
+      if (r) return r;
+      if (event.request.mode === 'navigate') return caches.match('./index.html');
+      return new Response('Offline', {status: 503, statusText: 'Offline'});
+    }))
   );
 });
 

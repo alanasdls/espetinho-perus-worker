@@ -1,0 +1,6 @@
+ATUALIZAÇÃO V12 — BOTÃO DO DELIVERY
+
+1) Na raiz do GitHub, substitua: admin.html, admin.js, admin.css, sw.js e _headers.
+2) Entre na pasta painel e substitua: index.html, admin.html, admin.js, admin.css e sw.js.
+3) Aguarde a implantação do Cloudflare Pages terminar.
+4) Abra /painel/?v=12 ou /painel/admin.html?v=12 para evitar cache antigo.
