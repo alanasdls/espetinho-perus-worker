@@ -233,10 +233,30 @@ function statusMisticParaSite(status) {
   if(s==="FALHA"||s==="CANCELADO") return "rejected";
   return "pending";
 }
+
+function credenciaisMistic(env) {
+  const ciBruto = String(env.MISTICPAY_CI ?? "");
+  const csBruto = String(env.MISTICPAY_CS ?? "");
+  const ci = ciBruto.trim();
+  const cs = csBruto.trim();
+  return {
+    ci,
+    cs,
+    diagnostico: {
+      ci_configurado: Boolean(ci),
+      cs_configurado: Boolean(cs),
+      ci_tamanho: ci.length,
+      cs_tamanho: cs.length,
+      ci_tinha_espacos_ocultos: ciBruto !== ci,
+      cs_tinha_espacos_ocultos: csBruto !== cs
+    }
+  };
+}
+
 async function consultarMisticPay(env,id) {
   const r=await fetch("https://api.misticpay.com/api/transactions/check",{
     method:"POST",
-    headers:{ci:env.MISTICPAY_CI,cs:env.MISTICPAY_CS,"Content-Type":"application/json"},
+    headers:{ci:credenciaisMistic(env).ci,cs:credenciaisMistic(env).cs,"Content-Type":"application/json"},
     body:JSON.stringify({transactionId:String(id)})
   });
   let data={}; try{data=await r.json()}catch{data={erro:"Resposta invalida da MisticPay"}}
@@ -833,6 +853,20 @@ export default { async fetch(request,env) {
       const debug=await env.ORDERS_KV.get("debug:misticpay:last","json");
       return debug?responder({ok:true,debug}):responder({erro:"Nenhum diagnostico da MisticPay foi gravado ainda."},404);
     }
+    if(request.method==="GET"&&url.pathname==="/admin/misticpay-auth-test"){
+      const creds=credenciaisMistic(env);
+      if(!creds.ci||!creds.cs)return responder({ok:false,erro:"Credenciais MisticPay ausentes.",diagnostico:creds.diagnostico},500);
+      try{
+        const r=await fetch("https://api.misticpay.com/api/users/info",{
+          method:"GET",
+          headers:{ci:creds.ci,cs:creds.cs,"Content-Type":"application/json",Accept:"application/json"}
+        });
+        const body=await r.json().catch(async()=>({texto:(await r.text().catch(()=>"" )).slice(0,500)}));
+        return responder({ok:r.ok,http_status:r.status,diagnostico:creds.diagnostico,resposta:body},r.ok?200:r.status);
+      }catch(e){
+        return responder({ok:false,erro:e instanceof Error?e.message:String(e),diagnostico:creds.diagnostico},502);
+      }
+    }
     if(request.method==="POST"&&url.pathname==="/admin/push-subscribe"){
       const b=await request.json().catch(()=>({}));
       const subscription=b.subscription;
@@ -925,7 +959,7 @@ export default { async fetch(request,env) {
     const c=await consultarCheckoutPagBank(env,checkoutId);if(!c.ok)return responder({erro:"Nao foi possivel consultar o PagBank.",detalhes:c.data},c.status);
     const p=await sincronizarPagBank(env,c.data);return responder({checkout_id:checkoutId,status:p?.payment_status||normalizarStatusPagBank(c.data?.status),pedido:p?{order_id:p.order_id,order_status:p.order_status,tracking_token:p.tracking_token,loyalty:p.loyalty||null}:null});
   }
-  if(!env.MISTICPAY_CI||!env.MISTICPAY_CS)return responder({erro:"MISTICPAY_CI ou MISTICPAY_CS nao configurado."},500);
+  if(!credenciaisMistic(env).ci||!credenciaisMistic(env).cs)return responder({erro:"MISTICPAY_CI ou MISTICPAY_CS nao configurado.",diagnostico:credenciaisMistic(env).diagnostico},500);
   if(request.method==="GET"&&url.pathname==="/pagamento-status"){
     const id=texto(url.searchParams.get("id"),100);if(!id)return responder({erro:"ID de pagamento invalido."},400);
     const c=await consultarMisticPay(env,id);if(!c.ok)return responder({erro:"Nao foi possivel consultar o pagamento na MisticPay.",detalhes:c.data},c.status);
@@ -946,7 +980,7 @@ export default { async fetch(request,env) {
     const pay={amount:total,payerName:nome,transactionId:orderId,description:`Pedido ${orderId} - Espetinho Perus`,projectWebhook:`${url.origin}/webhook-misticpay`};
     const documento=texto(entrada.customer?.document||entrada.customer?.cpf||entrada.payerDocument||env.MISTICPAY_PAYER_DOCUMENT,30).replace(/\D/g,"");
     if(documento)pay.payerDocument=documento;
-    const r=await fetch("https://api.misticpay.com/api/transactions/create",{method:"POST",headers:{ci:env.MISTICPAY_CI,cs:env.MISTICPAY_CS,"Content-Type":"application/json"},body:JSON.stringify(pay)});
+    const r=await fetch("https://api.misticpay.com/api/transactions/create",{method:"POST",headers:{ci:credenciaisMistic(env).ci,cs:credenciaisMistic(env).cs,"Content-Type":"application/json"},body:JSON.stringify(pay)});
     let d={};try{d=await r.json()}catch{d={erro:"Resposta invalida da MisticPay"}}
     const diagnosticoCriacao={
       registrado_em:new Date().toISOString(),
