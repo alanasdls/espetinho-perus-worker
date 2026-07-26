@@ -152,6 +152,69 @@ function calcularEntrega(entrada) {
   if (feeInformada !== 10) throw new Error("Taxa de entrega inválida.");
   return { fee: 10, bairro, cep };
 }
+
+async function clienteSupabaseAutenticado(request, env) {
+  const auth = request.headers.get("Authorization") || "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+  if (!token || !env.SUPABASE_URL || !env.SUPABASE_PUBLISHABLE_KEY) return null;
+  try {
+    const r = await fetch(`${env.SUPABASE_URL.replace(/\/$/, "")}/auth/v1/user`, {
+      headers: {
+        apikey: env.SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${token}`
+      }
+    });
+    if (!r.ok) return null;
+    const user = await r.json();
+    return user?.id ? { id: String(user.id), email: user.email || null } : null;
+  } catch (e) {
+    console.error("Falha ao validar cliente no Supabase", e);
+    return null;
+  }
+}
+
+async function creditarPontosFidelidade(env, pedido) {
+  const clienteId = pedido?.customer?.loyalty_customer_id;
+  if (!clienteId || pedido?.loyalty?.credited) return { credited: false, reason: "sem_cliente" };
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+    pedido.loyalty = { ...(pedido.loyalty || {}), credited: false, status: "config_missing", updated_at: new Date().toISOString() };
+    return { credited: false, reason: "config_missing" };
+  }
+  try {
+    const r = await fetch(`${env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1/rpc/creditar_pontos_pedido`, {
+      method: "POST",
+      headers: {
+        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        p_cliente_id: clienteId,
+        p_numero_pedido: pedido.order_id,
+        p_subtotal: Number(pedido.subtotal || 0),
+        p_valor_total: Number(pedido.total || 0),
+        p_frete: Number(pedido.delivery_fee || 0)
+      })
+    });
+    const data = await r.json().catch(() => null);
+    if (!r.ok) throw new Error(`Supabase ${r.status}: ${JSON.stringify(data)}`);
+    const row = Array.isArray(data) ? data[0] : data;
+    pedido.loyalty = {
+      credited: true,
+      status: row?.ja_creditado ? "already_credited" : "credited",
+      points: Number(row?.pontos_creditados || 0),
+      subtotal_eligible: Number(pedido.subtotal || 0),
+      freight_excluded: Number(pedido.delivery_fee || 0),
+      updated_at: new Date().toISOString()
+    };
+    return pedido.loyalty;
+  } catch (e) {
+    console.error("Falha ao creditar pontos", e);
+    pedido.loyalty = { ...(pedido.loyalty || {}), credited: false, status: "error", error: e instanceof Error ? e.message : String(e), updated_at: new Date().toISOString() };
+    return pedido.loyalty;
+  }
+}
+
 function adminAutorizado(request, env) { return Boolean(env.ADMIN_KEY) && (request.headers.get("X-Admin-Key") || "") === env.ADMIN_KEY; }
 async function gravarPedido(env, pedido) {
   pedido.updated_at = new Date().toISOString();
@@ -201,7 +264,7 @@ async function sincronizarPagamentoMistic(env,d) {
     p.status_history.push({status:"recebido",at:new Date().toISOString()});
   }
   await gravarPedido(env,p);
-  if(before!=="approved"&&novoStatus==="approved"){await enviarNotificacoes(env,p,"Pagamento aprovado!","Recebemos seu pedido. Acompanhe o preparo por aqui.");await notificarNovoPedidoPago(env,p);}
+  if(before!=="approved"&&novoStatus==="approved"){await creditarPontosFidelidade(env,p);await gravarPedido(env,p);await enviarNotificacoes(env,p,"Pagamento aprovado!","Recebemos seu pedido. Acompanhe o preparo por aqui.");await notificarNovoPedidoPago(env,p);}
   return p;
 }
 async function hmac(key,data) { const k=await crypto.subtle.importKey("raw",key,{name:"HMAC",hash:"SHA-256"},false,["sign"]); return new Uint8Array(await crypto.subtle.sign("HMAC",k,data)); }
@@ -317,6 +380,8 @@ async function sincronizarPagBank(env, payload){
   }
   await gravarPedido(env,p);
   if(before!=="approved"&&novoStatus==="approved"){
+    await creditarPontosFidelidade(env,p);
+    await gravarPedido(env,p);
     await enviarNotificacoes(env,p,"Pagamento aprovado!","Recebemos seu pedido. Acompanhe o preparo por aqui.");
     await notificarNovoPedidoPago(env,p);
   }
@@ -783,6 +848,7 @@ export default { async fetch(request,env) {
     try{
       if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);
       const entrada=await request.json();
+      const clienteAuth=await clienteSupabaseAutenticado(request,env);
       if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);
       const entrega=calcularEntrega(entrada);
       let subtotal=0;
@@ -802,8 +868,10 @@ export default { async fetch(request,env) {
       if(await buscarPedido(env,orderId))return responder({erro:"Pedido duplicado.",order_id:orderId},409);
       const agora=new Date().toISOString(), tracking=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16);
       const p={order_id:orderId,tracking_token:tracking,site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,
-        customer:{name:texto(entrada.customer?.name||"Cliente",100),email:texto(entrada.customer?.email,150).toLowerCase(),phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500)},
+        customer:{name:texto(entrada.customer?.name||"Cliente",100),email:texto(entrada.customer?.email,150).toLowerCase(),phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},
         items:itens,subtotal,delivery_fee:entrega.fee,total,payment_id:null,payment_provider:"dinheiro",payment_method:"Dinheiro",change_for:texto(entrada.change_for,50),payment_status:"approved",payment_status_detail:"Pagamento na entrega/retirada",order_status:"recebido",paid_at:agora,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"recebido",at:agora,origem:"site"}],consumer_sync:{status:"pending",created_at:agora}};
+      await gravarPedido(env,p);
+      await creditarPontosFidelidade(env,p);
       await gravarPedido(env,p);
       await notificarNovoPedidoPago(env,p);
       return responder({ok:true,numero_pedido:orderId,order_id:orderId,tracking_token:tracking,status:"approved",order_status:"recebido",total},201);
@@ -813,14 +881,14 @@ export default { async fetch(request,env) {
     try{
       if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);
       const token=pagBankToken(env); if(!token)return responder({erro:"Token do PagBank nao configurado no Worker."},500);
-      const entrada=await request.json(); if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);
+      const entrada=await request.json(); const clienteAuth=await clienteSupabaseAutenticado(request,env); if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);
       const email=texto(entrada.customer?.email||entrada.email,150).toLowerCase(); if(!emailValido(email))return responder({erro:"Informe um e-mail valido."},400);
       let subtotal=0; const itens=entrada.items.map(item=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!nome)throw new Error("Produto sem nome.");if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const precoSite=Number(item.unit_price??item.price??item.preco);const unit_price=Object.prototype.hasOwnProperty.call(PRECOS,nome)?PRECOS[nome]:precoSite;if(!Number.isFinite(unit_price)||unit_price<=0)throw new Error(`Preco invalido para ${nome}`);subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:texto(item.external_code||item.externalCode||item.pdv_code,80)||null,unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)}}); subtotal=Math.round(subtotal*100)/100;
       const entrega=calcularEntrega(entrada); const deliveryFee=entrega.fee; const total=Math.round((subtotal+deliveryFee)*100)/100;
       const orderId=texto(entrada.order_id||entrada.numero_pedido,64)||`EP-${Date.now()}`,nome=texto(entrada.customer?.name||"Cliente",100),agora=new Date().toISOString();
       const tracking=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16);
       const method=entrada.payment_method==="DEBIT_CARD"?"DEBIT_CARD":"CREDIT_CARD";
-      let p={order_id:orderId,tracking_token:tracking,site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500)},items:itens,subtotal,delivery_fee:deliveryFee,total,payment_id:null,checkout_id:null,payment_provider:"pagbank",payment_method:method,payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]}; await gravarPedido(env,p);
+      let p={order_id:orderId,tracking_token:tracking,site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},items:itens,subtotal,delivery_fee:deliveryFee,total,payment_id:null,checkout_id:null,payment_provider:"pagbank",payment_method:method,payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]}; await gravarPedido(env,p);
       const site=p.site_url.replace(/\/$/,""); const webhook=`${url.origin}/webhook-pagbank`;
       const body={reference_id:orderId,customer_modifiable:true,items:[...itens.map((i,n)=>({reference_id:`${orderId}-${n+1}`,name:i.name,quantity:i.quantity,unit_amount:Math.round(i.unit_price*100)})),...(deliveryFee>0?[{reference_id:`${orderId}-frete`,name:"Taxa de entrega - Perus",quantity:1,unit_amount:Math.round(deliveryFee*100)}]:[])],payment_methods:[{type:method}],payment_methods_configs:method==="CREDIT_CARD"?[{type:"CREDIT_CARD",config_options:[{option:"INSTALLMENTS_LIMIT",value:String(Math.max(1,Math.min(12,Number(env.PAGBANK_INSTALLMENTS_LIMIT||3))))}]}]:undefined,notification_urls:[webhook],payment_notification_urls:[webhook],redirect_url:`${site}/pedido.html?token=${encodeURIComponent(tracking)}`,return_url:`${site}/pedido.html?token=${encodeURIComponent(tracking)}`,redirect_waiting_time:5};
       if(!body.payment_methods_configs)delete body.payment_methods_configs;
@@ -860,9 +928,9 @@ export default { async fetch(request,env) {
     return responder({recebido:true});
   }
   if(request.method!=="POST"||url.pathname!=="/criar-pix")return responder({erro:"Rota nao encontrada."},404);
-  try{if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);const entrada=await request.json();if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);const email=texto(entrada.customer?.email||entrada.email,150).toLowerCase();if(!emailValido(email))return responder({erro:"Informe um e-mail valido para gerar o Pix."},400);
+  try{if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);const entrada=await request.json();const clienteAuth=await clienteSupabaseAutenticado(request,env);if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);const email=texto(entrada.customer?.email||entrada.email,150).toLowerCase();if(!emailValido(email))return responder({erro:"Informe um e-mail valido para gerar o Pix."},400);
     let subtotal=0;const itens=entrada.items.map((item,index)=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!nome)throw new Error("Produto sem nome.");if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const precoSite=Number(item.unit_price??item.price??item.preco);const unit_price=Object.prototype.hasOwnProperty.call(PRECOS,nome)?PRECOS[nome]:precoSite;if(!Number.isFinite(unit_price)||unit_price<=0)throw new Error(`Preco invalido para ${nome}`);subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:texto(item.external_code||item.externalCode||item.pdv_code,80)||null,unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)}});subtotal=Math.round(subtotal*100)/100;const entrega=calcularEntrega(entrada);const deliveryFee=entrega.fee;const total=Math.round((subtotal+deliveryFee)*100)/100;
-    const orderId=texto(entrada.order_id||entrada.numero_pedido,100)||`EP-${Date.now()}`, nome=texto(entrada.customer?.name||entrada.nome||"Cliente",100), agora=new Date().toISOString();let p={order_id:orderId,tracking_token:crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16),site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500)},items:itens,subtotal,delivery_fee:deliveryFee,total,payment_id:null,payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};await gravarPedido(env,p);
+    const orderId=texto(entrada.order_id||entrada.numero_pedido,100)||`EP-${Date.now()}`, nome=texto(entrada.customer?.name||entrada.nome||"Cliente",100), agora=new Date().toISOString();let p={order_id:orderId,tracking_token:crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16),site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},items:itens,subtotal,delivery_fee:deliveryFee,total,payment_id:null,payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};await gravarPedido(env,p);
     const pay={amount:total,payerName:nome,transactionId:orderId,description:`Pedido ${orderId} - Espetinho Perus`,projectWebhook:`${url.origin}/webhook-misticpay`};
     const documento=texto(entrada.customer?.document||entrada.customer?.cpf||entrada.payerDocument||env.MISTICPAY_PAYER_DOCUMENT,30).replace(/\D/g,"");
     if(documento)pay.payerDocument=documento;
