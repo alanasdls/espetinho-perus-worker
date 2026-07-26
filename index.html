@@ -1,175 +1,242 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#120d09"><meta name="application-name" content="Espetinho Perus"><meta name="apple-mobile-web-app-title" content="Espetinho Perus"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" type="image/png" sizes="192x192" href="icon-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png"><title>Espetinho Perus | Delivery e Cardápio Online</title><meta name="description" content="Peça espetinhos, porções e bebidas pelo site do Espetinho Perus. Entrega em Perus e retirada no local."><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="styles.css?v=20260725-v97-cliente">
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="Espetinho Perus">
-<meta property="og:title" content="Espetinho Perus | Faça seu pedido pelo site">
-<meta property="og:description" content="Espetinhos, porções e bebidas. Entrega em Perus e retirada no local.">
-<meta property="og:url" content="https://geradorlipejb.com/">
-<meta property="og:image" content="https://geradorlipejb.com/og-whatsapp-v6.jpg">
-<meta property="og:image:secure_url" content="https://geradorlipejb.com/og-whatsapp-v6.jpg">
-<meta property="og:image:type" content="image/jpeg">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Espetinho Perus - faça seu pedido pelo site">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Espetinho Perus | Faça seu pedido pelo site">
-<meta name="twitter:description" content="Espetinhos, porções e bebidas. Entrega em Perus e retirada no local.">
-<meta name="twitter:image" content="https://geradorlipejb.com/og-whatsapp-v6.jpg">
-</head><body>
-<header class="hero"><nav><a class="brand" href="#inicio">ESPETINHO <small>PERUS</small></a><div class="navlinks"><a href="#cardapio">Cardápio</a><a href="cliente.html">Minha conta</a><a href="#contato">Contato</a></div></nav><div class="hero-inner" id="inicio"><span class="eyebrow">SABOR, CERVEJA GELADA E RESENHA</span><h1>O melhor do espetinho<br><em>no coração de Perus</em></h1><p>Escolha seus itens, monte o carrinho e finalize seu pedido com rapidez pelo site.</p><div class="hero-actions"><a class="btn primary" href="#cardapio">Ver cardápio</a><a class="btn ghost" href="#como-funciona">Como funciona</a></div>
-<section class="app-benefits" id="como-funciona" aria-label="Vantagens">
-  <article><span>🔥</span><div><strong>Feito na hora</strong><small>Preparado após a confirmação</small></div></article>
-  <article><span>🛵</span><div><strong>Entrega em Perus</strong><small>Taxa fixa de R$ 10,00</small></div></article>
-  <article><span>🔒</span><div><strong>Pagamento seguro</strong><small>Pix, cartão, débito e dinheiro</small></div></article>
-</section></div></header>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#120b07">
+  <meta name="application-name" content="Espetinho Perus — Pedidos">
+  <meta name="apple-mobile-web-app-title" content="Pedidos">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Painel de Pedidos | Espetinho Perus</title>
+  <link rel="manifest" href="manifest-admin.webmanifest">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="stylesheet" href="admin.css?v=20260726-v11-delivery-control">
+</head>
+<body>
+<header class="top">
+  <div class="brand-block">
+    <img class="top-logo" src="logo-premium.png" alt="Espetinho Perus">
+    <div><small>ESPETINHO PERUS</small><h1>Painel de Pedidos</h1></div>
+  </div>
+  <div class="top-actions">
+    <span id="connection" class="connection"><i></i> Conectando…</span>
+    <button id="alertsBtn" class="icon-btn">🔔 <span>Alertas</span></button>
+    <button id="logoutBtn" class="secondary">Sair</button>
+  </div>
+</header>
 <main>
-<section class="store-schedule" id="storeSchedule" aria-live="polite">
-  <div class="store-schedule-icon">🕒</div>
-  <div><strong id="storeScheduleTitle">Consultando funcionamento...</strong><p id="storeScheduleDescription">Quarta, quinta e domingo: 18h às 22h • Sexta e sábado: 18h às 23h • Segunda e terça: fechado.</p></div>
-</section>
-<section class="menu-section" id="cardapio"><div class="section-head"><span class="eyebrow">CARDÁPIO COMPLETO</span><h2>Escolha por categoria</h2><p>Use a busca ou os filtros. Toque no botão + para montar seu pedido.</p></div><div class="menu-tools"><input id="search" type="search" placeholder="Buscar item..."><div id="categories" class="categories"></div></div><div id="menuGrid" class="menu-grid"></div></section>
-<section class="gallery"><div class="section-head"><span class="eyebrow">NOSSO ESTILO</span><h2>Cardápio visual</h2></div><div class="gallery-grid"><img src="assets/503041.jpg" alt="Espetinhos"><img src="assets/503040.jpg" alt="Porções"><img src="assets/503044.jpg" alt="Lanches"><img src="assets/503037.jpg" alt="Cervejas"></div></section>
-<section class="contact" id="contato"><div><span class="eyebrow">ESPETINHO PERUS</span><h2>Seu pedido, direto pelo site</h2><p>Monte o carrinho, escolha entrega ou retirada, selecione a forma de pagamento e acompanhe o pedido em uma experiência simples e segura.</p></div><a class="btn primary" href="#cardapio">Fazer pedido</a></section></main>
-<footer><b>ESPETINHO PERUS</b><span>Rua Joaquim Arruda, 8 — Perus/SP</span><span>WhatsApp: (11) 98134-1569</span></footer>
-<nav class="mobile-app-nav" aria-label="Navegação rápida">
-  <a href="#inicio"><span>⌂</span><small>Início</small></a>
-  <a href="#cardapio"><span>⌕</span><small>Cardápio</small></a>
-  <button type="button" id="mobileCartButton"><span>🛒</span><small>Carrinho</small><b id="mobileCartCount">0</b></button>
-  <a href="cliente.html"><span>●</span><small>Minha conta</small></a>
-</nav>
+  <section id="login" class="login">
+    <div class="login-card">
+      <img src="logo-premium.png" alt="Espetinho Perus">
+      <div class="eyebrow login-title">DELIVERY</div>
+      <input id="keyInput" type="password" autocomplete="current-password" placeholder="Senha do painel">
+      <button id="loginBtn">Entrar no painel</button>
+      <p id="loginError" class="error"></p>
+    </div>
+  </section>
+
+  <section id="panel" hidden>
+
+    <section class="enterprise-welcome">
+      <div>
+        <small>CENTRAL DE OPERAÇÕES</small>
+        <h2>Visão geral do delivery</h2>
+        <p id="enterpriseClock">Atualizando informações…</p>
+      </div>
+      <div class="enterprise-live">
+        <i></i>
+        <span>Tempo real • atualização a cada 2 segundos</span>
+      </div>
+    </section>
+
+    
+
+    <section class="delivery-control-card" aria-labelledby="deliveryControlTitle">
+      <div class="delivery-control-copy">
+        <small>CONTROLE DO DELIVERY</small>
+        <h2 id="deliveryControlTitle">Abertura e fechamento</h2>
+        <p id="deliveryControlDescription">Consultando situação do delivery…</p>
+      </div>
+      <div class="delivery-control-status">
+        <span id="deliveryControlBadge" class="delivery-control-badge checking">VERIFICANDO</span>
+        <strong id="deliveryControlTimer">—</strong>
+      </div>
+      <div class="delivery-control-actions">
+        <button id="openDelivery30Btn" type="button" class="delivery-open-btn">Abrir por 30 minutos</button>
+        <button id="closeDeliveryBtn" type="button" class="delivery-close-btn">Fechar agora</button>
+        <button id="automaticDeliveryBtn" type="button" class="delivery-auto-btn">Voltar ao automático</button>
+      </div>
+    </section>
+
+    <section class="realtime-command">
+      <div class="realtime-status">
+        <span class="live-pulse"></span>
+        <div><small>PAINEL EM TEMPO REAL</small><strong id="realtimeText">Conectando ao servidor…</strong></div>
+      </div>
+      <div class="realtime-actions">
+        <span id="newOrdersCounter" class="new-orders-counter">0 novos</span>
+        <button id="acknowledgeOrdersBtn" type="button" class="ack-btn">✓ Visualizei os pedidos</button>
+        <a class="kitchen-link" href="cozinha.html" target="_blank" rel="noopener">Tela da cozinha</a>
+      </div>
+    </section>
+
+    <nav class="tabs" aria-label="Navegação do painel">
+      <button class="tab active" data-tab="ordersTab"><span>📦</span> Pedidos</button>
+      <button class="tab" data-tab="financeTab"><span>📊</span> Dashboard</button>
+      <button class="tab" data-tab="performanceTab"><span>🏆</span> Desempenho</button>
+    </nav>
+
+    <section id="financeTab" class="tab-panel dashboard">
+      <div class="dashboard-head">
+        <div><small>RESUMO FINANCEIRO</small><h2>Visão geral das vendas</h2></div>
+        <label class="period-label">Período
+          <select id="periodSelect">
+            <option value="today">Hoje</option>
+            <option value="7days">Últimos 7 dias</option>
+            <option value="month">Este mês</option>
+            <option value="all">Todo o período</option>
+          </select>
+        </label>
+      </div>
+      <div class="summary summary-main">
+        <article class="metric total-metric"><span>Faturamento</span><strong id="revenueToday">R$ 0,00</strong><small id="paidTodayLabel">0 pedidos pagos</small></article>
+        <article class="metric"><span>Pedidos pagos</span><strong id="paidToday">0</strong><small>no período</small></article>
+        <article class="metric"><span>Pedidos ativos</span><strong id="pendingCount">0</strong><small>aguardando conclusão</small></article>
+        <article class="metric"><span>Ticket médio</span><strong id="avgTicket">R$ 0,00</strong><small>por pedido</small></article>
+      </div>
+      <div class="payment-summary">
+        <article class="payment-card pix"><div class="payment-icon">◆</div><div><span>Pix</span><strong id="pixTotal">R$ 0,00</strong><small id="pixCount">0 pedidos</small></div></article>
+        <article class="payment-card credit"><div class="payment-icon">▣</div><div><span>Crédito</span><strong id="creditTotal">R$ 0,00</strong><small id="creditCount">0 pedidos</small></div></article>
+        <article class="payment-card debit"><div class="payment-icon">▤</div><div><span>Débito</span><strong id="debitTotal">R$ 0,00</strong><small id="debitCount">0 pedidos</small></div></article>
+        <article class="payment-card cash"><div class="payment-icon">$</div><div><span>Dinheiro</span><strong id="cashTotal">R$ 0,00</strong><small id="cashCount">0 pedidos</small></div></article>
+      </div>
+      <div class="payment-chart" id="paymentChart" aria-label="Gráfico de vendas por forma de pagamento"></div>
+
+      <section class="enterprise-section operational-section">
+        <div class="enterprise-section-head">
+          <div><small>OPERAÇÃO</small><h3>Status dos pedidos</h3></div>
+          <span class="section-note">Atualizado em tempo real</span>
+        </div>
+        <div class="operational-grid">
+          <article class="operation-card new"><span>Novos</span><strong id="statusReceived">0</strong><small>aguardando preparo</small></article>
+          <article class="operation-card preparing"><span>Em preparo</span><strong id="statusPreparing">0</strong><small>na cozinha</small></article>
+          <article class="operation-card ready"><span>Prontos</span><strong id="statusReady">0</strong><small>para retirada</small></article>
+          <article class="operation-card delivery"><span>Em entrega</span><strong id="statusDelivery">0</strong><small>a caminho</small></article>
+          <article class="operation-card done"><span>Finalizados</span><strong id="statusDone">0</strong><small>no período</small></article>
+          <article class="operation-card waiting"><span>Aguardando pagamento</span><strong id="statusWaiting">0</strong><small>pendentes</small></article>
+        </div>
+      </section>
+
+      <section class="enterprise-grid-two">
+        <article class="enterprise-panel">
+          <div class="enterprise-section-head compact">
+            <div><small>VENDAS</small><h3>Movimento por hora</h3></div>
+            <strong id="peakHourLabel" class="highlight-label">Sem dados</strong>
+          </div>
+          <div id="hourlyChart" class="hourly-chart"></div>
+        </article>
+
+        <article class="enterprise-panel">
+          <div class="enterprise-section-head compact">
+            <div><small>ATENDIMENTO</small><h3>Entrega e retirada</h3></div>
+          </div>
+          <div class="fulfillment-summary">
+            <div class="fulfillment-ring" id="fulfillmentRing"><span id="deliveryPercent">0%</span><small>entregas</small></div>
+            <div class="fulfillment-legend">
+              <p><i class="delivery-dot"></i><span>Entregas</span><strong id="deliveryCount">0</strong></p>
+              <p><i class="pickup-dot"></i><span>Retiradas</span><strong id="pickupCount">0</strong></p>
+              <p><i class="other-dot"></i><span>Não informado</span><strong id="otherFulfillmentCount">0</strong></p>
+            </div>
+          </div>
+        </article>
+      </section>
+    </section>
 
 
-<button class="floating-cart" id="floatingCart" aria-label="Abrir carrinho">
-  <span class="floating-cart-icon">🛒</span>
-  <span class="floating-cart-text">Carrinho</span>
-  <span class="floating-cart-count" id="floatingCartCount">0</span>
-</button>
-<button class="item-added-toast" id="itemAddedToast" type="button" aria-live="polite" aria-hidden="true"><span class="item-added-check">✓</span><span id="itemAddedText">Item adicionado ao carrinho</span></button>
-<div class="cart-overlay" id="cartOverlay"><aside class="cart"><div class="cart-head"><div><small>SEU PEDIDO</small><h3>Carrinho</h3></div><button id="closeCart">✕</button></div><div id="cartItems" class="cart-items"></div><div class="cart-form"><label>Nome<input id="customerName" placeholder="Seu nome"></label><div class="two"><label>E-mail para o pagamento<input id="customerEmail" type="email" inputmode="email" placeholder="seuemail@exemplo.com"></label><label>Telefone<input id="customerPhone" type="tel" inputmode="tel" placeholder="(11) 99999-9999"></label></div><div class="two"><label>Recebimento<select id="fulfillment"><option value="Entrega">Entrega</option><option value="Retirada no local">Retirada no local</option></select></label><label>Pagamento<select id="payment"><option value="Pix">Pix</option><option>Cartão de crédito</option><option>Cartão de débito</option><option>Dinheiro</option></select></label></div><label id="cpfWrap" class="hidden">CPF do pagador<input id="customerCpf" type="text" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="000.000.000-00"><small>Necessário para gerar o Pix. No cartão, os dados são preenchidos no ambiente seguro do PagBank.</small></label><div id="addressWrap" class="hidden delivery-address-block">
-  <div class="cep-row">
-    <label>CEP<input id="deliveryCep" type="text" inputmode="numeric" autocomplete="postal-code" maxlength="9" placeholder="00000-000"></label>
-    <button id="searchCep" class="cep-search" type="button">Buscar CEP</button>
-  </div>
-  <p id="cepStatus" class="cep-status">Digite o CEP para consultar o endereço.</p>
-  <div class="two">
-    <label>Rua<input id="deliveryStreet" autocomplete="address-line1" placeholder="Rua" readonly></label>
-    <label>Número<input id="deliveryNumber" inputmode="numeric" placeholder="Número"></label>
-  </div>
-  <div class="two">
-    <label>Bairro<input id="deliveryNeighborhood" placeholder="Bairro" readonly></label>
-    <label>Complemento<input id="deliveryComplement" autocomplete="address-line2" placeholder="Opcional"></label>
-  </div>
-  <div class="two">
-    <label>Cidade<input id="deliveryCity" placeholder="Cidade" readonly></label>
-    <label>Estado<input id="deliveryState" maxlength="2" placeholder="UF" readonly></label>
-  </div>
-  <label>Referência<input id="deliveryReference" placeholder="Ex.: próximo à praça"></label>
-  <input id="address" type="hidden">
-  <div id="deliveryAreaMessage" class="delivery-area-message" hidden></div>
-  <a id="deliveryWhatsapp" class="delivery-whatsapp" href="#" target="_blank" rel="noopener" hidden><span class="wa-circle">☎</span> Consultar frete no WhatsApp</a>
-</div><label id="changeWrap">Troco para<input id="change" placeholder="Ex.: R$ 100,00"></label><label>Observações<textarea id="notes" placeholder="Ex.: retirar cebola, ponto da carne..."></textarea></label></div><div class="cart-total">
-  <span>Total dos itens</span><strong id="cartSubtotal">R$ 0,00</strong>
-  <span id="deliveryFeeLabel">Taxa de entrega</span><strong id="deliveryFee">R$ 10,00</strong>
-  <span class="grand-total-label">Total do pedido</span><strong class="grand-total" id="cartTotal">R$ 0,00</strong>
-  <small id="deliveryFeeInfo">Entrega em Perus: taxa fixa de R$ 10,00.</small>
-</div><div class="checkout-actions"><button class="checkout mp-checkout hidden" id="mercadoPagoCheckout" type="button">Gerar QR Code Pix</button><button class="checkout mp-checkout hidden" id="pagBankCheckout" type="button">Pagar cartão pelo PagBank</button><button class="checkout" id="checkout" type="button">Enviar pedido pelo WhatsApp</button></div><p class="payment-security hidden" id="pixSecurity">🔒 O pagamento será processado em ambiente seguro. Os dados do cartão não passam pelo site do Espetinho Perus.</p></aside></div>
-<div class="pix-overlay" id="pixOverlay" aria-hidden="true"><section class="pix-modal" role="dialog" aria-modal="true" aria-labelledby="pixTitle"><button class="pix-close" id="closePix" type="button">✕</button><span class="eyebrow">PAGAMENTO PIX</span><h2 id="pixTitle">Escaneie o QR Code</h2><p id="pixOrderInfo">Aguardando geração...</p><img id="pixQrImage" alt="QR Code Pix" hidden><label class="pix-code-label">Pix Copia e Cola<textarea id="pixCode" readonly></textarea></label><button class="btn primary pix-copy" id="copyPix" type="button">Copiar código Pix</button><a class="btn ghost pix-ticket" id="pixTicket" href="#" target="_blank" rel="noopener" hidden>Abrir instruções do pagamento</a><div class="pix-status" id="pixStatus">Aguardando pagamento...</div></section></div>
-<script src="app-misticpay-cpf-v42.js?v=20260726-v10-delivery-control"></script><script>
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", async () => {
-    try {
-      const reg = await navigator.serviceWorker.register("./sw.js?v=20260725-premium-v80", { updateViaCache: "none" });
-      await reg.update();
-    } catch (e) { console.warn("SW update", e); }
-  });
-}
-</script>
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-const mainCount = document.getElementById("floatingCartCount");
-  const mobileCount = document.getElementById("mobileCartCount");
-  const mobileCart = document.getElementById("mobileCartButton");
-  const floatingCart = document.getElementById("floatingCart");
+    <section id="performanceTab" class="tab-panel performance-dashboard">
+      <div class="performance-hero">
+        <div>
+          <small>DESEMPENHO DO DELIVERY</small>
+          <h2>Indicadores para tomada de decisão</h2>
+          <p>Ranking de produtos, comparação de períodos e eficiência operacional.</p>
+        </div>
+        <label class="period-label light">Período
+          <select id="performancePeriodSelect">
+            <option value="today">Hoje</option>
+            <option value="7days">Últimos 7 dias</option>
+            <option value="month">Este mês</option>
+            <option value="all">Todo o período</option>
+          </select>
+        </label>
+      </div>
 
-  const syncCount = () => {
-    if (mainCount && mobileCount) mobileCount.textContent = mainCount.textContent || "0";
-    const qty = Number((mainCount?.textContent || "0").replace(/\D/g, "")) || 0;
-    document.body.classList.toggle("has-cart-items", qty > 0);
-  };
+      <div class="performance-kpis">
+        <article><span>Tempo médio em aberto</span><strong id="avgOpenTime">0 min</strong><small>pedidos ativos</small></article>
+        <article><span>Maior pedido</span><strong id="largestOrder">R$ 0,00</strong><small id="largestOrderId">sem pedidos</small></article>
+        <article><span>Clientes recorrentes</span><strong id="repeatCustomers">0</strong><small>com mais de um pedido</small></article>
+        <article><span>Taxa de conclusão</span><strong id="completionRate">0%</strong><small>pedidos pagos</small></article>
+      </div>
 
-  if (mainCount) {
-    new MutationObserver(syncCount).observe(mainCount, {childList:true,subtree:true,characterData:true});
-    syncCount();
-  }
-  if (mobileCart && floatingCart) mobileCart.addEventListener("click", () => floatingCart.click());
-});
-</script>
+      <section class="enterprise-grid-two performance-grid">
+        <article class="enterprise-panel ranking-panel">
+          <div class="enterprise-section-head compact">
+            <div><small>RANKING</small><h3>Produtos mais vendidos</h3></div>
+          </div>
+          <ol id="topProducts" class="top-products"></ol>
+        </article>
 
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  const menuGrid = document.querySelector(".menu-grid");
-  if (menuGrid) {
-    menuGrid.addEventListener("click", (event) => {
-      const addButton = event.target.closest(".add, [data-add], .add-button");
-      if (addButton) {
-        const card = addButton.closest(".menu-card, .product-card");
-        if (card) {
-          card.classList.remove("just-added");
-          void card.offsetWidth;
-          card.classList.add("just-added");
-          setTimeout(() => card.classList.remove("just-added"), 700);
-        }
+        <article class="enterprise-panel">
+          <div class="enterprise-section-head compact">
+            <div><small>EVOLUÇÃO</small><h3>Vendas por dia</h3></div>
+          </div>
+          <div id="dailyChart" class="daily-chart"></div>
+        </article>
+      </section>
 
-        addButton.classList.remove("added-feedback");
-        void addButton.offsetWidth;
-        addButton.classList.add("added-feedback");
-        setTimeout(() => addButton.classList.remove("added-feedback"), 850);
-      }
+      <section class="enterprise-panel customer-ranking-panel">
+        <div class="enterprise-section-head compact">
+          <div><small>RELACIONAMENTO</small><h3>Clientes que mais compraram</h3></div>
+        </div>
+        <div id="topCustomers" class="customer-ranking"></div>
+      </section>
+    </section>
 
-      const image = event.target.closest(".product-image img, .menu-card img");
-      if (image && !event.target.closest("button")) {
-        const modal = document.getElementById("productImageModal");
-        const modalImg = document.getElementById("productImageModalImg");
-        if (modal && modalImg) {
-          modalImg.src = image.currentSrc || image.src;
-          modalImg.alt = image.alt || "Produto";
-          modal.hidden = false;
-          document.body.classList.add("image-modal-open");
-        }
-      }
-    });
-  }
 
-  const modal = document.createElement("div");
-  modal.id = "productImageModal";
-  modal.className = "product-image-modal";
-  modal.hidden = true;
-  modal.innerHTML = `
-    <button type="button" class="product-image-modal-close" aria-label="Fechar">×</button>
-    <img id="productImageModalImg" alt="Produto ampliado">
-  `;
-  document.body.appendChild(modal);
+    <section id="ordersTab" class="tab-panel active-panel">
 
-  const closeModal = () => {
-    modal.hidden = true;
-    document.body.classList.remove("image-modal-open");
-  };
+      <section class="realtime-board-section">
+        <div class="board-heading">
+          <div><small>FLUXO OPERACIONAL</small><h2>Pedidos em tempo real</h2></div>
+          <div class="board-legend">
+            <span><i class="time-ok"></i> até 10 min</span>
+            <span><i class="time-warn"></i> 10–20 min</span>
+            <span><i class="time-late"></i> acima de 20 min</span>
+          </div>
+        </div>
+        <div id="realtimeBoard" class="realtime-board"></div>
+      </section>
 
-  modal.addEventListener("click", (event) => {
-    if (event.target === modal || event.target.closest(".product-image-modal-close")) closeModal();
-  });
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !modal.hidden) closeModal();
-  });
-
-  const categories = document.querySelector(".categories");
-  if (categories) {
-    categories.addEventListener("click", (event) => {
-      const button = event.target.closest("button");
-      if (!button) return;
-      categories.querySelectorAll("button").forEach((btn) => btn.classList.remove("premium-active"));
-      button.classList.add("premium-active");
-    });
-  }
-});
-</script>
-</body></html>
+      <div class="orders-toolbar">
+        <div class="search-wrap"><span>⌕</span><input id="searchInput" type="search" placeholder="Buscar cliente, telefone ou pedido"></div>
+        <button id="refreshBtn" class="secondary">Atualizar</button>
+      </div>
+      <div class="filters" id="filters">
+        <button data-filter="ativos" class="active">Ativos</button>
+        <button data-filter="recebido">Recebidos</button>
+        <button data-filter="em_preparo">Em preparo</button>
+        <button data-filter="pronto_retirada">Prontos</button>
+        <button data-filter="saiu_entrega">Em entrega</button>
+        <button data-filter="aguardando_pagamento">Aguardando Pix</button>
+        <button data-filter="finalizado">Finalizados</button>
+        <button data-filter="todos">Todos</button>
+      </div>
+      <div id="orders" class="orders"></div>
+    </section>
+  </section>
+</main>
+<script src="admin.js?v=20260726-v11-delivery-control"></script>
+<script>if('serviceWorker'in navigator){navigator.serviceWorker.register('./sw.js?v=20260725-v96-enterprise',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});}</script>
+</body>
+</html>
