@@ -264,7 +264,16 @@ async function sincronizarPagamentoMistic(env,d) {
     p.status_history.push({status:"recebido",at:new Date().toISOString()});
   }
   await gravarPedido(env,p);
-  if(before!=="approved"&&novoStatus==="approved"){await creditarPontosFidelidade(env,p);await gravarPedido(env,p);await enviarNotificacoes(env,p,"Pagamento aprovado!","Recebemos seu pedido. Acompanhe o preparo por aqui.");await notificarNovoPedidoPago(env,p);}
+  // Tenta creditar sempre que o pagamento estiver aprovado e ainda não houver crédito.
+  // Isso permite recuperar automaticamente falhas temporárias de configuração, webhook ou Supabase.
+  if(novoStatus==="approved" && !p?.loyalty?.credited){
+    await creditarPontosFidelidade(env,p);
+    await gravarPedido(env,p);
+  }
+  if(before!=="approved"&&novoStatus==="approved"){
+    await enviarNotificacoes(env,p,"Pagamento aprovado!","Recebemos seu pedido. Acompanhe o preparo por aqui.");
+    await notificarNovoPedidoPago(env,p);
+  }
   return p;
 }
 async function hmac(key,data) { const k=await crypto.subtle.importKey("raw",key,{name:"HMAC",hash:"SHA-256"},false,["sign"]); return new Uint8Array(await crypto.subtle.sign("HMAC",k,data)); }
@@ -379,9 +388,12 @@ async function sincronizarPagBank(env, payload){
     p.order_status="recebido"; p.status_history=p.status_history||[]; p.status_history.push({status:"recebido",at:new Date().toISOString(),origem:"pagbank"});
   }
   await gravarPedido(env,p);
-  if(before!=="approved"&&novoStatus==="approved"){
+  // Reprocessa o crédito quando o pagamento já está aprovado, mas a pontuação ainda não foi concluída.
+  if(novoStatus==="approved" && !p?.loyalty?.credited){
     await creditarPontosFidelidade(env,p);
     await gravarPedido(env,p);
+  }
+  if(before!=="approved"&&novoStatus==="approved"){
     await enviarNotificacoes(env,p,"Pagamento aprovado!","Recebemos seu pedido. Acompanhe o preparo por aqui.");
     await notificarNovoPedidoPago(env,p);
   }
@@ -911,14 +923,14 @@ export default { async fetch(request,env) {
   if(request.method==="GET"&&url.pathname==="/pagbank-status"){
     const checkoutId=texto(url.searchParams.get("id"),100);if(!checkoutId)return responder({erro:"ID do checkout invalido."},400);
     const c=await consultarCheckoutPagBank(env,checkoutId);if(!c.ok)return responder({erro:"Nao foi possivel consultar o PagBank.",detalhes:c.data},c.status);
-    const p=await sincronizarPagBank(env,c.data);return responder({checkout_id:checkoutId,status:p?.payment_status||normalizarStatusPagBank(c.data?.status),pedido:p?{order_id:p.order_id,order_status:p.order_status,tracking_token:p.tracking_token}:null});
+    const p=await sincronizarPagBank(env,c.data);return responder({checkout_id:checkoutId,status:p?.payment_status||normalizarStatusPagBank(c.data?.status),pedido:p?{order_id:p.order_id,order_status:p.order_status,tracking_token:p.tracking_token,loyalty:p.loyalty||null}:null});
   }
   if(!env.MISTICPAY_CI||!env.MISTICPAY_CS)return responder({erro:"MISTICPAY_CI ou MISTICPAY_CS nao configurado."},500);
   if(request.method==="GET"&&url.pathname==="/pagamento-status"){
     const id=texto(url.searchParams.get("id"),100);if(!id)return responder({erro:"ID de pagamento invalido."},400);
     const c=await consultarMisticPay(env,id);if(!c.ok)return responder({erro:"Nao foi possivel consultar o pagamento na MisticPay.",detalhes:c.data},c.status);
     const tx=c.data?.transaction||c.data?.data||c.data;const p=await sincronizarPagamentoMistic(env,c.data);const status=statusMisticParaSite(tx?.transactionState||tx?.status);
-    return responder({id:String(tx?.transactionId??id),status,status_detail:tx?.transactionState||tx?.status||"",pedido:p?{order_id:p.order_id,order_status:p.order_status,tracking_token:p.tracking_token}:null});
+    return responder({id:String(tx?.transactionId??id),status,status_detail:tx?.transactionState||tx?.status||"",pedido:p?{order_id:p.order_id,order_status:p.order_status,tracking_token:p.tracking_token,loyalty:p.loyalty||null}:null});
   }
   if(request.method==="POST"&&url.pathname==="/webhook-misticpay"){
     try{
