@@ -349,6 +349,52 @@ function proximaAbertura(){
 }
 
 
+const DELIVERY_CONTROL_KEY = "config:delivery-control";
+const MANUAL_OPEN_MINUTES = 30;
+
+async function estadoDelivery(env) {
+  const automatico = horarioPedidos();
+  let controle = null;
+  try { controle = await env.ORDERS_KV.get(DELIVERY_CONTROL_KEY, "json"); } catch (_) {}
+  const agora = Date.now();
+
+  if (controle?.mode === "manual_open") {
+    const expiresAt = Number(controle.expires_at || 0);
+    if (expiresAt > agora) {
+      return {
+        aberto: true,
+        modo: "manual_open",
+        motivo: "abertura_manual",
+        expires_at: new Date(expiresAt).toISOString(),
+        remaining_seconds: Math.max(0, Math.ceil((expiresAt - agora) / 1000)),
+        automatico
+      };
+    }
+    try { await env.ORDERS_KV.put(DELIVERY_CONTROL_KEY, JSON.stringify({mode:"automatic",updated_at:new Date().toISOString()})); } catch (_) {}
+  }
+
+  if (controle?.mode === "manual_closed") {
+    return { aberto:false, modo:"manual_closed", motivo:"fechamento_manual", expires_at:null, remaining_seconds:0, automatico };
+  }
+
+  return { aberto:automatico.aberto, modo:"automatic", motivo:"horario_programado", expires_at:null, remaining_seconds:0, automatico };
+}
+
+async function salvarControleDelivery(env, mode) {
+  const agora = Date.now();
+  let registro;
+  if (mode === "manual_open") {
+    registro = { mode, opened_at:new Date(agora).toISOString(), expires_at:agora + MANUAL_OPEN_MINUTES*60*1000, updated_at:new Date(agora).toISOString() };
+  } else if (mode === "manual_closed") {
+    registro = { mode, updated_at:new Date(agora).toISOString() };
+  } else {
+    registro = { mode:"automatic", updated_at:new Date(agora).toISOString() };
+  }
+  await env.ORDERS_KV.put(DELIVERY_CONTROL_KEY, JSON.stringify(registro));
+  return estadoDelivery(env);
+}
+
+
 // ===== INTEGRACAO CONSUMER API DO PARCEIRO =====
 function consumerAutorizado(request, env, url) {
   const esperado = String(env.CONSUMER_API_TOKEN || "").trim();
@@ -535,7 +581,7 @@ async function marcarConsumer(env, p, patch = {}) {
 
 export default { async fetch(request,env) {
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:CORS}); const url=new URL(request.url);
-  if(request.method==="POST"&&["/criar-pix","/criar-checkout-pagbank"].includes(url.pathname)&&!horarioPedidos().aberto)return responder({erro:`Pedidos fechados no momento. Próxima abertura: ${proximaAbertura()}.`},403);
+  if(request.method==="POST"&&["/criar-pix","/criar-checkout-pagbank"].includes(url.pathname)){const delivery=await estadoDelivery(env);if(!delivery.aberto)return responder({erro:delivery.modo==="manual_closed"?"Delivery fechado manualmente no momento.":`Pedidos fechados no momento. Próxima abertura: ${proximaAbertura()}.`,delivery},403);}
   if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),pagbank_sandbox:Boolean(env.PAGBANK_SANDBOX_TOKEN),pagbank_producao:Boolean(env.PAGBANK_TOKEN),consumer_api:Boolean(env.CONSUMER_API_TOKEN)});
   if(request.method==="GET"&&url.pathname==="/vapid-public-key")return responder({publicKey:env.VAPID_PUBLIC_KEY||""});
 
@@ -661,6 +707,7 @@ export default { async fetch(request,env) {
     const id=env.ORDER_REALTIME.idFromName("espetinho-perus");
     return env.ORDER_REALTIME.get(id).fetch(request);
   }
+  if(request.method==="GET"&&url.pathname==="/delivery-status"){if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);return responder(await estadoDelivery(env));}
   if(request.method==="GET"&&url.pathname==="/pedido-status"){const token=texto(url.searchParams.get("token"),200);const p=await pedidoPorToken(env,token);return p?responder({pedido:pedidoPublico(p)}):responder({erro:"Pedido nao encontrado."},404)}
   if(request.method==="POST"&&url.pathname==="/pedido-subscribe"){
     const b=await request.json();const p=await pedidoPorToken(env,texto(b.token,200));
@@ -676,6 +723,13 @@ export default { async fetch(request,env) {
   if(url.pathname.startsWith("/admin/")){
     if(!adminAutorizado(request,env))return responder({erro:"Senha administrativa invalida."},401);if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);
     if(request.method==="GET"&&url.pathname==="/admin/orders")return responder({pedidos:await listarPedidos(env)});
+    if(request.method==="GET"&&url.pathname==="/admin/delivery-control")return responder(await estadoDelivery(env));
+    if(request.method==="POST"&&url.pathname==="/admin/delivery-control"){
+      const b=await request.json().catch(()=>({}));
+      const mode=String(b.mode||"");
+      if(!["manual_open","manual_closed","automatic"].includes(mode))return responder({erro:"Modo de delivery invalido."},400);
+      return responder(await salvarControleDelivery(env,mode));
+    }
     if(request.method==="GET"&&url.pathname==="/admin/misticpay-debug"){
       const debug=await env.ORDERS_KV.get("debug:misticpay:last","json");
       return debug?responder({ok:true,debug}):responder({erro:"Nenhum diagnostico da MisticPay foi gravado ainda."},404);

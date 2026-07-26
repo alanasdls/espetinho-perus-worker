@@ -1,6 +1,16 @@
-ATUALIZAÇÃO V12 — BOTÃO DO DELIVERY
+WORKER V12 — CONTROLE DO DELIVERY
 
-1) Na raiz do GitHub, substitua: admin.html, admin.js, admin.css, sw.js e _headers.
-2) Entre na pasta painel e substitua: index.html, admin.html, admin.js, admin.css e sw.js.
-3) Aguarde a implantação do Cloudflare Pages terminar.
-4) Abra /painel/?v=12 ou /painel/admin.html?v=12 para evitar cache antigo.
+Contém as rotas usadas pelo painel:
+GET  /admin/delivery-control
+POST /admin/delivery-control
+
+Modos aceitos no POST:
+manual_open   = abre por 30 minutos
+manual_closed = fecha até voltar ao automático
+automatic     = volta aos dias e horários programados
+
+IMPORTANTE:
+- Preserve no Cloudflare as variáveis e segredos já cadastrados.
+- O binding ORDERS_KV precisa continuar ligado ao mesmo KV atual.
+- O Durable Object ORDER_REALTIME também precisa continuar configurado.
+- Não coloque tokens dentro do worker.js.
