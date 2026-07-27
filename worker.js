@@ -426,6 +426,49 @@ async function consultarCheckoutPagBank(env,checkoutId){
   return {ok:r.ok,status:r.status,data};
 }
 
+
+function normalizarStatusMercadoPago(status){
+  const s=texto(status,50).toLowerCase();
+  if(s==="approved") return "approved";
+  if(["rejected","cancelled","refunded","charged_back"].includes(s)) return "rejected";
+  return "pending";
+}
+async function consultarPagamentoMercadoPago(env,paymentId){
+  const token=env.MERCADOPAGO_ACCESS_TOKEN;
+  if(!token)return {ok:false,status:500,data:{erro:"MERCADOPAGO_ACCESS_TOKEN nao configurado."}};
+  const r=await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(paymentId)}`,{headers:{Authorization:`Bearer ${token}`,Accept:"application/json"}});
+  let data={};try{data=await r.json()}catch{data={erro:"Resposta invalida do Mercado Pago"}}
+  return {ok:r.ok,status:r.status,data};
+}
+async function sincronizarMercadoPago(env,pagamento){
+  const orderId=texto(pagamento?.external_reference||pagamento?.metadata?.order_id,100);
+  const paymentId=texto(pagamento?.id,100);
+  let resolvedOrderId=orderId;
+  if(!resolvedOrderId&&paymentId)resolvedOrderId=await env.ORDERS_KV.get(`mercadopago:payment:${paymentId}`);
+  if(!resolvedOrderId)return null;
+  const p=await buscarPedido(env,resolvedOrderId);if(!p)return null;
+  const novoStatus=normalizarStatusMercadoPago(pagamento?.status),before=p.payment_status;
+  p.payment_provider="mercadopago";
+  p.payment_id=paymentId||p.payment_id;
+  p.payment_status=novoStatus;
+  p.payment_status_detail=texto(pagamento?.status_detail||pagamento?.status,120);
+  p.payment_method="CREDIT_CARD";
+  p.payment_method_id=texto(pagamento?.payment_method_id,50);
+  p.installments=Number(pagamento?.installments||1);
+  if(novoStatus==="approved")p.paid_at=pagamento?.date_approved||new Date().toISOString();
+  if(novoStatus==="approved"&&p.order_status==="aguardando_pagamento"){
+    p.order_status="recebido";p.status_history=p.status_history||[];p.status_history.push({status:"recebido",at:new Date().toISOString(),origem:"mercadopago"});
+  }
+  await gravarPedido(env,p);
+  if(paymentId)await env.ORDERS_KV.put(`mercadopago:payment:${paymentId}`,p.order_id);
+  if(novoStatus==="approved"&&!p?.loyalty?.credited){await creditarPontosFidelidade(env,p);await gravarPedido(env,p);}
+  if(before!=="approved"&&novoStatus==="approved"){
+    await enviarNotificacoes(env,p,"Pagamento aprovado!","Recebemos seu pedido. Acompanhe o preparo por aqui.");
+    await notificarNovoPedidoPago(env,p);
+  }
+  return p;
+}
+
 function horarioPedidos(){
   const partes=new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",weekday:"short",hour:"2-digit",minute:"2-digit",hour12:false}).formatToParts(new Date());
   const dados=Object.fromEntries(partes.map(p=>[p.type,p.value]));
@@ -698,8 +741,8 @@ async function marcarConsumer(env, p, patch = {}) {
 
 export default { async fetch(request,env) {
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:CORS}); const url=new URL(request.url);
-  if(request.method==="POST"&&["/criar-pix","/criar-checkout-pagbank","/criar-pedido"].includes(url.pathname)){const delivery=await estadoDelivery(env);if(!delivery.aberto)return responder({erro:delivery.modo==="manual_closed"?"Delivery fechado manualmente no momento.":`Pedidos fechados no momento. Próxima abertura: ${proximaAbertura()}.`,delivery},403);}
-  if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),pagbank_sandbox:Boolean(env.PAGBANK_SANDBOX_TOKEN),pagbank_producao:Boolean(env.PAGBANK_TOKEN),consumer_api:Boolean(env.CONSUMER_API_TOKEN)});
+  if(request.method==="POST"&&["/criar-pix","/criar-checkout-pagbank","/criar-checkout-mercadopago","/criar-pedido"].includes(url.pathname)){const delivery=await estadoDelivery(env);if(!delivery.aberto)return responder({erro:delivery.modo==="manual_closed"?"Delivery fechado manualmente no momento.":`Pedidos fechados no momento. Próxima abertura: ${proximaAbertura()}.`,delivery},403);}
+  if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),pagbank_sandbox:Boolean(env.PAGBANK_SANDBOX_TOKEN),pagbank_producao:Boolean(env.PAGBANK_TOKEN),consumer_api:Boolean(env.CONSUMER_API_TOKEN),mercadopago:Boolean(env.MERCADOPAGO_ACCESS_TOKEN)});
   if(request.method==="GET"&&url.pathname==="/vapid-public-key")return responder({publicKey:env.VAPID_PUBLIC_KEY||""});
 
   // Consumer API do Parceiro. Nao consulta estoque e nao bloqueia produtos sem cadastro.
@@ -922,6 +965,42 @@ export default { async fetch(request,env) {
       await notificarNovoPedidoPago(env,p);
       return responder({ok:true,numero_pedido:orderId,order_id:orderId,tracking_token:tracking,status:"approved",order_status:"recebido",total},201);
     }catch(e){console.error("criar-pedido",e);return responder({erro:"Erro ao registrar pedido.",detalhes:e instanceof Error?e.message:String(e)},500)}
+  }
+  if(request.method==="POST"&&url.pathname==="/criar-checkout-mercadopago"){
+    try{
+      if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);
+      const token=env.MERCADOPAGO_ACCESS_TOKEN;if(!token)return responder({erro:"MERCADOPAGO_ACCESS_TOKEN nao configurado no Worker."},500);
+      const entrada=await request.json();const clienteAuth=await clienteSupabaseAutenticado(request,env);
+      if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);
+      const email=texto(entrada.customer?.email||entrada.email,150).toLowerCase();if(!emailValido(email))return responder({erro:"Informe um e-mail valido."},400);
+      let subtotal=0;const itens=entrada.items.map(item=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!nome)throw new Error("Produto sem nome.");if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const precoSite=Number(item.unit_price??item.price??item.preco);const unit_price=Object.prototype.hasOwnProperty.call(PRECOS,nome)?PRECOS[nome]:precoSite;if(!Number.isFinite(unit_price)||unit_price<=0)throw new Error(`Preco invalido para ${nome}`);subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:texto(item.external_code||item.externalCode||item.pdv_code,80)||null,unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)}});subtotal=Math.round(subtotal*100)/100;
+      const entrega=calcularEntrega(entrada),deliveryFee=entrega.fee,total=Math.round((subtotal+deliveryFee)*100)/100;
+      const orderId=texto(entrada.order_id||entrada.numero_pedido,64)||`EP-${Date.now()}`,nome=texto(entrada.customer?.name||"Cliente",100),agora=new Date().toISOString();
+      if(await buscarPedido(env,orderId))return responder({erro:"Pedido duplicado.",order_id:orderId},409);
+      const tracking=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16);
+      let p={order_id:orderId,tracking_token:tracking,site_url:texto(entrada.site_url,300)||"https://espetinhoperus.com.br",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},items:itens,subtotal,delivery_fee:deliveryFee,total,payment_id:null,preference_id:null,payment_provider:"mercadopago",payment_method:"CREDIT_CARD",payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};await gravarPedido(env,p);
+      const site=p.site_url.replace(/\/$/,"");
+      const mpItems=[...itens.map(i=>({id:i.external_code||undefined,title:i.name,quantity:i.quantity,currency_id:"BRL",unit_price:Number(i.unit_price)})),...(deliveryFee>0?[{id:`${orderId}-frete`,title:"Taxa de entrega - Perus",quantity:1,currency_id:"BRL",unit_price:Number(deliveryFee)}]:[])];
+      const body={items:mpItems,external_reference:orderId,metadata:{order_id:orderId,tracking_token:tracking},payer:{name:nome,email},notification_url:`${url.origin}/webhook-mercadopago`,back_urls:{success:`${site}/pedido.html?token=${encodeURIComponent(tracking)}&pagamento=aprovado`,pending:`${site}/pedido.html?token=${encodeURIComponent(tracking)}&pagamento=pendente`,failure:`${site}/pedido.html?token=${encodeURIComponent(tracking)}&pagamento=falhou`},auto_return:"approved",statement_descriptor:"ESPETINHO PERUS",payment_methods:{excluded_payment_types:[{id:"pix"},{id:"ticket"},{id:"atm"},{id:"bank_transfer"},{id:"debit_card"},{id:"prepaid_card"},{id:"account_money"}],installments:Math.max(1,Math.min(12,Number(env.MERCADOPAGO_INSTALLMENTS_LIMIT||3)))}};
+      const r=await fetch("https://api.mercadopago.com/checkout/preferences",{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json",Accept:"application/json","X-Idempotency-Key":orderId},body:JSON.stringify(body)});let d={};try{d=await r.json()}catch{d={erro:"Resposta invalida do Mercado Pago"}};
+      if(!r.ok){console.error("Mercado Pago recusou preferencia",JSON.stringify({status:r.status,resposta:d}));p.payment_status="error";p.payment_status_detail=texto(JSON.stringify(d),500);await gravarPedido(env,p);return responder({erro:"Mercado Pago recusou a criacao do checkout.",status_mercadopago:r.status,detalhes:d},r.status)}
+      const checkoutUrl=d.init_point||d.sandbox_init_point;if(!d.id||!checkoutUrl)return responder({erro:"Mercado Pago nao retornou o link de pagamento.",detalhes:d},502);
+      p.preference_id=String(d.id);p.payment_status="pending";p.payment_status_detail="Aguardando pagamento";await gravarPedido(env,p);await env.ORDERS_KV.put(`mercadopago:preference:${d.id}`,orderId);
+      return responder({preference_id:d.id,checkout_url:checkoutUrl,numero_pedido:orderId,tracking_token:tracking,status:p.payment_status,total},201);
+    }catch(e){console.error("criar-checkout-mercadopago",e);return responder({erro:"Erro ao criar checkout Mercado Pago.",detalhes:e instanceof Error?e.message:String(e)},500)}
+  }
+  if(request.method==="POST"&&url.pathname==="/webhook-mercadopago"){
+    try{
+      const b=await request.json().catch(()=>({}));
+      const paymentId=texto(b?.data?.id||b?.id||url.searchParams.get("data.id")||url.searchParams.get("id"),100);
+      if(paymentId){const c=await consultarPagamentoMercadoPago(env,paymentId);if(c.ok)await sincronizarMercadoPago(env,c.data);else console.error("Falha ao consultar pagamento Mercado Pago",c.status,c.data);}
+    }catch(e){console.error("webhook-mercadopago",e)}
+    return responder({recebido:true});
+  }
+  if(request.method==="GET"&&url.pathname==="/mercadopago-status"){
+    const paymentId=texto(url.searchParams.get("id"),100);if(!paymentId)return responder({erro:"ID do pagamento invalido."},400);
+    const c=await consultarPagamentoMercadoPago(env,paymentId);if(!c.ok)return responder({erro:"Nao foi possivel consultar o Mercado Pago.",detalhes:c.data},c.status);
+    const p=await sincronizarMercadoPago(env,c.data);return responder({payment_id:paymentId,status:p?.payment_status||normalizarStatusMercadoPago(c.data?.status),pedido:p?{order_id:p.order_id,order_status:p.order_status,tracking_token:p.tracking_token,loyalty:p.loyalty||null}:null});
   }
   if(request.method==="POST"&&url.pathname==="/criar-checkout-pagbank"){
     try{
