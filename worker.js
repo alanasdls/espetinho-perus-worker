@@ -51,10 +51,13 @@ async function avisarTempoReal(env, tipo, pedido) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         type: tipo || "order_updated",
+        event_id: crypto.randomUUID(),
+        emitted_at: new Date().toISOString(),
         order_id: pedido?.order_id || null,
         payment_status: pedido?.payment_status || null,
         order_status: pedido?.order_status || null,
-        updated_at: pedido?.updated_at || new Date().toISOString()
+        updated_at: pedido?.updated_at || new Date().toISOString(),
+        order: pedido || null
       })
     });
   } catch (error) {
@@ -136,6 +139,31 @@ function responder(dados, status = 200) {
 }
 function emailValido(email) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
 function texto(valor, limite = 500) { return String(valor ?? "").trim().slice(0, limite); }
+// Códigos de impressão (Cód. PDV) importados da planilha PRODUTOS (18).xlsx.
+// São usados somente na integração do pedido com o Consumer/PDV e nunca como
+// identificador de item nos provedores de pagamento.
+const CODIGOS_IMPRESSAO_POR_PRODUTO = Object.freeze({
+  "Caipirinha de vodka com morango": "640",
+  "Caipirinha de cachaça com morango": "642",
+  "Caipirinha de saquê com morango": "641",
+  "Caipirinha de vodka com kiwi": "634",
+  "Caipirinha de cachaça com kiwi": "635",
+  "Caipirinha de saquê com kiwi": "636",
+  "Caipirinha de vodka com limão": "637",
+  "Caipirinha de cachaça com limão": "638",
+  "Caipirinha de saquê com limão": "639",
+  "Caipirinha com vinho": "615",
+  "Caipirinha com Licor 43": "616"
+});
+
+function codigoImpressaoProduto(nome, item = {}) {
+  const recebido = texto(
+    item.print_code || item.printCode || item.pdv_code || item.external_code || item.externalCode,
+    80
+  );
+  return recebido || CODIGOS_IMPRESSAO_POR_PRODUTO[nome] || null;
+}
+
 function normalizarTexto(valor) { return String(valor ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase(); }
 const PERUS_CEP_PREFIXES = new Set(["05201","05202","05203","05204","05205","05206","05207","05208","05209","05210","05211","05212","05215","05230"]);
 function cepAtendidoPerus(valor) {
@@ -216,12 +244,12 @@ async function creditarPontosFidelidade(env, pedido) {
 }
 
 function adminAutorizado(request, env) { return Boolean(env.ADMIN_KEY) && (request.headers.get("X-Admin-Key") || "") === env.ADMIN_KEY; }
-async function gravarPedido(env, pedido) {
+async function gravarPedido(env, pedido, options = {}) {
   pedido.updated_at = new Date().toISOString();
   await env.ORDERS_KV.put(`order:${pedido.order_id}`, JSON.stringify(pedido));
   if (pedido.payment_id) await env.ORDERS_KV.put(`payment:${pedido.payment_id}`, pedido.order_id);
   if (pedido.tracking_token) await env.ORDERS_KV.put(`tracking:${pedido.tracking_token}`, pedido.order_id);
-  await avisarTempoReal(env, "order_updated", pedido);
+  if (options.notify !== false) await avisarTempoReal(env, options.type || "order_updated", pedido);
   return pedido;
 }
 async function buscarPedido(env, id) { return env.ORDERS_KV?.get(`order:${id}`, "json"); }
@@ -739,7 +767,7 @@ async function marcarConsumer(env, p, patch = {}) {
 }
 // ===== FIM INTEGRACAO CONSUMER =====
 
-export default { async fetch(request,env) {
+export default { async fetch(request,env,ctx) {
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:CORS}); const url=new URL(request.url);
   if(request.method==="POST"&&["/criar-pix","/criar-checkout-pagbank","/criar-checkout-mercadopago","/criar-pedido"].includes(url.pathname)){const delivery=await estadoDelivery(env);if(!delivery.aberto)return responder({erro:delivery.modo==="manual_closed"?"Delivery fechado manualmente no momento.":`Pedidos fechados no momento. Próxima abertura: ${proximaAbertura()}.`,delivery},403);}
   if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),pagbank_sandbox:Boolean(env.PAGBANK_SANDBOX_TOKEN),pagbank_producao:Boolean(env.PAGBANK_TOKEN),consumer_api:Boolean(env.CONSUMER_API_TOKEN),mercadopago:Boolean(env.MERCADOPAGO_ACCESS_TOKEN)});
@@ -949,7 +977,7 @@ export default { async fetch(request,env) {
         const unit_price=Object.prototype.hasOwnProperty.call(PRECOS,nome)?PRECOS[nome]:informado;
         if(!Number.isFinite(unit_price)||unit_price<=0)throw new Error(`Preco invalido para ${nome}`);
         subtotal+=unit_price*q;
-        return {name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:texto(item.external_code||item.externalCode||item.pdv_code,80)||null,unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)};
+        return {name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:codigoImpressaoProduto(nome,item),unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)};
       });
       subtotal=Math.round(subtotal*100)/100;
       const total=Math.round((subtotal+entrega.fee)*100)/100;
@@ -959,10 +987,15 @@ export default { async fetch(request,env) {
       const p={order_id:orderId,tracking_token:tracking,site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,
         customer:{name:texto(entrada.customer?.name||"Cliente",100),email:texto(entrada.customer?.email,150).toLowerCase(),phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},
         items:itens,subtotal,delivery_fee:entrega.fee,total,payment_id:null,payment_provider:"dinheiro",payment_method:"Dinheiro",change_for:texto(entrada.change_for,50),payment_status:"approved",payment_status_detail:"Pagamento na entrega/retirada",order_status:"recebido",paid_at:agora,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"recebido",at:agora,origem:"site"}],consumer_sync:{status:"pending",created_at:agora}};
-      await gravarPedido(env,p);
-      await creditarPontosFidelidade(env,p);
-      await gravarPedido(env,p);
-      await notificarNovoPedidoPago(env,p);
+      await gravarPedido(env,p,{type:"order_created"});
+      const tarefasPosteriores=(async()=>{
+        try{
+          await creditarPontosFidelidade(env,p);
+          await gravarPedido(env,p,{notify:false});
+          await notificarNovoPedidoPago(env,p);
+        }catch(error){console.error("tarefas posteriores do pedido",error)}
+      })();
+      if(ctx?.waitUntil) ctx.waitUntil(tarefasPosteriores); else await tarefasPosteriores;
       return responder({ok:true,numero_pedido:orderId,order_id:orderId,tracking_token:tracking,status:"approved",order_status:"recebido",total},201);
     }catch(e){console.error("criar-pedido",e);return responder({erro:"Erro ao registrar pedido.",detalhes:e instanceof Error?e.message:String(e)},500)}
   }
@@ -973,15 +1006,23 @@ export default { async fetch(request,env) {
       const entrada=await request.json();const clienteAuth=await clienteSupabaseAutenticado(request,env);
       if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);
       const email=texto(entrada.customer?.email||entrada.email,150).toLowerCase();if(!emailValido(email))return responder({erro:"Informe um e-mail valido."},400);
-      let subtotal=0;const itens=entrada.items.map(item=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!nome)throw new Error("Produto sem nome.");if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const precoSite=Number(item.unit_price??item.price??item.preco);const unit_price=Object.prototype.hasOwnProperty.call(PRECOS,nome)?PRECOS[nome]:precoSite;if(!Number.isFinite(unit_price)||unit_price<=0)throw new Error(`Preco invalido para ${nome}`);subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:texto(item.external_code||item.externalCode||item.pdv_code,80)||null,unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)}});subtotal=Math.round(subtotal*100)/100;
+      let subtotal=0;const itens=entrada.items.map(item=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!nome)throw new Error("Produto sem nome.");if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const precoSite=Number(item.unit_price??item.price??item.preco);const unit_price=Object.prototype.hasOwnProperty.call(PRECOS,nome)?PRECOS[nome]:precoSite;if(!Number.isFinite(unit_price)||unit_price<=0)throw new Error(`Preco invalido para ${nome}`);subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:codigoImpressaoProduto(nome,item),unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)}});subtotal=Math.round(subtotal*100)/100;
       const entrega=calcularEntrega(entrada),deliveryFee=entrega.fee,total=Math.round((subtotal+deliveryFee)*100)/100;
       const orderId=texto(entrada.order_id||entrada.numero_pedido,64)||`EP-${Date.now()}`,nome=texto(entrada.customer?.name||"Cliente",100),agora=new Date().toISOString();
+      const partesNome=nome.trim().split(/\s+/).filter(Boolean),primeiroNome=texto(entrada.customer?.first_name||partesNome[0]||nome,60),sobrenome=texto(entrada.customer?.last_name||partesNome.slice(1).join(" "),60);
+      const cpf=texto(entrada.customer?.cpf||entrada.customer?.document,20).replace(/\D/g,"");if(cpf.length!==11)return responder({erro:"Informe um CPF valido para o pagamento com cartao."},400);
+      const telefone=texto(entrada.customer?.phone,30).replace(/\D/g,"");const ddd=telefone.length>=10?telefone.slice(0,2):"";const numeroTelefone=telefone.length>=10?telefone.slice(2):telefone;
+      const cep=texto(entrada.customer?.cep,12).replace(/\D/g,"");const rua=texto(entrada.customer?.street,160),numeroEndereco=texto(entrada.customer?.number,30),complemento=texto(entrada.customer?.complement,100),bairro=texto(entrada.customer?.bairro||entrega.bairro,100),cidade=texto(entrada.customer?.city,100),estado=texto(entrada.customer?.state,2).toUpperCase();
       if(await buscarPedido(env,orderId))return responder({erro:"Pedido duplicado.",order_id:orderId},409);
       const tracking=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16);
-      let p={order_id:orderId,tracking_token:tracking,site_url:texto(entrada.site_url,300)||"https://espetinhoperus.com.br",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},items:itens,subtotal,delivery_fee:deliveryFee,total,payment_id:null,preference_id:null,payment_provider:"mercadopago",payment_method:"CREDIT_CARD",payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};await gravarPedido(env,p);
+      let p={order_id:orderId,tracking_token:tracking,site_url:texto(entrada.site_url,300)||"https://espetinhoperus.com.br",created_at:agora,updated_at:agora,customer:{name:nome,first_name:primeiroNome,last_name:sobrenome,email,phone:texto(entrada.customer?.phone,30),cpf,birth_date:texto(entrada.customer?.birth_date,10),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep,street:rua,number:numeroEndereco,complement:complemento,bairro,city:cidade,state:estado,reference:texto(entrada.customer?.reference,150),notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},items:itens,subtotal,delivery_fee:deliveryFee,total,payment_id:null,preference_id:null,payment_provider:"mercadopago",payment_method:"CREDIT_CARD",payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};await gravarPedido(env,p);
       const site=p.site_url.replace(/\/$/,"");
-      const mpItems=[...itens.map(i=>({id:i.external_code||undefined,title:i.name,quantity:i.quantity,currency_id:"BRL",unit_price:Number(i.unit_price)})),...(deliveryFee>0?[{id:`${orderId}-frete`,title:"Taxa de entrega - Perus",quantity:1,currency_id:"BRL",unit_price:Number(deliveryFee)}]:[])];
-      const body={items:mpItems,external_reference:orderId,metadata:{order_id:orderId,tracking_token:tracking},payer:{name:nome,email},notification_url:`${url.origin}/webhook-mercadopago`,back_urls:{success:`${site}/pedido.html?token=${encodeURIComponent(tracking)}&pagamento=aprovado`,pending:`${site}/pedido.html?token=${encodeURIComponent(tracking)}&pagamento=pendente`,failure:`${site}/pedido.html?token=${encodeURIComponent(tracking)}&pagamento=falhou`},auto_return:"approved",statement_descriptor:"ESPETINHO PERUS",payment_methods:{excluded_payment_types:[{id:"pix"},{id:"ticket"},{id:"atm"},{id:"bank_transfer"},{id:"debit_card"},{id:"prepaid_card"}],installments:Math.max(1,Math.min(12,Number(env.MERCADOPAGO_INSTALLMENTS_LIMIT||3)))}};
+      const mpItems=[...itens.map((i,index)=>({id:`${orderId}-item-${index+1}`,title:i.name,quantity:i.quantity,currency_id:"BRL",unit_price:Number(i.unit_price)})),...(deliveryFee>0?[{id:`${orderId}-frete`,title:"Taxa de entrega - Perus",quantity:1,currency_id:"BRL",unit_price:Number(deliveryFee)}]:[])];
+      const payer={name:primeiroNome,surname:sobrenome,email,identification:{type:"CPF",number:cpf}};
+      if(ddd&&numeroTelefone)payer.phone={area_code:ddd,number:numeroTelefone};
+      if(cep||rua||numeroEndereco)payer.address={zip_code:cep,street_name:rua,street_number:numeroEndereco};
+      const body={items:mpItems,external_reference:orderId,metadata:{order_id:orderId,tracking_token:tracking,customer_cpf:cpf},payer,notification_url:`${url.origin}/webhook-mercadopago`,back_urls:{success:`${site}/pedido.html?token=${encodeURIComponent(tracking)}&pagamento=aprovado`,pending:`${site}/pedido.html?token=${encodeURIComponent(tracking)}&pagamento=pendente`,failure:`${site}/pedido.html?token=${encodeURIComponent(tracking)}&pagamento=falhou`},auto_return:"approved",statement_descriptor:"ESPETINHO PERUS",payment_methods:{excluded_payment_types:[{id:"pix"},{id:"ticket"},{id:"atm"},{id:"bank_transfer"},{id:"debit_card"},{id:"prepaid_card"}],installments:Math.max(1,Math.min(12,Number(env.MERCADOPAGO_INSTALLMENTS_LIMIT||3)))}};
+      if(texto(entrada.customer?.fulfillment,50)==="Entrega"&&(rua||cep))body.shipments={receiver_address:{zip_code:cep,street_name:rua,street_number:numeroEndereco,city_name:cidade,state_name:estado,floor:complemento,apartment:texto(entrada.customer?.reference,100)}};
       const r=await fetch("https://api.mercadopago.com/checkout/preferences",{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json",Accept:"application/json","X-Idempotency-Key":orderId},body:JSON.stringify(body)});let d={};try{d=await r.json()}catch{d={erro:"Resposta invalida do Mercado Pago"}};
       if(!r.ok){console.error("Mercado Pago recusou preferencia",JSON.stringify({status:r.status,resposta:d}));p.payment_status="error";p.payment_status_detail=texto(JSON.stringify(d),500);await gravarPedido(env,p);return responder({erro:"Mercado Pago recusou a criacao do checkout.",status_mercadopago:r.status,detalhes:d},r.status)}
       const checkoutUrl=d.init_point||d.sandbox_init_point;if(!d.id||!checkoutUrl)return responder({erro:"Mercado Pago nao retornou o link de pagamento.",detalhes:d},502);
@@ -1008,7 +1049,7 @@ export default { async fetch(request,env) {
       const token=pagBankToken(env); if(!token)return responder({erro:"Token do PagBank nao configurado no Worker."},500);
       const entrada=await request.json(); const clienteAuth=await clienteSupabaseAutenticado(request,env); if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);
       const email=texto(entrada.customer?.email||entrada.email,150).toLowerCase(); if(!emailValido(email))return responder({erro:"Informe um e-mail valido."},400);
-      let subtotal=0; const itens=entrada.items.map(item=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!nome)throw new Error("Produto sem nome.");if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const precoSite=Number(item.unit_price??item.price??item.preco);const unit_price=Object.prototype.hasOwnProperty.call(PRECOS,nome)?PRECOS[nome]:precoSite;if(!Number.isFinite(unit_price)||unit_price<=0)throw new Error(`Preco invalido para ${nome}`);subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:texto(item.external_code||item.externalCode||item.pdv_code,80)||null,unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)}}); subtotal=Math.round(subtotal*100)/100;
+      let subtotal=0; const itens=entrada.items.map(item=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!nome)throw new Error("Produto sem nome.");if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const precoSite=Number(item.unit_price??item.price??item.preco);const unit_price=Object.prototype.hasOwnProperty.call(PRECOS,nome)?PRECOS[nome]:precoSite;if(!Number.isFinite(unit_price)||unit_price<=0)throw new Error(`Preco invalido para ${nome}`);subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:codigoImpressaoProduto(nome,item),unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)}}); subtotal=Math.round(subtotal*100)/100;
       const entrega=calcularEntrega(entrada); const deliveryFee=entrega.fee; const total=Math.round((subtotal+deliveryFee)*100)/100;
       const orderId=texto(entrada.order_id||entrada.numero_pedido,64)||`EP-${Date.now()}`,nome=texto(entrada.customer?.name||"Cliente",100),agora=new Date().toISOString();
       const tracking=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16);
@@ -1054,7 +1095,7 @@ export default { async fetch(request,env) {
   }
   if(request.method!=="POST"||url.pathname!=="/criar-pix")return responder({erro:"Rota nao encontrada."},404);
   try{if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);const entrada=await request.json();const clienteAuth=await clienteSupabaseAutenticado(request,env);if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);const email=texto(entrada.customer?.email||entrada.email,150).toLowerCase();if(!emailValido(email))return responder({erro:"Informe um e-mail valido para gerar o Pix."},400);
-    let subtotal=0;const itens=entrada.items.map((item,index)=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!nome)throw new Error("Produto sem nome.");if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const precoSite=Number(item.unit_price??item.price??item.preco);const unit_price=Object.prototype.hasOwnProperty.call(PRECOS,nome)?PRECOS[nome]:precoSite;if(!Number.isFinite(unit_price)||unit_price<=0)throw new Error(`Preco invalido para ${nome}`);subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:texto(item.external_code||item.externalCode||item.pdv_code,80)||null,unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)}});subtotal=Math.round(subtotal*100)/100;const entrega=calcularEntrega(entrada);const deliveryFee=entrega.fee;const total=Math.round((subtotal+deliveryFee)*100)/100;
+    let subtotal=0;const itens=entrada.items.map((item,index)=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!nome)throw new Error("Produto sem nome.");if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const precoSite=Number(item.unit_price??item.price??item.preco);const unit_price=Object.prototype.hasOwnProperty.call(PRECOS,nome)?PRECOS[nome]:precoSite;if(!Number.isFinite(unit_price)||unit_price<=0)throw new Error(`Preco invalido para ${nome}`);subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:codigoImpressaoProduto(nome,item),unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)}});subtotal=Math.round(subtotal*100)/100;const entrega=calcularEntrega(entrada);const deliveryFee=entrega.fee;const total=Math.round((subtotal+deliveryFee)*100)/100;
     const orderId=texto(entrada.order_id||entrada.numero_pedido,100)||`EP-${Date.now()}`, nome=texto(entrada.customer?.name||entrada.nome||"Cliente",100), agora=new Date().toISOString();let p={order_id:orderId,tracking_token:crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16),site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},items:itens,subtotal,delivery_fee:deliveryFee,total,payment_id:null,payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};await gravarPedido(env,p);
     const pay={amount:total,payerName:nome,transactionId:orderId,description:`Pedido ${orderId} - Espetinho Perus`,projectWebhook:`${url.origin}/webhook-misticpay`};
     const documento=texto(entrada.customer?.document||entrada.customer?.cpf||entrada.payerDocument||env.MISTICPAY_PAYER_DOCUMENT,30).replace(/\D/g,"");
