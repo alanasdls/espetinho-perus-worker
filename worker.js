@@ -679,10 +679,21 @@ function detalheConsumer(p, env) {
 
   const amount = Number(p.total || 0);
   const subtotal = Number(p.subtotal || items.reduce((a, i) => a + i.totalPrice, 0));
-  const prepaid = p.payment_status === "approved" ? amount : 0;
+  const deliveryFee = Number(p.delivery_fee || 0);
+  const discountAmount = Math.max(0, Number(p.discount_amount || 0));
+  // O Consumer valida a composição financeira do pedido. Com promoção, a soma deve fechar:
+  // subtotal + entrega - benefícios = total.
+  const expectedAmount = Math.round((subtotal + deliveryFee - discountAmount) * 100) / 100;
+  const consumerAmount = discountAmount > 0 ? expectedAmount : amount;
+  const prepaid = p.payment_status === "approved" ? consumerAmount : 0;
   const displayId = numeroPedidoExibicao(p.order_id);
   const detalhes = {
-    benefits: [],
+    benefits: discountAmount > 0 ? [{
+      target: "ORDER",
+      value: discountAmount,
+      sponsorshipValues: [{ name: "MERCHANT", value: discountAmount }],
+      description: p.promotion_code === "CADASTRADO10" ? "10% de desconto para cliente cadastrado" : "Desconto promocional"
+    }] : [],
     orderType: entrega ? "DELIVERY" : "TAKEOUT",
     payments: {
       methods: [{
@@ -690,12 +701,12 @@ function detalheConsumer(p, env) {
         prepaid: prepaid > 0,
         currency: "BRL",
         type: prepaid > 0 ? "ONLINE" : "OFFLINE",
-        value: amount,
+        value: consumerAmount,
         cash: null,
         card: null,
         wallet: null
       }],
-      pending: Math.max(0, Math.round((amount - prepaid) * 100) / 100),
+      pending: Math.max(0, Math.round((consumerAmount - prepaid) * 100) / 100),
       prepaid
     },
     merchant: {
@@ -707,9 +718,9 @@ function detalheConsumer(p, env) {
     orderTiming: "IMMEDIATE",
     createdAt,
     total: {
-      benefits: 0,
-      deliveryFee: Number(p.delivery_fee || 0),
-      orderAmount: amount,
+      benefits: discountAmount,
+      deliveryFee,
+      orderAmount: consumerAmount,
       subTotal: subtotal,
       additionalFees: 0
     },
