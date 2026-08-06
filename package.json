@@ -1,6 +1,6 @@
 {
   "name": "espetinho-perus-worker",
-  "version": "1.0.38",
+  "version": "1.0.37",
   "private": true,
   "description": "Worker Espetinho Perus com nome real do produto na impressão Consumer",
   "type": "module",

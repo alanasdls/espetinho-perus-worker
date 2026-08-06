@@ -153,28 +153,15 @@ const CODIGOS_IMPRESSAO_POR_PRODUTO = Object.freeze({
   "Caipirinha de cachaça com limão": "638",
   "Caipirinha de saquê com limão": "639",
   "Caipirinha com vinho": "615",
-  "Caipirinha com Licor 43": "616",
-  "Queijo coalho": "188"
+  "Caipirinha com Licor 43": "616"
 });
 
 function codigoImpressaoProduto(nome, item = {}) {
-  // Para produtos mapeados, o código definido no Worker tem prioridade absoluta.
-  // Isso impede que um código antigo enviado pelo site associe o item a outro produto
-  // cadastrado no Consumer, como ESPETO PERNIL.
-  const nomeNormalizado = normalizarTexto(nome);
-  const encontrado = Object.entries(CODIGOS_IMPRESSAO_POR_PRODUTO)
-    .find(([produto]) => {
-      const produtoNormalizado = normalizarTexto(produto);
-      return nomeNormalizado === produtoNormalizado || nomeNormalizado.includes(produtoNormalizado);
-    });
-  if (encontrado?.[1]) return encontrado[1];
-
-  // Somente produtos ainda não mapeados podem aproveitar um código recebido do site.
   const recebido = texto(
     item.print_code || item.printCode || item.pdv_code || item.external_code || item.externalCode,
     80
   );
-  return recebido || null;
+  return recebido || CODIGOS_IMPRESSAO_POR_PRODUTO[nome] || null;
 }
 
 function normalizarTexto(valor) { return String(valor ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase(); }
@@ -660,7 +647,6 @@ function detalheConsumer(p, env) {
     // Não vinculamos a linha ao produto técnico DELIVERY, evitando que o Consumer
     // substitua o nome recebido por outro cadastro interno.
     const nomeReal = String(item.name || `Item ${index + 1}`).trim();
-    const codigoPDV = codigoImpressaoProduto(nomeReal, item);
     // O valor real precisa ser enviado no item principal. Enviar o preço apenas como
     // opção/complemento pode aparecer no cupom, mas não contabilizar a venda do produto.
     const options = Array.isArray(item.options) ? item.options : [];
@@ -676,7 +662,6 @@ function detalheConsumer(p, env) {
       observations: [item.observations, p.customer?.notes].filter(Boolean).join(" | ") || null,
       imageUrl: item.image_url || null,
       name: nomeReal,
-      ...(codigoPDV ? { externalCode: String(codigoPDV) } : {}),
       options: options.length ? options : null,
       // id e uniqueId identificam exclusivamente esta linha do pedido.
       id: `${p.order_id}-item-${index + 1}`,
@@ -791,7 +776,7 @@ async function marcarConsumer(env, p, patch = {}) {
 export default { async fetch(request,env,ctx) {
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:CORS}); const url=new URL(request.url);
   if(request.method==="POST"&&["/criar-pix","/criar-checkout-pagbank","/criar-checkout-mercadopago","/criar-pedido"].includes(url.pathname)){const delivery=await estadoDelivery(env);if(!delivery.aberto)return responder({erro:delivery.modo==="manual_closed"?"Delivery fechado manualmente no momento.":`Pedidos fechados no momento. Próxima abertura: ${proximaAbertura()}.`,delivery},403);}
-  if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",versao:"V41",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),pagbank_sandbox:Boolean(env.PAGBANK_SANDBOX_TOKEN),pagbank_producao:Boolean(env.PAGBANK_TOKEN),consumer_api:Boolean(env.CONSUMER_API_TOKEN),mercadopago:Boolean(env.MERCADOPAGO_ACCESS_TOKEN)});
+  if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),pagbank_sandbox:Boolean(env.PAGBANK_SANDBOX_TOKEN),pagbank_producao:Boolean(env.PAGBANK_TOKEN),consumer_api:Boolean(env.CONSUMER_API_TOKEN),mercadopago:Boolean(env.MERCADOPAGO_ACCESS_TOKEN)});
   if(request.method==="GET"&&url.pathname==="/vapid-public-key")return responder({publicKey:env.VAPID_PUBLIC_KEY||""});
 
   // Consumer API do Parceiro. Nao consulta estoque e nao bloqueia produtos sem cadastro.
@@ -817,28 +802,6 @@ export default { async fetch(request,env,ctx) {
       const p=await buscarPedido(env,orderId);
       if(!p)return responder({statusCode:404,reasonPhrase:"Pedido nao encontrado."},404);
       const detalhes = detalheConsumer(p,env);
-      const itensConsumer = Array.isArray(detalhes?.item?.items)
-        ? detalhes.item.items
-        : (Array.isArray(detalhes?.items) ? detalhes.items : []);
-
-      console.log({
-        tipo: "consumer_order_details",
-        versao: "V41",
-        orderId,
-        items: itensConsumer.map((item, index) => ({
-          index,
-          id: item?.id ?? null,
-          uniqueId: item?.uniqueId ?? null,
-          name: item?.name ?? null,
-          externalCode: item?.externalCode ?? null,
-          quantity: item?.quantity ?? null,
-          unitPrice: item?.unitPrice ?? null,
-          totalPrice: item?.totalPrice ?? null,
-          observations: item?.observations ?? null
-        })),
-        respostaCompleta: detalhes
-      });
-
       await env.ORDERS_KV.put("consumer:debug:last-details-response", JSON.stringify({order_id:orderId,generated_at:new Date().toISOString(),response:detalhes}), {expirationTtl:604800});
       await marcarConsumer(env,p,{status:"details_requested",details_requested_at:new Date().toISOString()});
       return responder(detalhes);
