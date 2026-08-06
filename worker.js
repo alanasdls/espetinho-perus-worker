@@ -163,7 +163,10 @@ function codigoImpressaoProduto(nome, item = {}) {
   // cadastrado no Consumer, como ESPETO PERNIL.
   const nomeNormalizado = normalizarTexto(nome);
   const encontrado = Object.entries(CODIGOS_IMPRESSAO_POR_PRODUTO)
-    .find(([produto]) => normalizarTexto(produto) === nomeNormalizado);
+    .find(([produto]) => {
+      const produtoNormalizado = normalizarTexto(produto);
+      return nomeNormalizado === produtoNormalizado || nomeNormalizado.includes(produtoNormalizado);
+    });
   if (encontrado?.[1]) return encontrado[1];
 
   // Somente produtos ainda não mapeados podem aproveitar um código recebido do site.
@@ -788,7 +791,7 @@ async function marcarConsumer(env, p, patch = {}) {
 export default { async fetch(request,env,ctx) {
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:CORS}); const url=new URL(request.url);
   if(request.method==="POST"&&["/criar-pix","/criar-checkout-pagbank","/criar-checkout-mercadopago","/criar-pedido"].includes(url.pathname)){const delivery=await estadoDelivery(env);if(!delivery.aberto)return responder({erro:delivery.modo==="manual_closed"?"Delivery fechado manualmente no momento.":`Pedidos fechados no momento. Próxima abertura: ${proximaAbertura()}.`,delivery},403);}
-  if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),pagbank_sandbox:Boolean(env.PAGBANK_SANDBOX_TOKEN),pagbank_producao:Boolean(env.PAGBANK_TOKEN),consumer_api:Boolean(env.CONSUMER_API_TOKEN),mercadopago:Boolean(env.MERCADOPAGO_ACCESS_TOKEN)});
+  if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",versao:"V41",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),pagbank_sandbox:Boolean(env.PAGBANK_SANDBOX_TOKEN),pagbank_producao:Boolean(env.PAGBANK_TOKEN),consumer_api:Boolean(env.CONSUMER_API_TOKEN),mercadopago:Boolean(env.MERCADOPAGO_ACCESS_TOKEN)});
   if(request.method==="GET"&&url.pathname==="/vapid-public-key")return responder({publicKey:env.VAPID_PUBLIC_KEY||""});
 
   // Consumer API do Parceiro. Nao consulta estoque e nao bloqueia produtos sem cadastro.
@@ -820,7 +823,7 @@ export default { async fetch(request,env,ctx) {
 
       console.log({
         tipo: "consumer_order_details",
-        versao: "V40",
+        versao: "V41",
         orderId,
         items: itensConsumer.map((item, index) => ({
           index,
