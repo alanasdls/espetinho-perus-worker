@@ -643,15 +643,10 @@ function detalheConsumer(p, env) {
     const unitPrice = Number(item.unit_price ?? item.price ?? 0);
     const quantity = Math.max(1, Number(item.quantity || 1));
     const totalPrice = Math.round(unitPrice * quantity * 100) / 100;
-    // Todos os itens do site usam o produto técnico DELIVERY no Consumer.
-    // Os produtos reais continuam descritos nas observações para a cozinha.
-    const codigoOriginal = String(item.external_code || item.externalCode || "").trim();
-    const usaGenerico = true;
-    const externalCode = "633";
-    const nomeReal = item.name || `Item ${index + 1}`;
-    const observacaoGenerica = usaGenerico
-      ? `ITEM REAL: ${nomeReal} | Quantidade: ${quantity} | Valor unitário: R$ ${unitPrice.toFixed(2).replace(".", ",")}`
-      : null;
+    // O nome principal impresso é exatamente o produto comprado no site.
+    // Não vinculamos a linha ao produto técnico DELIVERY, evitando que o Consumer
+    // substitua o nome recebido por outro cadastro interno.
+    const nomeReal = String(item.name || `Item ${index + 1}`).trim();
     // O valor real precisa ser enviado no item principal. Enviar o preço apenas como
     // opção/complemento pode aparecer no cupom, mas não contabilizar a venda do produto.
     const options = Array.isArray(item.options) ? item.options : [];
@@ -659,19 +654,18 @@ function detalheConsumer(p, env) {
     return {
       unitPrice,
       quantity,
-      externalCode,
       totalPrice,
       index: index + 1,
       unit: "UN",
       ean: null,
       price: unitPrice,
-      observations: [observacaoGenerica, item.observations, p.customer?.notes].filter(Boolean).join(" | ") || null,
+      observations: [item.observations, p.customer?.notes].filter(Boolean).join(" | ") || null,
       imageUrl: item.image_url || null,
-      name: "DELIVERY",
+      name: nomeReal,
       options: options.length ? options : null,
-      // O Consumer recebe o Cód. Sistema e o Cód. PDV do produto técnico DELIVERY.
-      id: "602",
-      uniqueId: `${p.order_id}-DELIVERY-602-${index + 1}`,
+      // id e uniqueId identificam exclusivamente esta linha do pedido.
+      id: `${p.order_id}-item-${index + 1}`,
+      uniqueId: `${p.order_id}-item-${index + 1}`,
       optionsPrice: 0,
       addition: 0,
       scalePrices: null
