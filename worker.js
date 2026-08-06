@@ -153,7 +153,8 @@ const CODIGOS_IMPRESSAO_POR_PRODUTO = Object.freeze({
   "Caipirinha de cachaça com limão": "638",
   "Caipirinha de saquê com limão": "639",
   "Caipirinha com vinho": "615",
-  "Caipirinha com Licor 43": "616"
+  "Caipirinha com Licor 43": "616",
+  "Queijo coalho": "188"
 });
 
 function codigoImpressaoProduto(nome, item = {}) {
@@ -161,7 +162,11 @@ function codigoImpressaoProduto(nome, item = {}) {
     item.print_code || item.printCode || item.pdv_code || item.external_code || item.externalCode,
     80
   );
-  return recebido || CODIGOS_IMPRESSAO_POR_PRODUTO[nome] || null;
+  if (recebido) return recebido;
+  const nomeNormalizado = normalizarTexto(nome);
+  const encontrado = Object.entries(CODIGOS_IMPRESSAO_POR_PRODUTO)
+    .find(([produto]) => normalizarTexto(produto) === nomeNormalizado);
+  return encontrado?.[1] || null;
 }
 
 function normalizarTexto(valor) { return String(valor ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase(); }
@@ -647,6 +652,7 @@ function detalheConsumer(p, env) {
     // Não vinculamos a linha ao produto técnico DELIVERY, evitando que o Consumer
     // substitua o nome recebido por outro cadastro interno.
     const nomeReal = String(item.name || `Item ${index + 1}`).trim();
+    const codigoPDV = codigoImpressaoProduto(nomeReal, item);
     // O valor real precisa ser enviado no item principal. Enviar o preço apenas como
     // opção/complemento pode aparecer no cupom, mas não contabilizar a venda do produto.
     const options = Array.isArray(item.options) ? item.options : [];
@@ -662,6 +668,7 @@ function detalheConsumer(p, env) {
       observations: [item.observations, p.customer?.notes].filter(Boolean).join(" | ") || null,
       imageUrl: item.image_url || null,
       name: nomeReal,
+      ...(codigoPDV ? { externalCode: String(codigoPDV) } : {}),
       options: options.length ? options : null,
       // id e uniqueId identificam exclusivamente esta linha do pedido.
       id: `${p.order_id}-item-${index + 1}`,
