@@ -647,7 +647,7 @@ function detalheConsumer(p, env) {
     // Os produtos reais continuam descritos nas observações para a cozinha.
     const codigoOriginal = String(item.external_code || item.externalCode || "").trim();
     const usaGenerico = true;
-    const externalCode = "602";
+    const externalCode = "633";
     const nomeReal = item.name || `Item ${index + 1}`;
     const observacaoGenerica = usaGenerico
       ? `ITEM REAL: ${nomeReal} | Quantidade: ${quantity} | Valor unitário: R$ ${unitPrice.toFixed(2).replace(".", ",")}`
@@ -669,8 +669,9 @@ function detalheConsumer(p, env) {
       imageUrl: item.image_url || null,
       name: "DELIVERY",
       options: options.length ? options : null,
-      id: item.id || `${p.order_id}-ITEM-${index + 1}`,
-      uniqueId: item.unique_id || `${p.order_id}-UNIQUE-${index + 1}`,
+      // O Consumer recebe o Cód. Sistema e o Cód. PDV do produto técnico DELIVERY.
+      id: "602",
+      uniqueId: `${p.order_id}-DELIVERY-602-${index + 1}`,
       optionsPrice: 0,
       addition: 0,
       scalePrices: null
@@ -894,7 +895,7 @@ export default { async fetch(request,env,ctx) {
     }
 
     if(request.method==="GET"&&url.pathname==="/consumer/debug"){
-      const ultimo=await env.ORDERS_KV.get("consumer:debug:last-details","json");
+      const ultimo=await env.ORDERS_KV.get("consumer:debug:last-details-response","json");
       return responder({statusCode:0,reasonPhrase:null,lastDetails:ultimo});
     }
     return responder({statusCode:404,reasonPhrase:"Rota Consumer nao encontrada."},404);
