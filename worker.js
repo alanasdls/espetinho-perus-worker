@@ -814,6 +814,28 @@ export default { async fetch(request,env,ctx) {
       const p=await buscarPedido(env,orderId);
       if(!p)return responder({statusCode:404,reasonPhrase:"Pedido nao encontrado."},404);
       const detalhes = detalheConsumer(p,env);
+      const itensConsumer = Array.isArray(detalhes?.item?.items)
+        ? detalhes.item.items
+        : (Array.isArray(detalhes?.items) ? detalhes.items : []);
+
+      console.log({
+        tipo: "consumer_order_details",
+        versao: "V40",
+        orderId,
+        items: itensConsumer.map((item, index) => ({
+          index,
+          id: item?.id ?? null,
+          uniqueId: item?.uniqueId ?? null,
+          name: item?.name ?? null,
+          externalCode: item?.externalCode ?? null,
+          quantity: item?.quantity ?? null,
+          unitPrice: item?.unitPrice ?? null,
+          totalPrice: item?.totalPrice ?? null,
+          observations: item?.observations ?? null
+        })),
+        respostaCompleta: detalhes
+      });
+
       await env.ORDERS_KV.put("consumer:debug:last-details-response", JSON.stringify({order_id:orderId,generated_at:new Date().toISOString(),response:detalhes}), {expirationTtl:604800});
       await marcarConsumer(env,p,{status:"details_requested",details_requested_at:new Date().toISOString()});
       return responder(detalhes);
