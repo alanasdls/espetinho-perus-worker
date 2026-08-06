@@ -158,15 +158,20 @@ const CODIGOS_IMPRESSAO_POR_PRODUTO = Object.freeze({
 });
 
 function codigoImpressaoProduto(nome, item = {}) {
+  // Para produtos mapeados, o código definido no Worker tem prioridade absoluta.
+  // Isso impede que um código antigo enviado pelo site associe o item a outro produto
+  // cadastrado no Consumer, como ESPETO PERNIL.
+  const nomeNormalizado = normalizarTexto(nome);
+  const encontrado = Object.entries(CODIGOS_IMPRESSAO_POR_PRODUTO)
+    .find(([produto]) => normalizarTexto(produto) === nomeNormalizado);
+  if (encontrado?.[1]) return encontrado[1];
+
+  // Somente produtos ainda não mapeados podem aproveitar um código recebido do site.
   const recebido = texto(
     item.print_code || item.printCode || item.pdv_code || item.external_code || item.externalCode,
     80
   );
-  if (recebido) return recebido;
-  const nomeNormalizado = normalizarTexto(nome);
-  const encontrado = Object.entries(CODIGOS_IMPRESSAO_POR_PRODUTO)
-    .find(([produto]) => normalizarTexto(produto) === nomeNormalizado);
-  return encontrado?.[1] || null;
+  return recebido || null;
 }
 
 function normalizarTexto(valor) { return String(valor ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase(); }
