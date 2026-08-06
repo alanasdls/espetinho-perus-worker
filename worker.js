@@ -643,11 +643,11 @@ function detalheConsumer(p, env) {
     const unitPrice = Number(item.unit_price ?? item.price ?? 0);
     const quantity = Math.max(1, Number(item.quantity || 1));
     const totalPrice = Math.round(unitPrice * quantity * 100) / 100;
+    // Todos os itens do site usam o produto técnico DELIVERY no Consumer.
+    // Os produtos reais continuam descritos nas observações para a cozinha.
     const codigoOriginal = String(item.external_code || item.externalCode || "").trim();
-    const usaGenerico = !codigoOriginal;
-    const externalCode = usaGenerico
-      ? String(env.CONSUMER_GENERIC_PRODUCT_CODE || "602")
-      : codigoOriginal;
+    const usaGenerico = true;
+    const externalCode = "602";
     const nomeReal = item.name || `Item ${index + 1}`;
     const observacaoGenerica = usaGenerico
       ? `ITEM REAL: ${nomeReal} | Quantidade: ${quantity} | Valor unitário: R$ ${unitPrice.toFixed(2).replace(".", ",")}`
@@ -667,7 +667,7 @@ function detalheConsumer(p, env) {
       price: unitPrice,
       observations: [observacaoGenerica, item.observations, p.customer?.notes].filter(Boolean).join(" | ") || null,
       imageUrl: item.image_url || null,
-      name: usaGenerico ? String(env.CONSUMER_GENERIC_PRODUCT_NAME || "ITEM DO SITE") : nomeReal,
+      name: "DELIVERY",
       options: options.length ? options : null,
       id: item.id || `${p.order_id}-ITEM-${index + 1}`,
       uniqueId: item.unique_id || `${p.order_id}-UNIQUE-${index + 1}`,
