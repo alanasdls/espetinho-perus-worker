@@ -1,8 +1,8 @@
 {
   "name": "espetinho-perus-worker",
-  "version": "1.0.38",
+  "version": "51.0.0",
   "private": true,
-  "description": "Worker Espetinho Perus com nome real do produto na impressão Consumer",
+  "description": "Cloudflare Worker Espetinho Perus V51 com nomenclaturas e volumes de bebidas atualizados, códigos PDV completos, cupons e fidelidade",
   "type": "module",
   "scripts": {
     "deploy": "wrangler deploy",

@@ -1,0 +1,978 @@
+[
+  {
+    "id": 0,
+    "category": "Espetinhos",
+    "name": "Queijo coalho",
+    "price": 10.9,
+    "description": "",
+    "image": "assets/products/queijo-coalho-20260723.webp",
+    "badge": "Mais pedido"
+  },
+  {
+    "id": 1,
+    "category": "Espetinhos",
+    "name": "Pão de alho",
+    "price": 10.9,
+    "description": "",
+    "image": "assets/products/pao-de-alho-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 2,
+    "category": "Espetinhos",
+    "name": "Carne",
+    "price": 11.9,
+    "description": "",
+    "image": "assets/products/carne-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 3,
+    "category": "Espetinhos",
+    "name": "Carne e bacon",
+    "price": 12.5,
+    "description": "",
+    "image": "assets/products/carne-e-bacon-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 4,
+    "category": "Espetinhos",
+    "name": "Carne e toscana",
+    "price": 11.9,
+    "description": "",
+    "image": "assets/products/linguica-toscana-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 5,
+    "category": "Espetinhos",
+    "name": "Carne e calabresa",
+    "price": 11.9,
+    "description": "",
+    "image": "assets/products/carne-e-calabresa-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 6,
+    "category": "Espetinhos",
+    "name": "Frango",
+    "price": 11.9,
+    "description": "",
+    "image": "assets/products/frango-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 7,
+    "category": "Espetinhos",
+    "name": "Pernil",
+    "price": 11.9,
+    "description": "",
+    "image": "assets/products/pernil-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 8,
+    "category": "Espetinhos",
+    "name": "Pernil e bacon",
+    "price": 12.5,
+    "description": "",
+    "image": "assets/products/pernil-e-bacon-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 9,
+    "category": "Espetinhos",
+    "name": "Tulipa",
+    "price": 12.5,
+    "description": "",
+    "image": "assets/products/tulipa-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 10,
+    "category": "Espetinhos",
+    "name": "Coração de frango",
+    "price": 11.9,
+    "description": "",
+    "image": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=900&q=82",
+    "badge": ""
+  },
+  {
+    "id": 11,
+    "category": "Espetinhos",
+    "name": "Linguiça toscana",
+    "price": 11.9,
+    "description": "",
+    "image": "assets/products/linguica-toscana-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 12,
+    "category": "Espetinhos",
+    "name": "Linguiça calabresa",
+    "price": 11.9,
+    "description": "",
+    "image": "assets/products/linguica-calabresa-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 13,
+    "category": "Espetinhos",
+    "name": "Linguiça apimentada",
+    "price": 12.5,
+    "description": "",
+    "image": "assets/products/linguica-apimentada-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 14,
+    "category": "Espetinhos",
+    "name": "Medalhão de frango",
+    "price": 14.9,
+    "description": "",
+    "image": "assets/products/medalhao-de-frango-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 15,
+    "category": "Espetinhos",
+    "name": "Camarão",
+    "price": 14.9,
+    "description": "",
+    "image": "assets/products/camarao-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 16,
+    "category": "Espetinhos",
+    "name": "Kafta",
+    "price": 14.9,
+    "description": "",
+    "image": "assets/products/kafta-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 17,
+    "category": "Espetinhos",
+    "name": "Kafta com queijo",
+    "price": 18.9,
+    "description": "",
+    "image": "assets/products/kafta-com-queijo-20260723.webp",
+    "badge": "Mais pedido"
+  },
+  {
+    "id": 18,
+    "category": "Porções",
+    "name": "Batata simples 600g",
+    "price": 35,
+    "description": "Batata frita",
+    "image": "assets/products/batata-simples-600g-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 19,
+    "category": "Porções",
+    "name": "Batata com cheddar e bacon 600g",
+    "price": 45,
+    "description": "",
+    "image": "assets/products/batata-com-cheddar-e-bacon-600g-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 20,
+    "category": "Porções",
+    "name": "Batata com calabresa ou frango 600g",
+    "price": 45,
+    "description": "",
+    "image": "assets/products/batata-com-calabresa-ou-frango-600g-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 21,
+    "category": "Porções",
+    "name": "Frango a passarinho 1kg",
+    "price": 39.9,
+    "description": "Acompanha molho",
+    "image": "assets/products/frango-a-passarinho-1kg-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 22,
+    "category": "Porções",
+    "name": "Cebola empanada",
+    "price": 39.9,
+    "description": "",
+    "image": "assets/products/cebola-empanada-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 23,
+    "category": "Porções",
+    "name": "Salame com azeitonas",
+    "price": 39,
+    "description": "",
+    "image": "assets/products/salame-com-azeitonas-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 24,
+    "category": "Porções",
+    "name": "Azeitona",
+    "price": 20,
+    "description": "",
+    "image": "assets/products/azeitona-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 25,
+    "category": "Porções",
+    "name": "Torresmo 600g",
+    "price": 39.9,
+    "description": "",
+    "image": "assets/products/torresmo-600g-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 26,
+    "category": "Porções",
+    "name": "Calabresa acebolada 600g",
+    "price": 39.9,
+    "description": "",
+    "image": "assets/products/calabresa-acebolada-600g-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 27,
+    "category": "Porções",
+    "name": "Meia calabresa / meia frango",
+    "price": 45,
+    "description": "",
+    "image": "assets/products/meia-calabresa-meia-frango-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 28,
+    "category": "Porções",
+    "name": "Isca de frango empanado 600g",
+    "price": 45,
+    "description": "",
+    "image": "assets/products/isca-de-frango-empanado-600g-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 29,
+    "category": "Porções",
+    "name": "Mandioca com bacon 600g",
+    "price": 39.9,
+    "description": "",
+    "image": "assets/products/mandioca-com-bacon-600g-20260723.webp",
+    "badge": "Destaque"
+  },
+  {
+    "id": 30,
+    "category": "Porções",
+    "name": "Isca de tilápia 600g",
+    "price": 69.9,
+    "description": "",
+    "image": "assets/products/isca-de-tilapia-600g-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 31,
+    "category": "Porções",
+    "name": "Carne seca com mandioca 600g",
+    "price": 85.9,
+    "description": "",
+    "image": "assets/products/carne-seca-com-mandioca-600g-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 32,
+    "category": "Porções",
+    "name": "Contra filé acebolado 600g",
+    "price": 79.9,
+    "description": "",
+    "image": "assets/products/contra-file-acebolado-600g-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 33,
+    "category": "Porções",
+    "name": "Picanha grelhada 600g",
+    "price": 95.9,
+    "description": "Acompanha batata rústica e pão",
+    "image": "assets/products/picanha-grelhada-600g-20260723.webp",
+    "badge": ""
+  },
+  {
+    "id": 34,
+    "category": "Porções",
+    "name": "Porção da casa 1,2kg",
+    "price": 130,
+    "description": "Batata, contra filé, calabresa, mandioca e pão de alho",
+    "image": "assets/products/porcao-da-casa-1-2kg-20260723.webp",
+    "badge": "Mais pedido"
+  },
+  {
+    "id": 35,
+    "category": "Lanches",
+    "name": "X-Burguer",
+    "price": 22,
+    "description": "Pão brioche, hambúrguer bovino 180g, queijo e molho Billy Jack",
+    "image": "x-burguer.webp",
+    "badge": ""
+  },
+  {
+    "id": 36,
+    "category": "Lanches",
+    "name": "X-Salada",
+    "price": 25,
+    "description": "Pão brioche, hambúrguer 180g, queijo, alface, tomate e molho Billy Jack",
+    "image": "x-salada.webp",
+    "badge": ""
+  },
+  {
+    "id": 37,
+    "category": "Lanches",
+    "name": "X-Bacon",
+    "price": 27,
+    "description": "Pão brioche, hambúrguer 180g, queijo, bacon e molho tasty",
+    "image": "x-bacon.webp",
+    "badge": ""
+  },
+  {
+    "id": 38,
+    "category": "Lanches",
+    "name": "X-Contra filé",
+    "price": 28,
+    "description": "",
+    "image": "x-contra-file.webp",
+    "badge": ""
+  },
+  {
+    "id": 39,
+    "category": "Lanches",
+    "name": "X-Calabresa",
+    "price": 25,
+    "description": "",
+    "image": "x-calabresa.webp",
+    "badge": ""
+  },
+  {
+    "id": 40,
+    "category": "Lanches",
+    "name": "X-Toscana",
+    "price": 25,
+    "description": "",
+    "image": "x-toscana.webp",
+    "badge": ""
+  },
+  {
+    "id": 41,
+    "category": "Lanches",
+    "name": "X-Kafta",
+    "price": 25,
+    "description": "",
+    "image": "x-kafta.webp",
+    "badge": ""
+  },
+  {
+    "id": 42,
+    "category": "Adicionais",
+    "name": "Batata frita 150g",
+    "price": 8,
+    "description": "",
+    "image": "adicional-batata-frita.webp",
+    "badge": ""
+  },
+  {
+    "id": 43,
+    "category": "Adicionais",
+    "name": "Batata frita 150g com cheddar e bacon",
+    "price": 12,
+    "description": "",
+    "image": "adicional-batata-cheddar-bacon.webp",
+    "badge": ""
+  },
+  {
+    "id": 44,
+    "category": "Adicionais",
+    "name": "Hambúrguer extra 180g",
+    "price": 10,
+    "description": "",
+    "image": "hamburguer-extra.webp",
+    "badge": ""
+  },
+  {
+    "id": 45,
+    "category": "Cervejas",
+    "name": "Budweiser Long Neck 330ml",
+    "price": 12.5,
+    "description": "",
+    "image": "budweiser-330ml.webp",
+    "badge": ""
+  },
+  {
+    "id": 46,
+    "category": "Cervejas",
+    "name": "Heineken Long Neck 330ml",
+    "price": 15,
+    "description": "",
+    "image": "heineken-long-neck.webp",
+    "badge": ""
+  },
+  {
+    "id": 47,
+    "category": "Cervejas",
+    "name": "Heineken 0.0 Long Neck 269ml",
+    "price": 15,
+    "description": "",
+    "image": "heineken-0-0-long-neck-269ml.webp",
+    "badge": ""
+  },
+  {
+    "id": 48,
+    "category": "Cervejas",
+    "name": "Corona Long Neck 330 ml",
+    "price": 15,
+    "description": "",
+    "image": "corona-330ml.webp",
+    "badge": ""
+  },
+  {
+    "id": 49,
+    "category": "Cervejas",
+    "name": "Corona Zero 330 ml",
+    "price": 15,
+    "description": "",
+    "image": "corona-zero.webp",
+    "badge": ""
+  },
+  {
+    "id": 50,
+    "category": "Cervejas",
+    "name": "Stella Long Neck 330 ml",
+    "price": 15,
+    "description": "",
+    "image": "stella-long-neck.webp",
+    "badge": ""
+  },
+  {
+    "id": 51,
+    "category": "Cervejas",
+    "name": "Itaipava lata 269ml",
+    "price": 5.5,
+    "description": "",
+    "image": "itaipava-269ml.webp",
+    "badge": "Mais pedido"
+  },
+  {
+    "id": 52,
+    "category": "Cervejas",
+    "name": "Skol lata 269ml",
+    "price": 6.5,
+    "description": "",
+    "image": "skol-269ml.webp",
+    "badge": ""
+  },
+  {
+    "id": 53,
+    "category": "Cervejas",
+    "name": "Original lata 269ml",
+    "price": 7,
+    "description": "",
+    "image": "original-269ml.webp",
+    "badge": ""
+  },
+  {
+    "id": 54,
+    "category": "Cervejas",
+    "name": "Insano American IPA 473ml",
+    "price": 17.9,
+    "description": "",
+    "image": "insano-american-ipa-473ml.webp",
+    "badge": ""
+  },
+  {
+    "id": 55,
+    "category": "Cervejas",
+    "name": "Caracu 350ml",
+    "price": 15,
+    "description": "",
+    "image": "caracu-350ml.webp",
+    "badge": ""
+  },
+  {
+    "id": 56,
+    "category": "Cervejas",
+    "name": "Lokas Lager 355ml",
+    "price": 11.9,
+    "description": "",
+    "image": "lokas-lager-355ml.webp",
+    "badge": ""
+  },
+  {
+    "id": 57,
+    "category": "Cervejas",
+    "name": "Insanos American Lager 355ml",
+    "price": 11.9,
+    "description": "",
+    "image": "insanos-american-lager-355ml.webp",
+    "badge": ""
+  },
+  {
+    "id": 58,
+    "category": "Cervejas",
+    "name": "Roleta Russa IPA 500ml",
+    "price": 17.9,
+    "description": "",
+    "image": "roleta-russa-ipa.webp",
+    "badge": "Destaque"
+  },
+  {
+    "id": 59,
+    "category": "Cervejas",
+    "name": "Eisenbahn Weizenbier 355ml",
+    "price": 17.9,
+    "description": "",
+    "image": "eisenbahn-weizenbier.webp",
+    "badge": ""
+  },
+  {
+    "id": 60,
+    "category": "Cervejas",
+    "name": "Eisenbahn Pale Ale 355ml",
+    "price": 17.9,
+    "description": "",
+    "image": "eisenbahn-pale-ale.webp",
+    "badge": ""
+  },
+  {
+    "id": 61,
+    "category": "Cervejas",
+    "name": "Insanos Session IPA 473ml",
+    "price": 17.9,
+    "description": "",
+    "image": "insanos-session-ipa-473ml.webp",
+    "badge": ""
+  },
+  {
+    "id": 62,
+    "category": "Cervejas",
+    "name": "Nkoz American IPA lata 473ml",
+    "price": 17.9,
+    "description": "",
+    "image": "nkoz-american-ipa-473ml.webp",
+    "badge": ""
+  },
+  {
+    "id": 63,
+    "category": "Cervejas",
+    "name": "Nkoz seisson IPA",
+    "price": 17.9,
+    "description": "",
+    "image": "nkoz-saisson-ipa-473ml.webp",
+    "badge": ""
+  },
+  {
+    "id": 64,
+    "category": "Não alcoólicos",
+    "name": "Água sem gás 510 ml",
+    "price": 5,
+    "description": "",
+    "image": "agua-sem-gas.webp",
+    "badge": ""
+  },
+  {
+    "id": 65,
+    "category": "Não alcoólicos",
+    "name": "Água com gás 510 ml",
+    "price": 6,
+    "description": "",
+    "image": "agua-com-gas.webp",
+    "badge": ""
+  },
+  {
+    "id": 66,
+    "category": "Não alcoólicos",
+    "name": "Água tônica 350 ml",
+    "price": 7.5,
+    "description": "",
+    "image": "agua-tonica.webp",
+    "badge": ""
+  },
+  {
+    "id": 67,
+    "category": "Não alcoólicos",
+    "name": "Coca-Cola lata 350ml",
+    "price": 7.5,
+    "description": "",
+    "image": "coca-cola-350ml.webp",
+    "badge": ""
+  },
+  {
+    "id": 68,
+    "category": "Não alcoólicos",
+    "name": "Coca-Cola Zero lata 350ml",
+    "price": 7.5,
+    "description": "",
+    "image": "coca-cola-zero-350ml.webp",
+    "badge": "Mais pedido"
+  },
+  {
+    "id": 69,
+    "category": "Não alcoólicos",
+    "name": "Fanta Laranja lata 350ml",
+    "price": 7.5,
+    "description": "",
+    "image": "fanta-laranja-350ml.webp",
+    "badge": ""
+  },
+  {
+    "id": 70,
+    "category": "Não alcoólicos",
+    "name": "Guaraná lata 350ml",
+    "price": 7.5,
+    "description": "",
+    "image": "guarana-350ml.webp",
+    "badge": ""
+  },
+  {
+    "id": 71,
+    "category": "Não alcoólicos",
+    "name": "Guaraná Zero lata 350ml",
+    "price": 7.5,
+    "description": "",
+    "image": "guarana-zero-350ml.webp",
+    "badge": ""
+  },
+  {
+    "id": 72,
+    "category": "Não alcoólicos",
+    "name": "Fanta Uva lata 350ml",
+    "price": 7.5,
+    "description": "",
+    "image": "fanta-uva-350ml.webp",
+    "badge": ""
+  },
+  {
+    "id": 73,
+    "category": "Não alcoólicos",
+    "name": "Soda Limonada lata 350ml",
+    "price": 7.5,
+    "description": "",
+    "image": "soda-limonada-350ml.webp",
+    "badge": ""
+  },
+  {
+    "id": 74,
+    "category": "Não alcoólicos",
+    "name": "Schweppes lata 350ml",
+    "price": 7.5,
+    "description": "",
+    "image": "schweppes-350ml.webp",
+    "badge": ""
+  },
+  {
+    "id": 75,
+    "category": "Não alcoólicos",
+    "name": "Red Bull tradicional 250 ml",
+    "price": 15,
+    "description": "",
+    "image": "red-bull-tradicional.webp",
+    "badge": ""
+  },
+  {
+    "id": 76,
+    "category": "Não alcoólicos",
+    "name": "Red Bull Tropical 250 ml",
+    "price": 16,
+    "description": "",
+    "image": "red-bull-tropical-250ml.webp",
+    "badge": ""
+  },
+  {
+    "id": 77,
+    "category": "Não alcoólicos",
+    "name": "Red Bull 0 açúcar",
+    "price": 15,
+    "description": "",
+    "image": "red-bull-zero-250ml.webp",
+    "badge": ""
+  },
+  {
+    "id": 78,
+    "category": "Não alcoólicos",
+    "name": "Red Bull Melancia 250 ml",
+    "price": 16,
+    "description": "",
+    "image": "red-bull-melancia-250ml.webp",
+    "badge": ""
+  },
+  {
+    "id": 79,
+    "category": "Não alcoólicos",
+    "name": "Água de coco 330ml",
+    "price": 12,
+    "description": "",
+    "image": "agua-de-coco.webp",
+    "badge": ""
+  },
+  {
+    "id": 80,
+    "category": "Drinks",
+    "name": "Caipirinha de morango com vodka 400 ml",
+    "price": 20,
+    "description": "",
+    "system_code": 609,
+    "print_code": 640,
+    "image": "caipirinha-vodka-morango.webp",
+    "badge": ""
+  },
+  {
+    "id": 81,
+    "category": "Drinks",
+    "name": "Caipirinha de morango com Velho Barreiro 400 ml",
+    "price": 20,
+    "description": "",
+    "system_code": 611,
+    "print_code": 642,
+    "image": "caipirinha-cachaca-morango.webp",
+    "badge": ""
+  },
+  {
+    "id": 82,
+    "category": "Drinks",
+    "name": "Caipirinha de morango com saquê 400 ml",
+    "price": 20,
+    "description": "",
+    "system_code": 610,
+    "print_code": 641,
+    "image": "caipirinha-saque-morango.webp",
+    "badge": ""
+  },
+  {
+    "id": 83,
+    "category": "Drinks",
+    "name": "Caipirinha de kiwi com vodka 400 ml",
+    "price": 20,
+    "description": "",
+    "system_code": 603,
+    "print_code": 634,
+    "image": "caipirinha-vodka-kiwi.webp",
+    "badge": ""
+  },
+  {
+    "id": 84,
+    "category": "Drinks",
+    "name": "Caipirinha de kiwi com Velho Barreiro 400 ml",
+    "price": 20,
+    "description": "",
+    "system_code": 604,
+    "print_code": 635,
+    "image": "caipirinha-cachaca-kiwi.webp",
+    "badge": ""
+  },
+  {
+    "id": 85,
+    "category": "Drinks",
+    "name": "Caipirinha de kiwi com saquê 400 ml",
+    "price": 20,
+    "description": "",
+    "system_code": 605,
+    "print_code": 636,
+    "image": "caipirinha-saque-kiwi.webp",
+    "badge": "Mais pedido"
+  },
+  {
+    "id": 86,
+    "category": "Drinks",
+    "name": "Caipirinha de limão com vodka 400 ml",
+    "price": 20,
+    "description": "",
+    "system_code": 606,
+    "print_code": 637,
+    "image": "caipirinha-vodka-limao.webp",
+    "badge": ""
+  },
+  {
+    "id": 87,
+    "category": "Drinks",
+    "name": "Caipirinha de limão com Velho Barreiro 400 ml",
+    "price": 20,
+    "description": "",
+    "system_code": 607,
+    "print_code": 638,
+    "image": "caipirinha-cachaca-limao.webp",
+    "badge": "Destaque"
+  },
+  {
+    "id": 88,
+    "category": "Drinks",
+    "name": "Caipirinha de limão com saquê 400 ml",
+    "price": 20,
+    "description": "",
+    "system_code": 608,
+    "print_code": 639,
+    "image": "caipirinha-saque-limao.webp",
+    "badge": ""
+  },
+  {
+    "id": 89,
+    "category": "Drinks",
+    "name": "Caipirinha de maracujá com vodka 400 ml",
+    "price": 20,
+    "description": "",
+    "image": "caipirinha-vodka-maracuja.webp",
+    "badge": ""
+  },
+  {
+    "id": 90,
+    "category": "Drinks",
+    "name": "Caipirinha de maracujá com Velho Barreiro 400 ml",
+    "price": 20,
+    "description": "",
+    "image": "caipirinha-cachaca-maracuja.webp",
+    "badge": ""
+  },
+  {
+    "id": 91,
+    "category": "Drinks",
+    "name": "Caipirinha de maracujá com saquê 400 ml",
+    "price": 20,
+    "description": "",
+    "image": "caipirinha-saque-maracuja.webp",
+    "badge": ""
+  },
+  {
+    "id": 92,
+    "category": "Drinks",
+    "name": "Caipirinha com vinho 400 ml",
+    "price": 25,
+    "description": "",
+    "system_code": 584,
+    "print_code": 615,
+    "image": "caipirinha-vinho.webp",
+    "badge": ""
+  },
+  {
+    "id": 93,
+    "category": "Drinks",
+    "name": "Caipirinha com Licor 43 400 ml",
+    "price": 35,
+    "description": "",
+    "system_code": 585,
+    "print_code": 616,
+    "image": "caipirinha-licor-43.webp",
+    "badge": ""
+  },
+  {
+    "id": 94,
+    "category": "Drinks",
+    "name": "Batida com vodka 400 ml",
+    "price": 23,
+    "description": "",
+    "image": "batida.webp",
+    "badge": ""
+  },
+  {
+    "id": 95,
+    "category": "Drinks",
+    "name": "Batida com Jurupinga 400 ml",
+    "price": 28,
+    "description": "",
+    "image": "batida-jurupinga.webp",
+    "badge": ""
+  },
+  {
+    "id": 96,
+    "category": "Drinks",
+    "name": "Espanhola 400 ml",
+    "price": 25,
+    "description": "",
+    "image": "espanhola-330ml.webp",
+    "badge": ""
+  },
+  {
+    "id": 97,
+    "category": "Drinks",
+    "name": "Morena canela 400 ml",
+    "price": 20,
+    "description": "",
+    "image": "morena-canela.webp",
+    "badge": ""
+  },
+  {
+    "id": 98,
+    "category": "Drinks",
+    "name": "Piña Colada 400 ml",
+    "price": 25,
+    "description": "",
+    "image": "pina-colada.webp",
+    "badge": ""
+  },
+  {
+    "id": 99,
+    "category": "Drinks",
+    "name": "Mojito 400 ml",
+    "price": 25,
+    "description": "",
+    "image": "mojito.webp",
+    "badge": ""
+  },
+  {
+    "id": 100,
+    "category": "Drinks",
+    "name": "Meia de seda 400 ml",
+    "price": 25,
+    "description": "",
+    "image": "meia-de-seda.webp",
+    "badge": ""
+  },
+  {
+    "id": 101,
+    "category": "Drinks",
+    "name": "Negroni 400 ml",
+    "price": 30,
+    "description": "",
+    "image": "negroni.webp",
+    "badge": ""
+  },
+  {
+    "id": 102,
+    "category": "Drinks",
+    "name": "Namoradinha 400 ml",
+    "price": 20,
+    "description": "",
+    "image": "namoradinha.webp",
+    "badge": "Mais pedido"
+  },
+  {
+    "id": 103,
+    "category": "Drinks",
+    "name": "Smirnoff Ice 275 ml",
+    "price": 15,
+    "description": "",
+    "image": "smirnoff-ice.webp",
+    "badge": ""
+  },
+  {
+    "id": 104,
+    "category": "Drinks",
+    "name": "Skol Beats 269 ml",
+    "price": 15,
+    "description": "",
+    "image": "skol-beats.webp",
+    "badge": ""
+  },
+  {
+    "id": 105,
+    "category": "Drinks",
+    "name": "Xeque Mate 362 ml",
+    "price": 15,
+    "description": "",
+    "image": "xeque-mate.webp",
+    "badge": ""
+  }
+]
