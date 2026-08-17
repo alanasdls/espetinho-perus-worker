@@ -139,22 +139,95 @@ function responder(dados, status = 200) {
 }
 function emailValido(email) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
 function texto(valor, limite = 500) { return String(valor ?? "").trim().slice(0, limite); }
-// Códigos de impressão (Cód. PDV) importados da planilha PRODUTOS (18).xlsx.
+// Códigos de impressão (Cód. PDV) confirmados pelo usuário na comparação com o Consumer.
 // São usados somente na integração do pedido com o Consumer/PDV e nunca como
 // identificador de item nos provedores de pagamento.
 const CODIGOS_IMPRESSAO_POR_PRODUTO = Object.freeze({
+  "Queijo coalho": "188",
+  "Pão de alho": "190",
+  "Carne": "189",
+  "Carne e bacon": "194",
+  "Carne e toscana": "621",
+  "Carne e calabresa": "193",
+  "Frango": "201",
+  "Pernil e bacon": "603",
+  "Tulipa": "199",
+  "Coração de frango": "200",
+  "Linguiça toscana": "197",
+  "Linguiça calabresa": "196",
+  "Linguiça apimentada": "622",
+  "Medalhão de frango": "202",
+  "Camarão": "205",
+  "Kafta": "195",
+  "Kafta com queijo": "204",
+  "Batata simples 600g": "191",
+  "Batata com cheddar e bacon 600g": "192",
+  "Batata com calabresa ou frango 600g": "619",
+  "Frango a passarinho 1kg": "217",
+  "Cebola empanada": "212",
+  "Salame com azeitonas": "226",
+  "Azeitona": "444",
+  "Torresmo 600g": "225",
+  "Calabresa acebolada 600g": "215",
+  "Meia calabresa / meia frango": "619",
+  "Isca de frango empanado 600g": "429",
+  "Mandioca com bacon 600g": "213",
+  "Isca de tilápia 600g": "222",
+  "Carne seca com mandioca 600g": "620",
+  "Contra filé acebolado 600g": "223",
+  "Picanha grelhada 600g": "428",
+  "Porção da casa 1,2kg": "601",
+  "X-Burguer": "288",
+  "X-Salada": "586",
+  "X-Bacon": "290",
+  "X-Contra filé": "293",
+  "X-Calabresa": "608",
+  "X-Toscana": "623",
+  "X-Kafta": "295",
+  "Hambúrguer extra 180g": "296",
+  "Budweiser Long Neck 330ml": "427",
+  "Heineken Long Neck 330ml": "276",
+  "Corona Long Neck": "277",
+  "Corona Zero Long Neck": "594",
+  "Skol lata 269ml": "300",
+  "Original lata 269ml": "539",
+  "Insano American IPA 473ml": "617",
+  "Lokas Lager 355ml": "590",
+  "Insanos American Lager 355ml": "588",
+  "Água": "243",
+  "Água com gás": "244",
+  "Água tônica": "245",
+  "Coca-Cola lata 350ml": "231",
+  "Coca-Cola Zero lata 350ml": "409",
+  "Fanta Laranja lata 350ml": "426",
+  "Guaraná lata 350ml": "425",
+  "Soda Limonada lata 350ml": "451",
+  "Schweppes lata 350ml": "527",
+  "Energético Red Bull tradicional": "287",
+  "Água de coco 330ml": "618",
   "Caipirinha de vodka com morango": "640",
   "Caipirinha de cachaça com morango": "642",
   "Caipirinha de saquê com morango": "641",
   "Caipirinha de vodka com kiwi": "634",
   "Caipirinha de cachaça com kiwi": "635",
   "Caipirinha de saquê com kiwi": "636",
-  "Caipirinha de vodka com limão": "637",
   "Caipirinha de cachaça com limão": "638",
   "Caipirinha de saquê com limão": "639",
+  "Caipirinha de vodka com maracujá": "634",
   "Caipirinha com vinho": "615",
   "Caipirinha com Licor 43": "616",
-  "Queijo coalho": "188"
+  "Batida com vodka 330ml": "310",
+  "Batida com Jurupinga 330ml": "609",
+  "Espanhola 330ml": "317",
+  "Morena canela": "611",
+  "Piña Colada": "315",
+  "Mojito": "319",
+  "Meia de seda": "318",
+  "Negroni": "322",
+  "Namoradinha": "596",
+  "Smirnoff Ice": "303",
+  "Skol Beats": "278",
+  "Xeque Mate": "585"
 });
 
 function codigoImpressaoProduto(nome, item = {}) {
@@ -192,6 +265,68 @@ function calcularEntrega(entrada) {
   const feeInformada = Number(entrada.delivery_fee ?? 10);
   if (feeInformada !== 10) throw new Error("Taxa de entrega inválida.");
   return { fee: 10, bairro, cep };
+}
+
+function normalizarCodigoCupom(valor){
+  return texto(valor,30).toUpperCase().replace(/\s+/g,"");
+}
+function catalogoCupons(env){
+  const bruto=texto(env.CUPONS_JSON||"",20000);
+  if(!bruto)return {};
+  try{
+    const data=JSON.parse(bruto);
+    if(Array.isArray(data)){
+      return Object.fromEntries(data.filter(Boolean).map(c=>[normalizarCodigoCupom(c.code||c.codigo),c]));
+    }
+    if(data&&typeof data==="object"){
+      const out={};
+      for(const [chave,valor] of Object.entries(data))out[normalizarCodigoCupom(valor?.code||valor?.codigo||chave)]={...(valor||{}),code:valor?.code||valor?.codigo||chave};
+      return out;
+    }
+  }catch(e){console.error("CUPONS_JSON inválido",e)}
+  return {};
+}
+function validarCupomServidor(env,codigo,subtotal){
+  const code=normalizarCodigoCupom(codigo);
+  const base=Math.max(0,Number(subtotal||0));
+  if(!code)return {valid:false,code:"",error:"Informe um cupom."};
+  const config=catalogoCupons(env)[code];
+  if(!config||config.active===false||config.ativo===false)return {valid:false,code,error:"Cupom inválido ou inativo."};
+  const agora=Date.now();
+  const inicio=config.starts_at||config.inicio||config.valid_from;
+  const fim=config.expires_at||config.fim||config.valid_until;
+  if(inicio&&Number.isFinite(Date.parse(inicio))&&agora<Date.parse(inicio))return {valid:false,code,error:"Este cupom ainda não está disponível."};
+  if(fim&&Number.isFinite(Date.parse(fim))&&agora>Date.parse(fim))return {valid:false,code,error:"Este cupom expirou."};
+  const minimo=Math.max(0,Number(config.min_subtotal??config.valor_minimo??0));
+  if(base+0.00001<minimo)return {valid:false,code,error:`Este cupom exige pelo menos R$ ${minimo.toFixed(2).replace('.',',')} em produtos.`};
+  const type=String(config.type||config.tipo||"percent").toLowerCase();
+  const value=Math.max(0,Number(config.value??config.valor??0));
+  let discount=type==="fixed"||type==="valor"?value:base*(value/100);
+  const maxDiscount=Number(config.max_discount??config.desconto_maximo??0);
+  if(maxDiscount>0)discount=Math.min(discount,maxDiscount);
+  discount=Math.round(Math.min(base,Math.max(0,discount))*100)/100;
+  if(discount<=0)return {valid:false,code,error:"Cupom sem desconto configurado."};
+  return {valid:true,code,discount,stack:Boolean(config.stack_with_registered_discount??config.acumula_com_cadastrado??false),description:texto(config.description||config.descricao||`Cupom ${code}`,120),type,value,min_subtotal:minimo};
+}
+function calcularDescontosPedido(env,entrada,subtotal,clienteRegistrado){
+  const base=Math.max(0,Number(subtotal||0));
+  const registeredDiscount=clienteRegistrado?Math.round(base*0.10*100)/100:0;
+  const code=normalizarCodigoCupom(entrada?.coupon_code||entrada?.coupon?.code||"");
+  if(!code)return {registered_discount:registeredDiscount,coupon_discount:0,total_discount:registeredDiscount,coupon:null};
+  const cupom=validarCupomServidor(env,code,base);
+  if(!cupom.valid){const e=new Error(cupom.error||"Cupom inválido.");e.code="CUPOM_INVALIDO";throw e;}
+  let totalDiscount;
+  let couponEffective;
+  if(cupom.stack){
+    couponEffective=Math.min(cupom.discount,Math.max(0,base-registeredDiscount));
+    totalDiscount=Math.min(base,registeredDiscount+couponEffective);
+  }else{
+    totalDiscount=Math.min(base,Math.max(registeredDiscount,cupom.discount));
+    couponEffective=Math.max(0,totalDiscount-registeredDiscount);
+  }
+  totalDiscount=Math.round(totalDiscount*100)/100;
+  couponEffective=Math.round(couponEffective*100)/100;
+  return {registered_discount:registeredDiscount,coupon_discount:couponEffective,total_discount:totalDiscount,coupon:{...cupom,effective_discount:couponEffective}};
 }
 
 async function clienteSupabaseAutenticado(request, env) {
@@ -232,7 +367,7 @@ async function creditarPontosFidelidade(env, pedido) {
       body: JSON.stringify({
         p_cliente_id: clienteId,
         p_numero_pedido: pedido.order_id,
-        p_subtotal: Number(pedido.subtotal || 0),
+        p_subtotal: Math.max(0, Number(pedido.loyalty_subtotal_eligible ?? (Number(pedido.subtotal || 0) - Number(pedido.discount_amount || 0)))),
         p_valor_total: Number(pedido.total || 0),
         p_frete: Number(pedido.delivery_fee || 0)
       })
@@ -244,7 +379,7 @@ async function creditarPontosFidelidade(env, pedido) {
       credited: true,
       status: row?.ja_creditado ? "already_credited" : "credited",
       points: Number(row?.pontos_creditados || 0),
-      subtotal_eligible: Number(pedido.subtotal || 0),
+      subtotal_eligible: Math.max(0, Number(pedido.loyalty_subtotal_eligible ?? (Number(pedido.subtotal || 0) - Number(pedido.discount_amount || 0)))),
       freight_excluded: Number(pedido.delivery_fee || 0),
       updated_at: new Date().toISOString()
     };
@@ -254,6 +389,95 @@ async function creditarPontosFidelidade(env, pedido) {
     pedido.loyalty = { ...(pedido.loyalty || {}), credited: false, status: "error", error: e instanceof Error ? e.message : String(e), updated_at: new Date().toISOString() };
     return pedido.loyalty;
   }
+}
+
+
+const PONTOS_POR_REAL_RESgate = 20;
+
+function catalogoFidelidade() {
+  return Object.keys(CODIGOS_IMPRESSAO_POR_PRODUTO)
+    .filter(nome => Object.prototype.hasOwnProperty.call(PRECOS, nome))
+    .map(nome => {
+      const preco = Number(PRECOS[nome] || 0);
+      return {
+        name: nome,
+        price: preco,
+        points: Math.ceil(preco * PONTOS_POR_REAL_RESgate),
+        pdv: CODIGOS_IMPRESSAO_POR_PRODUTO[nome]
+      };
+    })
+    .sort((a,b) => a.points - b.points || a.name.localeCompare(b.name, "pt-BR"));
+}
+
+async function perfilClienteSupabase(env, clienteId) {
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY || !clienteId) return null;
+  const endpoint = `${env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1/clientes?id=eq.${encodeURIComponent(clienteId)}&select=id,nome,telefone,email,pontos&limit=1`;
+  const r = await fetch(endpoint, {
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      Accept: "application/json"
+    }
+  });
+  if (!r.ok) {
+    console.error("Falha ao consultar perfil fidelidade", r.status, await r.text().catch(()=>""));
+    return null;
+  }
+  const data = await r.json().catch(()=>[]);
+  return Array.isArray(data) ? (data[0] || null) : null;
+}
+
+async function debitarPontosProduto(env, clienteId, pontos, descricao) {
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error("Supabase de fidelidade não configurado no Worker.");
+  }
+  const r = await fetch(`${env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1/rpc/resgatar_pontos_produto`, {
+    method: "POST",
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      "Content-Type": "application/json",
+      Accept: "application/json"
+    },
+    body: JSON.stringify({
+      p_cliente_id: clienteId,
+      p_pontos: pontos,
+      p_descricao: descricao
+    })
+  });
+  const data = await r.json().catch(()=>null);
+  if (!r.ok) {
+    const detalhe = typeof data === "string" ? data : JSON.stringify(data);
+    if (String(detalhe).includes("PONTOS_INSUFICIENTES")) {
+      const err = new Error("Pontos insuficientes para este resgate.");
+      err.code = "PONTOS_INSUFICIENTES";
+      throw err;
+    }
+    throw new Error(`Falha ao debitar pontos no Supabase (${r.status}): ${detalhe}`);
+  }
+  return Array.isArray(data) ? (data[0] || {}) : (data || {});
+}
+
+function pedidoFidelidadePublico(p) {
+  return {
+    order_id: p.order_id,
+    created_at: p.created_at,
+    paid_at: p.paid_at,
+    order_status: p.order_status,
+    payment_status: p.payment_status,
+    payment_method: p.payment_method,
+    total: Number(p.total || 0),
+    subtotal: Number(p.subtotal || 0),
+    delivery_fee: Number(p.delivery_fee || 0),
+    discount_amount: Number(p.discount_amount || 0),
+    items: Array.isArray(p.items) ? p.items.map(i => ({
+      name: i.name,
+      quantity: Number(i.quantity || 1),
+      unit_price: Number(i.unit_price || 0),
+      subtotal: Number(i.subtotal || 0)
+    })) : [],
+    loyalty: p.loyalty || null
+  };
 }
 
 function adminAutorizado(request, env) { return Boolean(env.ADMIN_KEY) && (request.headers.get("X-Admin-Key") || "") === env.ADMIN_KEY; }
@@ -642,6 +866,8 @@ function separarEndereco(customer = {}) {
 function metodoPagamentoConsumer(p) {
   const provider = normalizarTexto(p.payment_provider);
   const method = normalizarTexto(p.payment_method);
+  if (provider === "fidelidade" || method.includes("pontos") || method.includes("redeem")) return "REDEEM";
+  if (method.includes("coupon") || method.includes("cupom")) return "COUPON";
   if (provider === "misticpay" || provider === "pix" || method.includes("pix")) return "PIX";
   if (method.includes("debit")) return "DEBIT";
   if (method.includes("credit")) return "CREDIT";
@@ -697,13 +923,67 @@ function detalheConsumer(p, env) {
   const consumerAmount = discountAmount > 0 ? expectedAmount : amount;
   const prepaid = p.payment_status === "approved" ? consumerAmount : 0;
   const displayId = numeroPedidoExibicao(p.order_id);
-  const detalhes = {
-    benefits: discountAmount > 0 ? [{
-      target: "ORDER",
+  // Benefícios enviados no formato documentado pela API de Parceiros do Consumer.
+  // Cada origem de desconto fica separada para facilitar conferência no pedido e nos relatórios.
+  const benefits = [];
+  const registeredDiscount = Math.max(0, Number(p.registered_discount_amount || 0));
+  const couponDiscount = Math.max(0, Number(p.coupon_discount_amount || 0));
+
+  if (p.promotion_code === "FIDELIDADE_RESGATE" && discountAmount > 0) {
+    benefits.push({
+      target: "CART",
+      targetId: "CART",
       value: discountAmount,
-      sponsorshipValues: [{ name: "MERCHANT", value: discountAmount }],
-      description: p.promotion_code === "CADASTRADO10" ? "10% de desconto para cliente cadastrado" : "Desconto promocional"
-    }] : [],
+      sponsorshipValues: [{
+        name: "MERCHANT",
+        value: discountAmount,
+        description: "Resgate de pontos fidelidade"
+      }]
+    });
+  } else {
+    if (registeredDiscount > 0) {
+      benefits.push({
+        target: "CART",
+        targetId: "CART",
+        value: registeredDiscount,
+        sponsorshipValues: [{
+          name: "MERCHANT",
+          value: registeredDiscount,
+          description: "10% de desconto para cliente cadastrado"
+        }]
+      });
+    }
+    if (couponDiscount > 0) {
+      benefits.push({
+        target: "CART",
+        targetId: "CART",
+        value: couponDiscount,
+        sponsorshipValues: [{
+          name: "MERCHANT",
+          value: couponDiscount,
+          description: p.coupon_code ? `Cupom ${p.coupon_code}` : "Cupom de desconto"
+        }]
+      });
+    }
+    // Compatibilidade para pedidos antigos que possuam apenas discount_amount.
+    const covered = Math.round((registeredDiscount + couponDiscount) * 100) / 100;
+    const remainder = Math.round((discountAmount - covered) * 100) / 100;
+    if (remainder > 0) {
+      benefits.push({
+        target: "CART",
+        targetId: "CART",
+        value: remainder,
+        sponsorshipValues: [{
+          name: "MERCHANT",
+          value: remainder,
+          description: "Desconto promocional"
+        }]
+      });
+    }
+  }
+
+  const detalhes = {
+    benefits,
     orderType: entrega ? "DELIVERY" : "TAKEOUT",
     payments: {
       methods: [{
@@ -791,8 +1071,147 @@ async function marcarConsumer(env, p, patch = {}) {
 export default { async fetch(request,env,ctx) {
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:CORS}); const url=new URL(request.url);
   if(request.method==="POST"&&["/criar-pix","/criar-checkout-pagbank","/criar-checkout-mercadopago","/criar-pedido"].includes(url.pathname)){const delivery=await estadoDelivery(env);if(!delivery.aberto)return responder({erro:delivery.modo==="manual_closed"?"Delivery fechado manualmente no momento.":`Pedidos fechados no momento. Próxima abertura: ${proximaAbertura()}.`,delivery},403);}
-  if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",versao:"V41",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),pagbank_sandbox:Boolean(env.PAGBANK_SANDBOX_TOKEN),pagbank_producao:Boolean(env.PAGBANK_TOKEN),consumer_api:Boolean(env.CONSUMER_API_TOKEN),mercadopago:Boolean(env.MERCADOPAGO_ACCESS_TOKEN)});
+  if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",versao:"V45",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),pagbank_sandbox:Boolean(env.PAGBANK_SANDBOX_TOKEN),pagbank_producao:Boolean(env.PAGBANK_TOKEN),consumer_api:Boolean(env.CONSUMER_API_TOKEN),mercadopago:Boolean(env.MERCADOPAGO_ACCESS_TOKEN)});
   if(request.method==="GET"&&url.pathname==="/vapid-public-key")return responder({publicKey:env.VAPID_PUBLIC_KEY||""});
+
+
+  // ===== AREA DO CLIENTE / FIDELIDADE V43 =====
+  if(url.pathname.startsWith("/fidelidade/")){
+    const clienteAuth = await clienteSupabaseAutenticado(request, env);
+    if(!clienteAuth?.id) return responder({erro:"Sessão do cliente inválida ou expirada."},401);
+    if(!env.ORDERS_KV) return responder({erro:"ORDERS_KV não configurado."},500);
+
+    if(request.method==="GET" && url.pathname==="/fidelidade/catalogo"){
+      return responder({
+        equivalencia:{pontos:100,valor:5,pontos_por_real:PONTOS_POR_REAL_RESgate},
+        produtos:catalogoFidelidade()
+      });
+    }
+
+    if(request.method==="GET" && url.pathname==="/fidelidade/meus-pedidos"){
+      const todos = await listarPedidos(env);
+      const emailAuth = normalizarTexto(clienteAuth.email || "");
+      const pedidos = todos
+        .filter(p => {
+          const mesmoId = String(p?.customer?.loyalty_customer_id || "") === String(clienteAuth.id);
+          const mesmoEmail = emailAuth && normalizarTexto(p?.customer?.email || "") === emailAuth;
+          return mesmoId || mesmoEmail;
+        })
+        .slice(0,50)
+        .map(pedidoFidelidadePublico);
+      return responder({pedidos});
+    }
+
+    if(request.method==="GET" && url.pathname==="/fidelidade/pedido-itens"){
+      const numero = texto(url.searchParams.get("numero"),100);
+      if(!numero) return responder({erro:"Informe o número do pedido."},400);
+      const p = await buscarPedido(env, numero);
+      if(!p) return responder({erro:"Pedido não encontrado."},404);
+      const mesmoId = String(p?.customer?.loyalty_customer_id || "") === String(clienteAuth.id);
+      const mesmoEmail = normalizarTexto(clienteAuth.email || "") &&
+        normalizarTexto(p?.customer?.email || "") === normalizarTexto(clienteAuth.email || "");
+      if(!mesmoId && !mesmoEmail) return responder({erro:"Pedido não pertence a esta conta."},403);
+      return responder({pedido:pedidoFidelidadePublico(p)});
+    }
+
+    if(request.method==="POST" && url.pathname==="/fidelidade/resgatar"){
+      try{
+        const body = await request.json().catch(()=>({}));
+        const nome = texto(body.product_name || body.name,150);
+        if(!nome || !Object.prototype.hasOwnProperty.call(CODIGOS_IMPRESSAO_POR_PRODUTO,nome) ||
+           !Object.prototype.hasOwnProperty.call(PRECOS,nome)){
+          return responder({erro:"Produto não disponível para resgate neste momento."},400);
+        }
+
+        const requestId = texto(body.request_id,120) || crypto.randomUUID();
+        const idemKey = `fidelidade:resgate:${clienteAuth.id}:${requestId}`;
+        const anterior = await env.ORDERS_KV.get(idemKey,"json");
+        if(anterior) return responder({...anterior,idempotente:true});
+
+        const preco = Number(PRECOS[nome]);
+        const pontos = Math.ceil(preco * PONTOS_POR_REAL_RESgate);
+        const descricao = `Resgate: ${nome}`;
+        const debito = await debitarPontosProduto(env, clienteAuth.id, pontos, descricao);
+
+        const perfil = await perfilClienteSupabase(env, clienteAuth.id);
+        const agora = new Date().toISOString();
+        const orderId = `RES-${Date.now()}-${crypto.randomUUID().slice(0,8).toUpperCase()}`;
+        const tracking = crypto.randomUUID().replaceAll("-","") + crypto.randomUUID().replaceAll("-","").slice(0,16);
+        const p = {
+          order_id: orderId,
+          tracking_token: tracking,
+          site_url: "https://espetinhoperus.com.br",
+          created_at: agora,
+          updated_at: agora,
+          customer: {
+            name: texto(perfil?.nome || clienteAuth.email || "Cliente fidelidade",100),
+            email: texto(perfil?.email || clienteAuth.email,150).toLowerCase(),
+            phone: texto(perfil?.telefone,30),
+            fulfillment: "Retirada",
+            address: "",
+            cep: "",
+            bairro: "",
+            notes: "RESGATE DE PONTOS - retirar no local",
+            loyalty_customer_id: clienteAuth.id
+          },
+          items: [{
+            name: nome,
+            quantity: 1,
+            unit_price: preco,
+            subtotal: preco,
+            external_code: codigoImpressaoProduto(nome,{})
+          }],
+          subtotal: preco,
+          delivery_fee: 0,
+          discount_amount: preco,
+          promotion_code: "FIDELIDADE_RESGATE",
+          total: 0,
+          payment_id: null,
+          payment_provider: "fidelidade",
+          payment_method: "PONTOS",
+          payment_status: "approved",
+          payment_status_detail: `${pontos} pontos utilizados`,
+          order_status: "recebido",
+          paid_at: agora,
+          estimated_minutes: 25,
+          push_subscriptions: [],
+          status_history: [{status:"recebido",at:agora,origem:"fidelidade"}],
+          consumer_sync: {status:"pending",created_at:agora},
+          loyalty: {
+            redeemed: true,
+            points_used: pontos,
+            product: nome,
+            balance_before: Number(debito?.saldo_anterior ?? 0),
+            balance_after: Number(debito?.saldo_atual ?? Math.max(0,Number(perfil?.pontos||0)-pontos)),
+            updated_at: agora
+          }
+        };
+
+        await gravarPedido(env,p);
+        const resposta = {
+          ok:true,
+          order_id:orderId,
+          tracking_token:tracking,
+          product:nome,
+          points_used:pontos,
+          points_balance:Number(p.loyalty.balance_after||0),
+          status:"recebido",
+          message:"Resgate confirmado. O produto foi enviado para preparo e ficará disponível para retirada."
+        };
+        await env.ORDERS_KV.put(idemKey,JSON.stringify(resposta),{expirationTtl:86400});
+        const tarefa = notificarNovoPedidoPago(env,p).catch(e=>console.error("Falha notificação resgate",e));
+        if(ctx?.waitUntil) ctx.waitUntil(tarefa); else await tarefa;
+        return responder(resposta,201);
+      }catch(e){
+        console.error("fidelidade/resgatar",e);
+        if(e?.code==="PONTOS_INSUFICIENTES") return responder({erro:e.message},409);
+        return responder({erro:"Não foi possível concluir o resgate.",detalhes:e instanceof Error?e.message:String(e)},500);
+      }
+    }
+
+    return responder({erro:"Rota de fidelidade não encontrada."},404);
+  }
+  // ===== FIM AREA DO CLIENTE / FIDELIDADE V43 =====
 
   // Consumer API do Parceiro. Nao consulta estoque e nao bloqueia produtos sem cadastro.
   if(url.pathname.startsWith("/consumer/")){
@@ -823,7 +1242,7 @@ export default { async fetch(request,env,ctx) {
 
       console.log({
         tipo: "consumer_order_details",
-        versao: "V41",
+        versao: "V45",
         orderId,
         items: itensConsumer.map((item, index) => ({
           index,
@@ -1004,6 +1423,23 @@ export default { async fetch(request,env,ctx) {
     return responder({erro:"Rota administrativa nao encontrada."},404);
   }
 
+  if(request.method==="POST"&&url.pathname==="/cupons/validar"){
+    try{
+      const body=await request.json().catch(()=>({}));
+      const subtotal=Math.round(Math.max(0,Number(body.subtotal||0))*100)/100;
+      if(subtotal<=0)return responder({valid:false,erro:"Adicione produtos ao carrinho antes de aplicar o cupom."},400);
+      const clienteAuth=await clienteSupabaseAutenticado(request,env);
+      const code=normalizarCodigoCupom(body.code||body.coupon_code);
+      const cupom=validarCupomServidor(env,code,subtotal);
+      if(!cupom.valid)return responder({valid:false,code,erro:cupom.error},400);
+      const descontos=calcularDescontosPedido(env,{coupon_code:code},subtotal,Boolean(clienteAuth?.id));
+      const message=cupom.stack
+        ? `${cupom.description}: desconto aplicado junto ao benefício de cliente cadastrado.`
+        : (descontos.coupon_discount>0 ? `${cupom.description}: cupom aplicado.` : `${cupom.description}: seu desconto de cliente cadastrado já é igual ou maior.`);
+      return responder({valid:true,code,description:cupom.description,registered_discount:descontos.registered_discount,coupon_discount:descontos.coupon_discount,total_discount:descontos.total_discount,stack:cupom.stack,message});
+    }catch(e){return responder({valid:false,erro:e instanceof Error?e.message:String(e)},400)}
+  }
+
   if(request.method==="POST"&&url.pathname==="/criar-pedido"){
     try{
       if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);
@@ -1023,13 +1459,14 @@ export default { async fetch(request,env,ctx) {
         return {name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:codigoImpressaoProduto(nome,item),unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)};
       });
       subtotal=Math.round(subtotal*100)/100;
-      const total=Math.round((subtotal+entrega.fee)*100)/100;
+      const descontos=calcularDescontosPedido(env,entrada,subtotal,Boolean(clienteAuth?.id));
+      const total=Math.round((subtotal-descontos.total_discount+entrega.fee)*100)/100;
       const orderId=texto(entrada.order_id||entrada.numero_pedido,100)||`EP-${Date.now()}`;
       if(await buscarPedido(env,orderId))return responder({erro:"Pedido duplicado.",order_id:orderId},409);
       const agora=new Date().toISOString(), tracking=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16);
       const p={order_id:orderId,tracking_token:tracking,site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,
         customer:{name:texto(entrada.customer?.name||"Cliente",100),email:texto(entrada.customer?.email,150).toLowerCase(),phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},
-        items:itens,subtotal,delivery_fee:entrega.fee,total,payment_id:null,payment_provider:"dinheiro",payment_method:"Dinheiro",change_for:texto(entrada.change_for,50),payment_status:"approved",payment_status_detail:"Pagamento na entrega/retirada",order_status:"recebido",paid_at:agora,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"recebido",at:agora,origem:"site"}],consumer_sync:{status:"pending",created_at:agora}};
+        items:itens,subtotal,registered_discount_amount:descontos.registered_discount,coupon_discount_amount:descontos.coupon_discount,discount_amount:descontos.total_discount,discounted_subtotal:Math.round((subtotal-descontos.total_discount)*100)/100,loyalty_subtotal_eligible:Math.round((subtotal-descontos.total_discount)*100)/100,coupon_code:descontos.coupon?.code||null,coupon_description:descontos.coupon?.description||null,promotion_code:descontos.coupon?.code?"CUPOM":(descontos.registered_discount>0?"CADASTRADO10":null),delivery_fee:entrega.fee,total,payment_id:null,payment_provider:"dinheiro",payment_method:"Dinheiro",change_for:texto(entrada.change_for,50),payment_status:"approved",payment_status_detail:"Pagamento na entrega/retirada",order_status:"recebido",paid_at:agora,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"recebido",at:agora,origem:"site"}],consumer_sync:{status:"pending",created_at:agora}};
       await gravarPedido(env,p,{type:"order_created"});
       const tarefasPosteriores=(async()=>{
         try{
@@ -1040,7 +1477,7 @@ export default { async fetch(request,env,ctx) {
       })();
       if(ctx?.waitUntil) ctx.waitUntil(tarefasPosteriores); else await tarefasPosteriores;
       return responder({ok:true,numero_pedido:orderId,order_id:orderId,tracking_token:tracking,status:"approved",order_status:"recebido",total},201);
-    }catch(e){console.error("criar-pedido",e);return responder({erro:"Erro ao registrar pedido.",detalhes:e instanceof Error?e.message:String(e)},500)}
+    }catch(e){console.error("criar-pedido",e);if(e?.code==="CUPOM_INVALIDO")return responder({erro:e.message},400);return responder({erro:"Erro ao registrar pedido.",detalhes:e instanceof Error?e.message:String(e)},500)}
   }
   if(request.method==="POST"&&url.pathname==="/criar-checkout-mercadopago"){
     try{
@@ -1050,7 +1487,7 @@ export default { async fetch(request,env,ctx) {
       if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);
       const email=texto(entrada.customer?.email||entrada.email,150).toLowerCase();if(!emailValido(email))return responder({erro:"Informe um e-mail valido."},400);
       let subtotal=0;const itens=entrada.items.map(item=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!nome)throw new Error("Produto sem nome.");if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const precoSite=Number(item.unit_price??item.price??item.preco);const unit_price=Object.prototype.hasOwnProperty.call(PRECOS,nome)?PRECOS[nome]:precoSite;if(!Number.isFinite(unit_price)||unit_price<=0)throw new Error(`Preco invalido para ${nome}`);subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:codigoImpressaoProduto(nome,item),unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)}});subtotal=Math.round(subtotal*100)/100;
-      const entrega=calcularEntrega(entrada),deliveryFee=entrega.fee,total=Math.round((subtotal+deliveryFee)*100)/100;
+      const entrega=calcularEntrega(entrada),deliveryFee=entrega.fee,descontos=calcularDescontosPedido(env,entrada,subtotal,Boolean(clienteAuth?.id)),discountedSubtotal=Math.round((subtotal-descontos.total_discount)*100)/100,total=Math.round((discountedSubtotal+deliveryFee)*100)/100;
       const orderId=texto(entrada.order_id||entrada.numero_pedido,64)||`EP-${Date.now()}`,nome=texto(entrada.customer?.name||"Cliente",100),agora=new Date().toISOString();
       const partesNome=nome.trim().split(/\s+/).filter(Boolean),primeiroNome=texto(entrada.customer?.first_name||partesNome[0]||nome,60),sobrenome=texto(entrada.customer?.last_name||partesNome.slice(1).join(" "),60);
       const cpf=texto(entrada.customer?.cpf||entrada.customer?.document,20).replace(/\D/g,"");if(cpf.length!==11)return responder({erro:"Informe um CPF valido para o pagamento com cartao."},400);
@@ -1058,9 +1495,11 @@ export default { async fetch(request,env,ctx) {
       const cep=texto(entrada.customer?.cep,12).replace(/\D/g,"");const rua=texto(entrada.customer?.street,160),numeroEndereco=texto(entrada.customer?.number,30),complemento=texto(entrada.customer?.complement,100),bairro=texto(entrada.customer?.bairro||entrega.bairro,100),cidade=texto(entrada.customer?.city,100),estado=texto(entrada.customer?.state,2).toUpperCase();
       if(await buscarPedido(env,orderId))return responder({erro:"Pedido duplicado.",order_id:orderId},409);
       const tracking=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16);
-      let p={order_id:orderId,tracking_token:tracking,site_url:texto(entrada.site_url,300)||"https://espetinhoperus.com.br",created_at:agora,updated_at:agora,customer:{name:nome,first_name:primeiroNome,last_name:sobrenome,email,phone:texto(entrada.customer?.phone,30),cpf,birth_date:texto(entrada.customer?.birth_date,10),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep,street:rua,number:numeroEndereco,complement:complemento,bairro,city:cidade,state:estado,reference:texto(entrada.customer?.reference,150),notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},items:itens,subtotal,delivery_fee:deliveryFee,total,payment_id:null,preference_id:null,payment_provider:"mercadopago",payment_method:"CREDIT_CARD",payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};await gravarPedido(env,p);
+      let p={order_id:orderId,tracking_token:tracking,site_url:texto(entrada.site_url,300)||"https://espetinhoperus.com.br",created_at:agora,updated_at:agora,customer:{name:nome,first_name:primeiroNome,last_name:sobrenome,email,phone:texto(entrada.customer?.phone,30),cpf,birth_date:texto(entrada.customer?.birth_date,10),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep,street:rua,number:numeroEndereco,complement:complemento,bairro,city:cidade,state:estado,reference:texto(entrada.customer?.reference,150),notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},items:itens,subtotal,registered_discount_amount:descontos.registered_discount,coupon_discount_amount:descontos.coupon_discount,discount_amount:descontos.total_discount,discounted_subtotal:discountedSubtotal,loyalty_subtotal_eligible:discountedSubtotal,coupon_code:descontos.coupon?.code||null,coupon_description:descontos.coupon?.description||null,promotion_code:descontos.coupon?.code?"CUPOM":(descontos.registered_discount>0?"CADASTRADO10":null),delivery_fee:deliveryFee,total,payment_id:null,preference_id:null,payment_provider:"mercadopago",payment_method:"CREDIT_CARD",payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};await gravarPedido(env,p);
       const site=p.site_url.replace(/\/$/,"");
-      const mpItems=[...itens.map((i,index)=>({id:`${orderId}-item-${index+1}`,title:i.name,quantity:i.quantity,currency_id:"BRL",unit_price:Number(i.unit_price)})),...(deliveryFee>0?[{id:`${orderId}-frete`,title:"Taxa de entrega - Perus",quantity:1,currency_id:"BRL",unit_price:Number(deliveryFee)}]:[])];
+      const mpItems=descontos.total_discount>0
+        ? [{id:`${orderId}-produtos`,title:"Produtos Espetinho Perus com desconto",quantity:1,currency_id:"BRL",unit_price:Number(discountedSubtotal)},...(deliveryFee>0?[{id:`${orderId}-frete`,title:"Taxa de entrega - Perus",quantity:1,currency_id:"BRL",unit_price:Number(deliveryFee)}]:[])]
+        : [...itens.map((i,index)=>({id:`${orderId}-item-${index+1}`,title:i.name,quantity:i.quantity,currency_id:"BRL",unit_price:Number(i.unit_price)})),...(deliveryFee>0?[{id:`${orderId}-frete`,title:"Taxa de entrega - Perus",quantity:1,currency_id:"BRL",unit_price:Number(deliveryFee)}]:[])];
       const payer={name:primeiroNome,surname:sobrenome,email,identification:{type:"CPF",number:cpf}};
       if(ddd&&numeroTelefone)payer.phone={area_code:ddd,number:numeroTelefone};
       if(cep||rua||numeroEndereco)payer.address={zip_code:cep,street_name:rua,street_number:numeroEndereco};
@@ -1071,7 +1510,7 @@ export default { async fetch(request,env,ctx) {
       const checkoutUrl=d.init_point||d.sandbox_init_point;if(!d.id||!checkoutUrl)return responder({erro:"Mercado Pago nao retornou o link de pagamento.",detalhes:d},502);
       p.preference_id=String(d.id);p.payment_status="pending";p.payment_status_detail="Aguardando pagamento";await gravarPedido(env,p);await env.ORDERS_KV.put(`mercadopago:preference:${d.id}`,orderId);
       return responder({preference_id:d.id,checkout_url:checkoutUrl,numero_pedido:orderId,tracking_token:tracking,status:p.payment_status,total},201);
-    }catch(e){console.error("criar-checkout-mercadopago",e);return responder({erro:"Erro ao criar checkout Mercado Pago.",detalhes:e instanceof Error?e.message:String(e)},500)}
+    }catch(e){console.error("criar-checkout-mercadopago",e);if(e?.code==="CUPOM_INVALIDO")return responder({erro:e.message},400);return responder({erro:"Erro ao criar checkout Mercado Pago.",detalhes:e instanceof Error?e.message:String(e)},500)}
   }
   if(request.method==="POST"&&url.pathname==="/webhook-mercadopago"){
     try{
@@ -1093,20 +1532,23 @@ export default { async fetch(request,env,ctx) {
       const entrada=await request.json(); const clienteAuth=await clienteSupabaseAutenticado(request,env); if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);
       const email=texto(entrada.customer?.email||entrada.email,150).toLowerCase(); if(!emailValido(email))return responder({erro:"Informe um e-mail valido."},400);
       let subtotal=0; const itens=entrada.items.map(item=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!nome)throw new Error("Produto sem nome.");if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const precoSite=Number(item.unit_price??item.price??item.preco);const unit_price=Object.prototype.hasOwnProperty.call(PRECOS,nome)?PRECOS[nome]:precoSite;if(!Number.isFinite(unit_price)||unit_price<=0)throw new Error(`Preco invalido para ${nome}`);subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:codigoImpressaoProduto(nome,item),unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)}}); subtotal=Math.round(subtotal*100)/100;
-      const entrega=calcularEntrega(entrada); const deliveryFee=entrega.fee; const total=Math.round((subtotal+deliveryFee)*100)/100;
+      const entrega=calcularEntrega(entrada); const deliveryFee=entrega.fee; const descontos=calcularDescontosPedido(env,entrada,subtotal,Boolean(clienteAuth?.id)); const discountedSubtotal=Math.round((subtotal-descontos.total_discount)*100)/100; const total=Math.round((discountedSubtotal+deliveryFee)*100)/100;
       const orderId=texto(entrada.order_id||entrada.numero_pedido,64)||`EP-${Date.now()}`,nome=texto(entrada.customer?.name||"Cliente",100),agora=new Date().toISOString();
       const tracking=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16);
       const method=entrada.payment_method==="DEBIT_CARD"?"DEBIT_CARD":"CREDIT_CARD";
-      let p={order_id:orderId,tracking_token:tracking,site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},items:itens,subtotal,delivery_fee:deliveryFee,total,payment_id:null,checkout_id:null,payment_provider:"pagbank",payment_method:method,payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]}; await gravarPedido(env,p);
+      let p={order_id:orderId,tracking_token:tracking,site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},items:itens,subtotal,registered_discount_amount:descontos.registered_discount,coupon_discount_amount:descontos.coupon_discount,discount_amount:descontos.total_discount,discounted_subtotal:discountedSubtotal,loyalty_subtotal_eligible:discountedSubtotal,coupon_code:descontos.coupon?.code||null,coupon_description:descontos.coupon?.description||null,promotion_code:descontos.coupon?.code?"CUPOM":(descontos.registered_discount>0?"CADASTRADO10":null),delivery_fee:deliveryFee,total,payment_id:null,checkout_id:null,payment_provider:"pagbank",payment_method:method,payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]}; await gravarPedido(env,p);
       const site=p.site_url.replace(/\/$/,""); const webhook=`${url.origin}/webhook-pagbank`;
-      const body={reference_id:orderId,customer_modifiable:true,items:[...itens.map((i,n)=>({reference_id:`${orderId}-${n+1}`,name:i.name,quantity:i.quantity,unit_amount:Math.round(i.unit_price*100)})),...(deliveryFee>0?[{reference_id:`${orderId}-frete`,name:"Taxa de entrega - Perus",quantity:1,unit_amount:Math.round(deliveryFee*100)}]:[])],payment_methods:[{type:method}],payment_methods_configs:method==="CREDIT_CARD"?[{type:"CREDIT_CARD",config_options:[{option:"INSTALLMENTS_LIMIT",value:String(Math.max(1,Math.min(12,Number(env.PAGBANK_INSTALLMENTS_LIMIT||3))))}]}]:undefined,notification_urls:[webhook],payment_notification_urls:[webhook],redirect_url:`${site}/pedido.html?token=${encodeURIComponent(tracking)}`,return_url:`${site}/pedido.html?token=${encodeURIComponent(tracking)}`,redirect_waiting_time:5};
+      const checkoutItems=descontos.total_discount>0
+        ? [{reference_id:`${orderId}-produtos`,name:"Produtos Espetinho Perus com desconto",quantity:1,unit_amount:Math.round(discountedSubtotal*100)},...(deliveryFee>0?[{reference_id:`${orderId}-frete`,name:"Taxa de entrega - Perus",quantity:1,unit_amount:Math.round(deliveryFee*100)}]:[])]
+        : [...itens.map((i,n)=>({reference_id:`${orderId}-${n+1}`,name:i.name,quantity:i.quantity,unit_amount:Math.round(i.unit_price*100)})),...(deliveryFee>0?[{reference_id:`${orderId}-frete`,name:"Taxa de entrega - Perus",quantity:1,unit_amount:Math.round(deliveryFee*100)}]:[])];
+      const body={reference_id:orderId,customer_modifiable:true,items:checkoutItems,payment_methods:[{type:method}],payment_methods_configs:method==="CREDIT_CARD"?[{type:"CREDIT_CARD",config_options:[{option:"INSTALLMENTS_LIMIT",value:String(Math.max(1,Math.min(12,Number(env.PAGBANK_INSTALLMENTS_LIMIT||3))))}]}]:undefined,notification_urls:[webhook],payment_notification_urls:[webhook],redirect_url:`${site}/pedido.html?token=${encodeURIComponent(tracking)}`,return_url:`${site}/pedido.html?token=${encodeURIComponent(tracking)}`,redirect_waiting_time:5};
       if(!body.payment_methods_configs)delete body.payment_methods_configs;
       const r=await fetch(`${pagBankBase(env)}/checkouts`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify(body)}); let d={};try{d=await r.json()}catch{d={erro:"Resposta invalida do PagBank"}};
       if(!r.ok){console.error("PagBank checkout recusado",JSON.stringify({status:r.status,resposta:d,payload:body}));p.payment_status="error";p.payment_status_detail=texto(JSON.stringify(d),500);await gravarPedido(env,p);return responder({erro:"PagBank recusou a criacao do checkout.",status_pagbank:r.status,detalhes:d},r.status)}
       const payLink=(d.links||[]).find(l=>l.rel==="PAY")?.href; if(!d.id||!payLink)return responder({erro:"PagBank nao retornou o link de pagamento.",detalhes:d},502);
       p.checkout_id=String(d.id);p.payment_id=String(d.id);p.payment_status="pending";p.payment_status_detail=texto(d.status||"ACTIVE",100);await gravarPedido(env,p);await env.ORDERS_KV.put(`pagbank:${d.id}`,orderId);
       return responder({checkout_id:d.id,checkout_url:payLink,numero_pedido:orderId,tracking_token:tracking,status:p.payment_status,total},201);
-    }catch(e){console.error("criar-checkout-pagbank",e);return responder({erro:"Erro ao criar checkout PagBank.",detalhes:e instanceof Error?e.message:String(e)},500)}
+    }catch(e){console.error("criar-checkout-pagbank",e);if(e?.code==="CUPOM_INVALIDO")return responder({erro:e.message},400);return responder({erro:"Erro ao criar checkout PagBank.",detalhes:e instanceof Error?e.message:String(e)},500)}
   }
   if(request.method==="POST"&&url.pathname==="/webhook-pagbank"){
     try{
@@ -1138,8 +1580,8 @@ export default { async fetch(request,env,ctx) {
   }
   if(request.method!=="POST"||url.pathname!=="/criar-pix")return responder({erro:"Rota nao encontrada."},404);
   try{if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);const entrada=await request.json();const clienteAuth=await clienteSupabaseAutenticado(request,env);if(!clienteAuth?.id)return responder({erro:"Cadastre-se ou entre na sua conta para concluir o pedido e receber 10% de desconto."},401);if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);const email=texto(entrada.customer?.email||entrada.email,150).toLowerCase();if(!emailValido(email))return responder({erro:"Informe um e-mail valido para gerar o Pix."},400);
-    let subtotal=0;const itens=entrada.items.map((item,index)=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!nome)throw new Error("Produto sem nome.");if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const precoSite=Number(item.unit_price??item.price??item.preco);const unit_price=Object.prototype.hasOwnProperty.call(PRECOS,nome)?PRECOS[nome]:precoSite;if(!Number.isFinite(unit_price)||unit_price<=0)throw new Error(`Preco invalido para ${nome}`);subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:codigoImpressaoProduto(nome,item),unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)}});subtotal=Math.round(subtotal*100)/100;const discountRate=0.10;const discountAmount=Math.round(subtotal*discountRate*100)/100;const discountedSubtotal=Math.round((subtotal-discountAmount)*100)/100;const entrega=calcularEntrega(entrada);const deliveryFee=entrega.fee;const total=Math.round((discountedSubtotal+deliveryFee)*100)/100;
-    const orderId=texto(entrada.order_id||entrada.numero_pedido,100)||`EP-${Date.now()}`, nome=texto(entrada.customer?.name||entrada.nome||"Cliente",100), agora=new Date().toISOString();let p={order_id:orderId,tracking_token:crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16),site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},items:itens,subtotal,discount_rate:discountRate,discount_amount:discountAmount,discounted_subtotal:discountedSubtotal,promotion_code:"CADASTRADO10",delivery_fee:deliveryFee,total,payment_id:null,payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};await gravarPedido(env,p);
+    let subtotal=0;const itens=entrada.items.map((item,index)=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!nome)throw new Error("Produto sem nome.");if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const precoSite=Number(item.unit_price??item.price??item.preco);const unit_price=Object.prototype.hasOwnProperty.call(PRECOS,nome)?PRECOS[nome]:precoSite;if(!Number.isFinite(unit_price)||unit_price<=0)throw new Error(`Preco invalido para ${nome}`);subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:codigoImpressaoProduto(nome,item),unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)}});subtotal=Math.round(subtotal*100)/100;const descontos=calcularDescontosPedido(env,entrada,subtotal,true);const discountAmount=descontos.total_discount;const discountedSubtotal=Math.round((subtotal-discountAmount)*100)/100;const entrega=calcularEntrega(entrada);const deliveryFee=entrega.fee;const total=Math.round((discountedSubtotal+deliveryFee)*100)/100;
+    const orderId=texto(entrada.order_id||entrada.numero_pedido,100)||`EP-${Date.now()}`, nome=texto(entrada.customer?.name||entrada.nome||"Cliente",100), agora=new Date().toISOString();let p={order_id:orderId,tracking_token:crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16),site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},items:itens,subtotal,discount_rate:0.10,registered_discount_amount:descontos.registered_discount,coupon_discount_amount:descontos.coupon_discount,discount_amount:discountAmount,discounted_subtotal:discountedSubtotal,loyalty_subtotal_eligible:discountedSubtotal,coupon_code:descontos.coupon?.code||null,coupon_description:descontos.coupon?.description||null,promotion_code:descontos.coupon?.code?"CUPOM":"CADASTRADO10",delivery_fee:deliveryFee,total,payment_id:null,payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};await gravarPedido(env,p);
     const pay={amount:total,payerName:nome,transactionId:orderId,description:`Pedido ${orderId} - Espetinho Perus`,projectWebhook:`${url.origin}/webhook-misticpay`};
     const documento=texto(entrada.customer?.document||entrada.customer?.cpf||entrada.payerDocument||env.MISTICPAY_PAYER_DOCUMENT,30).replace(/\D/g,"");
     if(documento)pay.payerDocument=documento;
@@ -1182,5 +1624,5 @@ export default { async fetch(request,env,ctx) {
     if(!copiaCola||!qrBase64){p.payment_status="error";p.payment_status_detail="QR Code ausente na resposta";await gravarPedido(env,p);return responder({erro:"A MisticPay nao retornou o QR Code Pix completo.",detalhes:d},502)}
     p.payment_id=String(paymentId);p.payment_provider="misticpay";p.payment_status=statusMisticParaSite(tx?.transactionState||"PENDENTE");p.payment_status_detail=texto(tx?.transactionState||"PENDENTE",100);await gravarPedido(env,p);
     return responder({payment_id:String(paymentId),numero_pedido:orderId,tracking_token:p.tracking_token,status:p.payment_status,total,qr_code:copiaCola,qr_code_base64:qrBase64,ticket_url:tx?.qrcodeUrl||tx?.qrCodeUrl||null,resumo:itens.map(i=>`${i.quantity}x ${i.name}`).join(", "),diagnostico_disponivel:true},201);
-  }catch(e){console.error(e);return responder({erro:"Erro ao criar o Pix.",detalhes:e instanceof Error?e.message:String(e)},500)}
+  }catch(e){console.error(e);if(e?.code==="CUPOM_INVALIDO")return responder({erro:e.message},400);return responder({erro:"Erro ao criar o Pix.",detalhes:e instanceof Error?e.message:String(e)},500)}
 } };
