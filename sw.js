@@ -1,6 +1,6 @@
-const CACHE = 'espetinho-perus-v101-nomes-oficiais-20260817';
+const CACHE = 'espetinho-perus-v102-hard-refresh-20260817';
 const PRECACHE = [
-  './', './index.html', './pedido.html','./cliente.html','./cliente.css?v=20260815-v95-fidelidade-resgate','./cliente.js?v=20260815-v95-fidelidade-resgate', './pedido.css?v=20260724-v2', './pedido.js?v=20260724-v3', './admin.html', './admin.css?v=20260727-v79-admin-studio', './admin.js?v=20260727-v79-admin-studio', './admin-catalog.json?v=20260727-v79', './styles.css?v=20260725-cart-black-v73', './app-misticpay-cpf-v44.js?v=20260817-v101-nomes-oficiais', './pagamento-sucesso.html', './pagamento-pendente.html', './pagamento-falhou.html',
+  './', './index.html', './pedido.html','./cliente.html','./cliente.css?v=20260815-v95-fidelidade-resgate','./cliente.js?v=20260815-v95-fidelidade-resgate', './pedido.css?v=20260724-v2', './pedido.js?v=20260724-v3', './admin.html', './admin.css?v=20260727-v79-admin-studio', './admin.js?v=20260727-v79-admin-studio', './admin-catalog.json?v=20260727-v79', './styles.css?v=20260725-cart-black-v73', './app-misticpay-cpf-v102.js?v=20260817-v102-hard-refresh', './pagamento-sucesso.html', './pagamento-pendente.html', './pagamento-falhou.html',
   './manifest.webmanifest', './manifest-admin.webmanifest', './alerta-pedido.wav?v=20260724-v4', './icon-192.png', './icon-512.png', './apple-touch-icon.png',
   './assets/products/azeitona-20260723.webp',
   './assets/products/batata-com-calabresa-ou-frango-600g-20260723.webp',

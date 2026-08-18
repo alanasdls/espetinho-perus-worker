@@ -1,0 +1,4 @@
+ESPETINHO PERUS PAGES V102
+Build: V102-20260817-NOMES-HARD-REFRESH
+Arquivo principal do cardápio: app-misticpay-cpf-v102.js
+Esta versão usa um NOME DE ARQUIVO NOVO para impedir que cache/CDN entregue o JavaScript antigo.
