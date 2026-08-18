@@ -72,12 +72,12 @@ const CORS = {
 };
 
 const PRECOS = {
-  "Queijo coalho": 10.90, "Pão de alho": 10.90, "Carne": 11.90,
-  "Carne e bacon": 12.50, "Carne e toscana": 11.90, "Carne e calabresa": 11.90,
-  "Frango": 11.90, "Pernil": 11.90, "Pernil e bacon": 12.50, "Tulipa": 12.50,
-  "Coração de frango": 11.90, "Linguiça toscana": 11.90, "Linguiça calabresa": 11.90,
-  "Linguiça apimentada": 12.50, "Medalhão de frango": 14.90, "Camarão": 14.90,
-  "Kafta": 14.90, "Kafta com queijo": 18.90, "Batata simples 600g": 35.00,
+  "Queijo coalho": 11.40, "Pão de alho": 11.40, "Carne": 12.40,
+  "Carne e bacon": 13.00, "Carne e toscana": 12.40, "Carne e calabresa": 12.40,
+  "Frango": 12.40, "Pernil": 12.40, "Pernil e bacon": 13.00, "Tulipa": 13.00,
+  "Coração de frango": 12.40, "Linguiça toscana": 12.40, "Linguiça calabresa": 12.40,
+  "Linguiça apimentada": 13.00, "Medalhão de frango": 15.40, "Camarão": 15.40,
+  "Kafta": 15.40, "Kafta com queijo": 19.40, "Batata simples 600g": 35.00,
   "Batata com cheddar e bacon 600g": 45.00, "Batata com calabresa ou frango 600g": 45.00,
   "Frango a passarinho 1kg": 39.90, "Cebola empanada": 39.90, "Salame com azeitonas": 39.00,
   "Azeitona": 20.00, "Torresmo 600g": 39.90, "Calabresa acebolada 600g": 39.90,
