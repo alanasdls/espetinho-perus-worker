@@ -190,7 +190,66 @@ products.forEach((p,index)=>{
 // V79 — aplica prévias salvas pelo painel administrativo neste navegador
 const epAdminRead=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key)||'')||fallback}catch(_){return fallback}};
 const epCatalogOverrides=epAdminRead('ep-admin-catalog-overrides',{});
-products.forEach(product=>{const override=epCatalogOverrides[product.id];if(override){Object.assign(product,override);if(override.imageOverride)product.image=override.imageOverride;}});
+// V101 — migração de nomenclaturas oficiais.
+// Sobrescritas antigas salvas no navegador não podem restaurar nomes anteriores
+// depois de uma atualização do cardápio. Mantém preço/imagem/disponibilidade do
+// painel, mas força somente os nomes cuja nomenclatura foi oficialmente revisada.
+const epOfficialNamesV101={
+  48:'Corona Long Neck 330 ml',
+  49:'Corona Zero 330 ml',
+  50:'Stella Long Neck 330 ml',
+  64:'Água sem gás 510 ml',
+  65:'Água com gás 510 ml',
+  66:'Água tônica 350 ml',
+  75:'Red Bull tradicional 250 ml',
+  76:'Red Bull Tropical 250 ml',
+  78:'Red Bull Melancia 250 ml',
+  80:'Caipirinha de morango com vodka 400 ml',
+  81:'Caipirinha de morango com Velho Barreiro 400 ml',
+  82:'Caipirinha de morango com saquê 400 ml',
+  83:'Caipirinha de kiwi com vodka 400 ml',
+  84:'Caipirinha de kiwi com Velho Barreiro 400 ml',
+  85:'Caipirinha de kiwi com saquê 400 ml',
+  86:'Caipirinha de limão com vodka 400 ml',
+  87:'Caipirinha de limão com Velho Barreiro 400 ml',
+  88:'Caipirinha de limão com saquê 400 ml',
+  89:'Caipirinha de maracujá com vodka 400 ml',
+  90:'Caipirinha de maracujá com Velho Barreiro 400 ml',
+  91:'Caipirinha de maracujá com saquê 400 ml',
+  92:'Caipirinha com vinho 400 ml',
+  93:'Caipirinha com Licor 43 400 ml',
+  94:'Batida com vodka 400 ml',
+  95:'Batida com Jurupinga 400 ml',
+  96:'Espanhola 400 ml',
+  97:'Morena canela 400 ml',
+  98:'Piña Colada 400 ml',
+  99:'Mojito 400 ml',
+  100:'Meia de seda 400 ml',
+  101:'Negroni 400 ml',
+  102:'Namoradinha 400 ml',
+  103:'Smirnoff Ice 275 ml',
+  104:'Skol Beats 269 ml',
+  105:'Xeque Mate 362 ml'
+};
+products.forEach(product=>{
+  const override=epCatalogOverrides[product.id];
+  if(override){
+    const safeOverride={...override};
+    if(Object.prototype.hasOwnProperty.call(epOfficialNamesV101,product.id)) delete safeOverride.name;
+    Object.assign(product,safeOverride);
+    if(override.imageOverride)product.image=override.imageOverride;
+  }
+  if(Object.prototype.hasOwnProperty.call(epOfficialNamesV101,product.id)) product.name=epOfficialNamesV101[product.id];
+});
+// Atualiza também o armazenamento antigo para evitar que versões futuras voltem
+// a carregar a nomenclatura anterior.
+try{
+  let changed=false;
+  Object.entries(epOfficialNamesV101).forEach(([id,name])=>{
+    if(epCatalogOverrides[id]&&epCatalogOverrides[id].name!==name){epCatalogOverrides[id].name=name;changed=true;}
+  });
+  if(changed)localStorage.setItem('ep-admin-catalog-overrides',JSON.stringify(epCatalogOverrides));
+}catch(_){}
 const epNewProducts=epAdminRead('ep-admin-new-products',[]);
 epNewProducts.forEach(product=>products.push({...product,id:products.length,image:product.imageOverride||product.image||'assets/503042.jpg'}));
 const epTheme=epAdminRead('ep-admin-appearance',{});

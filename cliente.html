@@ -4,123 +4,114 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#17100c">
-  <meta name="description" content="Área do cliente do Espetinho Perus. Consulte pedidos, repita compras e salve seus dados.">
-  <title>Minha conta | Espetinho Perus</title>
+  <meta name="description" content="Área do cliente e programa de fidelidade do Espetinho Perus.">
+  <title>Minha conta e pontos | Espetinho Perus</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="cliente.css?v=20260725-v97">
+  <link rel="stylesheet" href="cliente.css?v=20260815-v95-fidelidade-resgate">
 </head>
 <body>
 <header class="client-top">
-  <a href="index.html" class="client-brand">
-    <img src="logo-premium.png" alt="Espetinho Perus">
-    <div><strong>ESPETINHO PERUS</strong><small>ÁREA DO CLIENTE</small></div>
-  </a>
+  <a href="index.html" class="client-brand"><img src="logo-premium.png" alt="Espetinho Perus"><div><strong>ESPETINHO PERUS</strong><small>CLUBE DE VANTAGENS</small></div></a>
   <a href="index.html#cardapio" class="client-order-link">Fazer pedido</a>
 </header>
 
 <main class="client-main">
-  <section id="clientWelcome" class="client-hero">
-    <div>
-      <small>MINHA CONTA</small>
-      <h1 id="clientGreeting">Bem-vindo!</h1>
-      <p>Seus dados, pedidos e atalhos em um só lugar.</p>
-    </div>
+  <section class="client-hero">
+    <div><small>PROGRAMA DE FIDELIDADE</small><h1 id="clientGreeting">Sua conta. Seus pontos.</h1><p>O cadastro é opcional. Entre para acompanhar pontos e vantagens.</p></div>
     <div class="client-avatar" id="clientAvatar">EP</div>
   </section>
 
-  <section id="clientAccess" class="access-card">
-    <div class="access-copy">
-      <small>ACESSO RÁPIDO</small>
-      <h2>Entre com seu telefone</h2>
-      <p>Use o mesmo número informado no pedido. Nesta primeira versão, seus dados ficam salvos com segurança neste aparelho.</p>
+  <section id="clientAccess" class="access-card" hidden>
+    <div class="access-copy"><small>ACESSO OPCIONAL</small><h2>Entre ou crie sua conta</h2><p>Você também pode continuar comprando sem cadastro. Ao entrar, seus dados ficam disponíveis e os pedidos identificados poderão gerar pontos após a confirmação do pagamento.</p>
+      <a class="guest-link" href="index.html#cardapio">Continuar sem cadastro</a>
     </div>
-    <form id="clientLoginForm" class="access-form">
-      <label>Telefone
-        <input id="clientLoginPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(11) 99999-9999" required>
-      </label>
-      <button type="submit">Entrar na minha conta</button>
-    </form>
+    <div class="auth-box">
+      <button type="button" class="google-login-button" id="googleLoginButton" aria-label="Continuar com Google">
+        <span class="google-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false"><path fill="#4285F4" d="M21.35 12.18c0-.74-.07-1.45-.19-2.14H12v4.05h5.24a4.48 4.48 0 0 1-1.94 2.94v2.63h3.14c1.84-1.7 2.91-4.2 2.91-7.48Z"/><path fill="#34A853" d="M12 21.7c2.62 0 4.83-.87 6.44-2.04l-3.14-2.63c-.87.58-1.98.93-3.3.93-2.53 0-4.68-1.71-5.45-4.01H3.3v2.72A9.72 9.72 0 0 0 12 21.7Z"/><path fill="#FBBC05" d="M6.55 13.95A5.83 5.83 0 0 1 6.25 12c0-.68.12-1.34.3-1.95V7.33H3.3A9.72 9.72 0 0 0 2.28 12c0 1.68.4 3.27 1.02 4.67l3.25-2.72Z"/><path fill="#EA4335" d="M12 6.04c1.43 0 2.71.49 3.72 1.45l2.79-2.79A9.34 9.34 0 0 0 12 2.3a9.72 9.72 0 0 0-8.7 5.03l3.25 2.72c.77-2.3 2.92-4.01 5.45-4.01Z"/></svg>
+        </span>
+        <span>Continuar com Google</span>
+      </button>
+      <div class="auth-divider"><span>ou use seu e-mail</span></div>
+      <div class="auth-tabs"><button type="button" class="active" data-auth-tab="login">Entrar</button><button type="button" data-auth-tab="register">Criar conta</button></div>
+      <form id="loginForm" class="access-form auth-form active" data-auth-panel="login" autocomplete="on">
+        <label>E-mail<input id="loginEmail" name="email" type="email" autocomplete="username" required placeholder="seuemail@exemplo.com"></label>
+        <label>Senha<input id="loginPassword" name="password" type="password" autocomplete="current-password" minlength="6" required placeholder="Sua senha"></label>
+        <button type="submit">Entrar na minha conta</button>
+        <button type="button" class="text-button" id="forgotPassword">Esqueci minha senha</button>
+      </form>
+      <form id="registerForm" class="access-form auth-form" data-auth-panel="register" autocomplete="on">
+        <label>Nome completo<input id="registerName" name="name" autocomplete="name" required placeholder="Seu nome completo"></label>
+        <label>CPF<input id="registerCpf" name="cpf" inputmode="numeric" autocomplete="off" maxlength="14" required placeholder="000.000.000-00"></label>
+        <label>Data de nascimento<input id="registerBirthDate" name="birthdate" type="text" inputmode="numeric" autocomplete="bday" maxlength="10" placeholder="DD/MM/AAAA" required></label>
+        <label>Telefone<input id="registerPhone" name="tel" type="tel" inputmode="tel" autocomplete="tel" required placeholder="(11) 99999-9999"></label>
+        <label>E-mail<input id="registerEmail" name="email" type="email" autocomplete="username" required placeholder="seuemail@exemplo.com"></label>
+        <label>CEP<input id="registerCep" inputmode="numeric" autocomplete="postal-code" maxlength="9" required placeholder="00000-000"></label>
+        <label>Rua<input id="registerStreet" autocomplete="address-line1" required placeholder="Rua"></label>
+        <label>Número<input id="registerNumber" autocomplete="address-line2" required placeholder="Número"></label>
+        <label>Complemento<input id="registerComplement" autocomplete="address-line2" placeholder="Opcional"></label>
+        <label>Bairro<input id="registerNeighborhood" required placeholder="Bairro"></label>
+        <label>Cidade<input id="registerCity" autocomplete="address-level2" required placeholder="Cidade"></label>
+        <label>Estado<input id="registerState" autocomplete="address-level1" maxlength="2" required placeholder="SP"></label>
+        <label>Senha<input id="registerPassword" name="new-password" type="password" autocomplete="new-password" minlength="6" required placeholder="Mínimo de 6 caracteres"></label>
+        <button type="submit">Criar conta grátis</button>
+        <small class="privacy-note">Ao criar a conta, você concorda com o uso dos dados apenas para pedidos e fidelidade.</small>
+      </form>
+      <p id="authMessage" class="auth-message" aria-live="polite"></p>
+    </div>
   </section>
 
   <section id="clientDashboard" hidden>
     <div class="client-kpis">
-      <article><span>Pedidos salvos</span><strong id="clientOrdersCount">0</strong><small>neste aparelho</small></article>
-      <article><span>Total em pedidos</span><strong id="clientSpent">R$ 0,00</strong><small>histórico disponível</small></article>
-      <article><span>Favoritos</span><strong id="clientFavoritesCount">0</strong><small>itens marcados</small></article>
-      <article><span>Último pedido</span><strong id="clientLastOrder">—</strong><small id="clientLastOrderDate">sem pedidos</small></article>
+      <article class="points-card"><span>Saldo de pontos</span><strong id="clientPoints">0</strong><small>pontos disponíveis</small></article>
+      <article><span>Equivalência atual</span><strong>100 pts</strong><small>= R$ 5,00</small></article>
+      <article><span>Pedidos vinculados</span><strong id="clientOrdersCount">0</strong><small>na sua conta</small></article>
+      <article><span>Total identificado</span><strong id="clientSpent">R$ 0,00</strong><small>pedidos do histórico</small></article>
     </div>
 
-    <nav class="client-tabs" aria-label="Área do cliente">
-      <button class="active" data-client-tab="ordersPanel">Pedidos</button>
-      <button data-client-tab="profilePanel">Meus dados</button>
-      <button data-client-tab="addressesPanel">Endereços</button>
-      <button data-client-tab="favoritesPanel">Favoritos</button>
-    </nav>
+    <div class="loyalty-explain"><b>Como funciona:</b> R$ 1,00 gasto vale 1 ponto. A pontuação é liberada após o pagamento aprovado. O pedido sem login continua funcionando normalmente.</div>
 
-    <section id="ordersPanel" class="client-panel active">
-      <div class="panel-head">
-        <div><small>HISTÓRICO</small><h2>Meus pedidos</h2></div>
-        <a href="index.html#cardapio">Novo pedido</a>
+    <nav class="client-tabs" aria-label="Área do cliente"><button class="active" data-client-tab="pointsPanel">Pontos</button><button data-client-tab="rewardsPanel">Trocar pontos</button><button data-client-tab="ordersPanel">Pedidos</button><button data-client-tab="profilePanel">Meus dados</button></nav>
+
+    <section id="pointsPanel" class="client-panel active"><div class="panel-head"><div><small>EXTRATO</small><h2>Movimentações de pontos</h2></div></div><div id="pointsHistory" class="client-orders"></div></section>
+    <section id="rewardsPanel" class="client-panel">
+      <div class="panel-head rewards-head">
+        <div><small>CLUBE DE VANTAGENS</small><h2>Troque pontos por produtos</h2><p>100 pontos = R$ 5,00. Os resgates desta etapa são para retirada no local.</p></div>
+        <div class="rewards-balance"><span>Seu saldo</span><strong id="rewardsPoints">0 pts</strong></div>
       </div>
-      <div id="clientOrders" class="client-orders"></div>
+      <div class="rewards-toolbar"><input id="rewardsSearch" type="search" placeholder="Buscar produto para resgatar..."></div>
+      <div id="rewardsMessage" class="rewards-message"></div>
+      <div id="rewardsGrid" class="rewards-grid"></div>
     </section>
-
-    <section id="profilePanel" class="client-panel">
-      <div class="panel-head">
-        <div><small>CADASTRO</small><h2>Meus dados</h2></div>
-      </div>
+    <section id="ordersPanel" class="client-panel"><div class="panel-head"><div><small>HISTÓRICO</small><h2>Meus pedidos</h2></div><a href="index.html#cardapio">Novo pedido</a></div><div id="clientOrders" class="client-orders"></div></section>
+    <section id="profilePanel" class="client-panel"><div class="panel-head"><div><small>CADASTRO</small><h2>Meus dados</h2></div></div>
       <form id="clientProfileForm" class="profile-form">
-        <label>Nome completo<input id="profileName" autocomplete="name" placeholder="Seu nome"></label>
-        <label>Telefone<input id="profilePhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(11) 99999-9999"></label>
-        <label>E-mail<input id="profileEmail" type="email" inputmode="email" autocomplete="email" placeholder="seuemail@exemplo.com"></label>
-        <label>CPF<input id="profileCpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00"></label>
-        <button type="submit">Salvar meus dados</button>
+        <label>Nome completo<input id="profileName" autocomplete="name" required></label>
+        <label>CPF<input id="profileCpf" inputmode="numeric" maxlength="14" required></label>
+        <label>Data de nascimento<input id="profileBirthDate" type="text" inputmode="numeric" autocomplete="bday" maxlength="10" placeholder="DD/MM/AAAA" required></label>
+        <label>Telefone<input id="profilePhone" type="tel" inputmode="tel" autocomplete="tel" required></label>
+        <label>E-mail<input id="profileEmail" type="email" disabled></label>
+        <label>CEP<input id="profileCep" inputmode="numeric" maxlength="9" autocomplete="postal-code" required></label>
+        <label>Rua<input id="profileStreet" autocomplete="address-line1" required></label>
+        <label>Número<input id="profileNumber" required></label>
+        <label>Complemento<input id="profileComplement" autocomplete="address-line2"></label>
+        <label>Bairro<input id="profileNeighborhood" required></label>
+        <label>Cidade<input id="profileCity" autocomplete="address-level2" required></label>
+        <label>Estado<input id="profileState" autocomplete="address-level1" maxlength="2" required></label>
+        <button type="submit">Salvar alterações</button>
       </form>
     </section>
-
-    <section id="addressesPanel" class="client-panel">
-      <div class="panel-head">
-        <div><small>ENTREGA</small><h2>Endereço salvo</h2></div>
-      </div>
-      <form id="clientAddressForm" class="profile-form address-form">
-        <label>CEP<input id="savedCep" inputmode="numeric" maxlength="9" placeholder="00000-000"></label>
-        <label>Rua<input id="savedStreet" placeholder="Rua"></label>
-        <label>Número<input id="savedNumber" inputmode="numeric" placeholder="Número"></label>
-        <label>Bairro<input id="savedNeighborhood" placeholder="Bairro"></label>
-        <label>Complemento<input id="savedComplement" placeholder="Opcional"></label>
-        <label>Referência<input id="savedReference" placeholder="Ex.: próximo à praça"></label>
-        <button type="submit">Salvar endereço</button>
-      </form>
-    </section>
-
-    <section id="favoritesPanel" class="client-panel">
-      <div class="panel-head">
-        <div><small>PREFERÊNCIAS</small><h2>Produtos favoritos</h2></div>
-        <a href="index.html#cardapio">Ver cardápio</a>
-      </div>
-      <div id="clientFavorites" class="favorites-box"></div>
-    </section>
-
-    <section class="client-actions">
-      <button id="clientLogout" type="button">Sair desta conta</button>
-      <button id="clearClientData" class="danger" type="button">Apagar dados deste aparelho</button>
-    </section>
+    <section class="client-actions"><button id="clientLogout" type="button">Sair da conta</button></section>
   </section>
 </main>
-
-<nav class="client-bottom-nav" aria-label="Navegação">
-  <a href="index.html"><span>⌂</span><small>Início</small></a>
-  <a href="index.html#cardapio"><span>⌕</span><small>Cardápio</small></a>
-  <a href="cliente.html" class="active"><span>●</span><small>Minha conta</small></a>
-  <a href="index.html#contato"><span>☏</span><small>Contato</small></a>
-</nav>
-
+<nav class="client-bottom-nav" aria-label="Navegação"><a href="index.html"><span>⌂</span><small>Início</small></a><a href="index.html#cardapio"><span>⌕</span><small>Cardápio</small></a><a href="cliente.html" class="active"><span>●</span><small>Minha conta</small></a><a href="index.html#contato"><span>☏</span><small>Contato</small></a></nav>
 <div id="clientToast" class="client-toast" aria-live="polite"></div>
-<script src="cliente.js?v=20260725-v97"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="cliente.js?v=20260815-v95-fidelidade-resgate"></script>
 </body>
 </html>

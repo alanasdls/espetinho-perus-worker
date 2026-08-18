@@ -1,0 +1,10 @@
+WORKER V30 — REALTIME IMEDIATO
+
+Alterações:
+- O WebSocket envia o pedido completo no evento, sem depender da leitura imediata do KV.
+- Novo evento order_created para pedidos pagos na entrega/retirada.
+- Fidelidade e Web Push são executados em segundo plano com waitUntil.
+- A resposta de criação do pedido não aguarda tarefas secundárias.
+- Gravações internas podem evitar broadcasts duplicados.
+
+Publicar este Worker junto com o Pages V88 para obter o benefício completo.

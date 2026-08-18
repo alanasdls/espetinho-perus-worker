@@ -1,0 +1,13 @@
+ESPETINHO PERUS — PAGES V101
+
+Correção para nomenclaturas que não apareciam no site.
+
+Causa corrigida:
+- versões antigas podiam permanecer salvas no localStorage como overrides do catálogo;
+- o Service Worker ainda referenciava uma versão antiga do JavaScript do cardápio.
+
+V101:
+- preserva preço, imagem, disponibilidade e demais configurações do painel;
+- força apenas as nomenclaturas oficialmente atualizadas;
+- migra overrides antigos de nome;
+- atualiza o cache do Service Worker e o cache-buster do app principal.

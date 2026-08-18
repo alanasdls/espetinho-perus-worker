@@ -8,19 +8,19 @@
   <meta name="apple-mobile-web-app-title" content="Pedidos">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <title>Painel de Pedidos | Espetinho Perus</title>
+  <title>Painel Administrativo | Espetinho Perus</title>
   <link rel="manifest" href="manifest-admin.webmanifest">
   <link rel="icon" href="icon-192.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <link rel="stylesheet" href="admin.css?v=20260726-v12-delivery-control">
+  <link rel="stylesheet" href="admin.css?v=20260727-v79-admin-studio">
 </head>
-<body>
+<body><a href="gestao.html" style="position:fixed;right:12px;top:12px;z-index:99999;background:#f2a900;color:#111;padding:10px 14px;border-radius:10px;font-weight:800;text-decoration:none">Painel de gestão</a>
 <header class="top">
   <div class="brand-block">
     <img class="top-logo" src="logo-premium.png" alt="Espetinho Perus">
-    <div><small>ESPETINHO PERUS</small><h1>Painel de Pedidos</h1></div>
+    <div><small>ESPETINHO PERUS</small><h1>Painel Administrativo</h1></div>
   </div>
-  <div class="top-actions">
+  <div class="top-actions"><a class="panel-switch-link" href="painel/">📦 Painel do delivery</a>
     <span id="connection" class="connection"><i></i> Conectando…</span>
     <button id="alertsBtn" class="icon-btn">🔔 <span>Alertas</span></button>
     <button id="logoutBtn" class="secondary">Sair</button>
@@ -52,7 +52,6 @@
     </section>
 
     
-
     <section class="delivery-control-card" aria-labelledby="deliveryControlTitle">
       <div class="delivery-control-copy">
         <small>CONTROLE DO DELIVERY</small>
@@ -86,19 +85,24 @@
       <button class="tab active" data-tab="ordersTab"><span>📦</span> Pedidos</button>
       <button class="tab" data-tab="financeTab"><span>📊</span> Dashboard</button>
       <button class="tab" data-tab="performanceTab"><span>🏆</span> Desempenho</button>
+      <button class="tab" data-tab="catalogTab"><span>🍢</span> Produtos</button>
+      <button class="tab" data-tab="mediaTab"><span>🖼️</span> Imagens</button>
+      <button class="tab" data-tab="appearanceTab"><span>🎨</span> Aparência</button>
+      <button class="tab" data-tab="paymentsTab"><span>💳</span> Pagamentos</button>
+      <button class="tab" data-tab="settingsTab"><span>⚙️</span> Configurações</button>
     </nav>
 
     <section id="financeTab" class="tab-panel dashboard">
       <div class="dashboard-head">
         <div><small>RESUMO FINANCEIRO</small><h2>Visão geral das vendas</h2></div>
-        <label class="period-label">Período
+        <div class="dashboard-actions"><button id="exportSalesCsvBtn" type="button" class="secondary">Exportar vendas CSV</button><label class="period-label">Período
           <select id="periodSelect">
             <option value="today">Hoje</option>
             <option value="7days">Últimos 7 dias</option>
             <option value="month">Este mês</option>
             <option value="all">Todo o período</option>
           </select>
-        </label>
+        </label></div>
       </div>
       <div class="summary summary-main">
         <article class="metric total-metric"><span>Faturamento</span><strong id="revenueToday">R$ 0,00</strong><small id="paidTodayLabel">0 pedidos pagos</small></article>
@@ -204,6 +208,38 @@
     </section>
 
 
+    <section id="catalogTab" class="tab-panel admin-studio-panel">
+      <div class="studio-head"><div><small>GESTÃO DO CARDÁPIO</small><h2>Produtos e preços</h2><p>Edite informações, disponibilidade e destaques. As alterações ficam salvas neste navegador e podem ser exportadas.</p></div><div class="studio-head-actions"><button id="addProductBtn" type="button">+ Novo produto</button><button id="exportCatalogBtn" type="button" class="secondary">Exportar catálogo</button></div></div>
+      <div class="studio-status"><span>🟡 Prévia local</span><p>Para publicar automaticamente para todos os clientes, conectaremos este painel ao Worker/Supabase na próxima etapa.</p></div>
+      <div class="catalog-tools"><input id="catalogSearch" type="search" placeholder="Buscar produto ou categoria"><select id="catalogCategory"><option value="">Todas as categorias</option></select><select id="catalogAvailability"><option value="">Todos</option><option value="available">Disponíveis</option><option value="unavailable">Indisponíveis</option></select></div>
+      <div id="catalogEditor" class="catalog-editor"></div>
+    </section>
+
+    <section id="mediaTab" class="tab-panel admin-studio-panel">
+      <div class="studio-head"><div><small>BIBLIOTECA VISUAL</small><h2>Imagens dos produtos</h2><p>Envie imagens, ajuste o enquadramento e use compressão automática para manter o site leve.</p></div></div>
+      <div class="media-guide"><article><strong>Formato recomendado</strong><span>WebP ou JPG quadrado</span></article><article><strong>Tamanho recomendado</strong><span>900 × 900 px</span></article><article><strong>Limite automático</strong><span>Imagem comprimida antes de salvar</span></article></div>
+      <div class="catalog-tools"><input id="mediaSearch" type="search" placeholder="Buscar produto para trocar a imagem"></div>
+      <div id="mediaEditor" class="media-editor"></div>
+    </section>
+
+    <section id="appearanceTab" class="tab-panel admin-studio-panel">
+      <div class="studio-head"><div><small>IDENTIDADE VISUAL</small><h2>Cores e estilo do site</h2><p>Personalize as cores principais e veja uma prévia antes de salvar.</p></div></div>
+      <div class="appearance-layout"><form id="appearanceForm" class="studio-form"><label>Cor principal<input id="themePrimary" type="color" value="#d71920"></label><label>Cor de destaque<input id="themeAccent" type="color" value="#f2a900"></label><label>Fundo do site<input id="themeBackground" type="color" value="#f5efe9"></label><label>Cor dos botões<input id="themeButton" type="color" value="#d71920"></label><label>Arredondamento dos cards<input id="themeRadius" type="range" min="8" max="32" value="20"><output id="themeRadiusValue">20 px</output></label><div class="form-actions"><button type="submit">Salvar aparência</button><button id="resetAppearanceBtn" type="button" class="secondary">Restaurar padrão</button></div></form><div id="themePreview" class="theme-preview"><span>ESPETINHO PERUS</span><h3>Prévia do cardápio</h3><article><div class="preview-image"></div><small>Espetinhos</small><strong>Carne e bacon</strong><p>R$ 12,50</p><button type="button">Adicionar</button></article></div></div>
+    </section>
+
+    <section id="paymentsTab" class="tab-panel admin-studio-panel">
+      <div class="studio-head"><div><small>CHECKOUT</small><h2>Meios de pagamento</h2><p>Ative, desative e organize as opções exibidas ao cliente.</p></div></div>
+      <div id="paymentEditor" class="payment-editor"></div>
+      <div class="studio-card"><h3>Regras do pagamento</h3><div class="settings-grid"><label>Pedido mínimo no Pix<input id="pixMinimum" type="number" min="0" step="0.01" value="0"></label><label>Desconto no Pix (%)<input id="pixDiscount" type="number" min="0" max="30" step="0.5" value="0"></label><label>Acréscimo no crédito (%)<input id="creditFee" type="number" min="0" max="30" step="0.5" value="0"></label></div><button id="savePaymentsBtn" type="button">Salvar pagamentos</button></div>
+    </section>
+
+    <section id="settingsTab" class="tab-panel admin-studio-panel">
+      <div class="studio-head"><div><small>CONFIGURAÇÕES GERAIS</small><h2>Operação e backup</h2><p>Centralize informações importantes do delivery e preserve uma cópia das configurações.</p></div></div>
+      <div class="settings-grid settings-main"><label>WhatsApp do estabelecimento<input id="settingWhatsapp" type="tel" placeholder="5511981341569"></label><label>Taxa de entrega (R$)<input id="settingDeliveryFee" type="number" min="0" step="0.01"></label><label>Pedido mínimo (R$)<input id="settingMinimumOrder" type="number" min="0" step="0.01"></label><label>Tempo médio de preparo (min)<input id="settingPrepTime" type="number" min="5" step="5"></label><label class="wide">Mensagem do delivery fechado<textarea id="settingClosedMessage" rows="3"></textarea></label></div>
+      <div class="form-actions"><button id="saveGeneralSettingsBtn" type="button">Salvar configurações</button><button id="downloadBackupBtn" type="button" class="secondary">Baixar backup JSON</button><label class="file-button">Importar backup<input id="importBackupInput" type="file" accept="application/json"></label></div>
+      <div class="studio-card audit-card"><div class="enterprise-section-head compact"><div><small>HISTÓRICO LOCAL</small><h3>Últimas alterações</h3></div><button id="clearAuditBtn" type="button" class="secondary">Limpar histórico</button></div><div id="auditLog" class="audit-log"></div></div>
+    </section>
+
     <section id="ordersTab" class="tab-panel active-panel">
 
       <section class="realtime-board-section">
@@ -236,7 +272,7 @@
     </section>
   </section>
 </main>
-<script src="admin.js?v=20260726-v12-delivery-control"></script>
-<script>if('serviceWorker'in navigator){navigator.serviceWorker.register('./sw.js?v=20260725-v96-enterprise',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});}</script>
+<script src="admin.js?v=20260727-v79-admin-studio"></script>
+<script>if('serviceWorker'in navigator){navigator.serviceWorker.register('./sw.js?v=20260727-v79-admin-studio',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});}</script>
 </body>
 </html>

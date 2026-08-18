@@ -179,8 +179,31 @@ function connectOrdersSocket() {
     const text = document.getElementById('realtimeText');
     if (text) text.textContent = 'Online • WebSocket em tempo real';
   };
-  ordersSocket.onmessage = (event) => {
+  ordersSocket.onmessage = async (event) => {
     if (event.data === 'pong') return;
+    let payload = null;
+    try { payload = JSON.parse(event.data); } catch (_) {}
+    const incoming = payload?.order;
+    if (incoming?.order_id) {
+      const id = String(incoming.order_id);
+      const index = orders.findIndex(item => String(item.order_id) === id);
+      const wasKnown = index >= 0 || knownPaid.has(incoming.order_id);
+      if (index >= 0) orders[index] = { ...orders[index], ...incoming };
+      else orders.unshift(incoming);
+      if (incoming.payment_status === 'approved' && !wasKnown) {
+        realtimeUnseen.add(id);
+        knownPaid.add(incoming.order_id);
+        saveRealtimeUnseen();
+        startRealtimeAlarm();
+        await showImmediateOrderNotification(incoming);
+      }
+      realtimeLastSuccess = Date.now();
+      updateRealtimeHeader();
+      render();
+      renderRealtimeBoard();
+      setTimeout(() => loadOrders(false), 1500);
+      return;
+    }
     loadOrders(false);
   };
   ordersSocket.onerror = () => { try { ordersSocket.close(); } catch (_) {} };
@@ -193,6 +216,18 @@ function connectOrdersSocket() {
 }
 
 
+
+async function showImmediateOrderNotification(order) {
+  if (Notification.permission !== 'granted') return;
+  const reg = adminSwRegistration || await navigator.serviceWorker.ready.catch(() => null);
+  if (!reg) return;
+  await reg.showNotification('Novo pedido pago!', {
+    body: `${order.customer?.name || 'Cliente'} • ${fmt(order.total)} • ${order.order_id}`,
+    icon: './icon-192.png', badge: './icon-192.png', tag: `admin-${order.order_id}`,
+    data: { url: './admin.html' }, requireInteraction: true, vibrate: [250, 120, 250]
+  });
+}
+
 function showPanel() {
   document.body.classList.add('authenticated');
   $('#login').hidden = true;
@@ -202,7 +237,7 @@ function showPanel() {
   loadDeliveryControl();
   connectOrdersSocket();
   clearInterval(timer);
-  timer = setInterval(() => { if (document.visibilityState === 'visible') loadOrders(false); }, 60000);
+  timer = setInterval(() => { if (document.visibilityState === 'visible') loadOrders(false); }, 5000);
 }
 
 function logout() {
@@ -243,11 +278,11 @@ async function enableAlerts() {
     if (!('Notification' in window) || !('serviceWorker' in navigator)) throw new Error('Este navegador não oferece notificações.');
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') throw new Error('Permissão de notificação não concedida.');
-    adminSwRegistration = await navigator.serviceWorker.register('./sw.js?v=20260725-v10-realtime', { scope: './' });
+    adminSwRegistration = await navigator.serviceWorker.register('./sw.js?v=20260727-v11-realtime-fast', { scope: './' });
     await navigator.serviceWorker.ready;
     audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
     await audioCtx.resume();
-    orderAlarm = orderAlarm || new Audio('./alerta-pedido.wav?v=20260725-v10');
+    orderAlarm = orderAlarm || new Audio('./alerta-pedido.wav?v=20260727-v11');
     orderAlarm.preload = 'auto';
     orderAlarm.volume = 1;
     // Desbloqueia a reprodução de áudio durante o toque do usuário.
@@ -270,7 +305,7 @@ $('#alertsBtn').onclick = enableAlerts;
 async function playOrderAlarm() {
   try {
     if (!orderAlarm) {
-      orderAlarm = new Audio('./alerta-pedido.wav?v=20260725-v10');
+      orderAlarm = new Audio('./alerta-pedido.wav?v=20260727-v11');
       orderAlarm.preload = 'auto';
       orderAlarm.volume = 1;
     }

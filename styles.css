@@ -147,7 +147,8 @@ body{
 }
 .promo-card{
   flex:0 0 100%;
-  min-height:330px;
+  min-height:0;
+  aspect-ratio:2.65 / 1;
   position:relative;
   display:flex;
   align-items:center;
@@ -164,9 +165,9 @@ body{
   z-index:-1;
   background:linear-gradient(90deg,rgba(12,8,5,.96) 0%,rgba(12,8,5,.76) 48%,rgba(12,8,5,.18) 100%);
 }
-.promo-one{background-image:url("assets/503042.jpg")}
-.promo-two{background-image:url("assets/503041.jpg")}
-.promo-three{background-image:url("assets/503037.jpg")}
+.promo-one{background-image:url("assets/promo-combo-casal.webp")}
+.promo-two{background-image:url("assets/promo-combo-familia.webp")}
+.promo-three{background-image:url("assets/promo-combo-resenha.webp")}
 .promo-card>div{max-width:580px}
 .promo-card span{
   display:inline-flex;
@@ -296,14 +297,15 @@ body{
   .app-benefits article+article{border-left:0;border-top:1px solid #eee5de}
   .promo-section{width:calc(100% - 28px);border-radius:23px}
   .promo-card{
-    min-height:310px;
-    padding:32px 24px 50px;
+    min-height:0;
+    aspect-ratio:1.75 / 1;
+    padding:26px 22px 46px;
     background-position:center;
   }
   .promo-card::before{
     background:linear-gradient(90deg,rgba(12,8,5,.95),rgba(12,8,5,.63));
   }
-  .promo-card h2{font-size:2.55rem}
+  .promo-card h2{font-size:clamp(1.75rem,8vw,2.55rem)}
   .info-strip{width:calc(100% - 28px);margin-inline:auto}
   .menu-section{padding-top:50px}
   .menu-tools{
@@ -366,13 +368,11 @@ body{
 }
 
 
-/* V9.1 — carrossel removido */
-.promo-section,
-.promo-track,
-.promo-card,
-.promo-dots{
-  display:none !important;
-}
+/* V67 — promoções reativadas em formato wide */
+.promo-section{display:block !important}
+.promo-track{display:flex !important}
+.promo-card{display:flex !important}
+.promo-dots{display:flex !important}
 
 .app-benefits{
   margin-bottom:22px;
@@ -963,3 +963,334 @@ button[data-add].added-feedback::after{
   padding:9px 13px;border-radius:999px;background:rgba(255,255,255,.11);
   border:1px solid rgba(255,255,255,.14)
 }
+
+
+/* Padronização visual de latas e garrafas */
+.product-image.packaged-drink{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:14px 20px;
+  background:linear-gradient(135deg,#f7f3ee,#fffaf6 58%,#efe4d8);
+}
+.product-image.packaged-drink img{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  object-position:center;
+  transform:scale(.9);
+  filter:drop-shadow(0 10px 10px rgba(45,27,16,.16));
+}
+.menu-card:hover .product-image.packaged-drink img{
+  transform:scale(.94);
+  filter:drop-shadow(0 12px 12px rgba(45,27,16,.2)) saturate(1.04);
+}
+@media(max-width:580px){
+  .product-image.packaged-drink{padding:10px 14px}
+  .product-image.packaged-drink img{transform:scale(.88)}
+  .menu-card:hover .product-image.packaged-drink img{transform:scale(.91)}
+}
+
+/* V26.1 — correção do enquadramento das imagens das bebidas */
+.product-image.packaged-drink{
+  padding:0 !important;
+  background:#ddd !important;
+}
+.product-image.packaged-drink img{
+  width:100% !important;
+  height:100% !important;
+  object-fit:cover !important;
+  object-position:center center !important;
+  transform:scale(1) !important;
+  filter:none !important;
+}
+.menu-card:hover .product-image.packaged-drink img{
+  transform:scale(1.04) !important;
+  filter:none !important;
+}
+@media(max-width:580px){
+  .product-image.packaged-drink{padding:0 !important}
+  .product-image.packaged-drink img{transform:scale(1) !important}
+  .menu-card:hover .product-image.packaged-drink img{transform:scale(1.03) !important}
+}
+
+/* V44 — bloco final mais compacto e botão alinhado */
+.contact{
+  padding:32px 38px;
+  min-height:0;
+  gap:24px;
+}
+.contact > div{min-width:0}
+.contact .eyebrow{font-size:11px;letter-spacing:1.6px}
+.contact h2{
+  margin:6px 0 4px;
+  font-size:32px;
+  line-height:1.08;
+}
+.contact p{
+  margin:0;
+  max-width:700px;
+  font-size:14px;
+  line-height:1.5;
+}
+.contact > .btn{
+  flex:0 0 auto;
+  width:170px;
+  min-height:48px;
+  padding:12px 20px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  line-height:1;
+  white-space:nowrap;
+  border-radius:14px;
+}
+@media(max-width:900px){
+  .contact{
+    padding:28px 26px;
+    gap:18px;
+    align-items:stretch;
+  }
+  .contact > .btn{width:100%;align-self:stretch}
+}
+@media(max-width:580px){
+  .contact{padding:24px 20px;margin-bottom:44px}
+  .contact h2{font-size:27px}
+  .contact p{font-size:13px}
+  .contact > .btn{min-height:46px}
+}
+
+
+/* V46 — fidelidade opcional no carrinho */
+.loyalty-cart-box{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 14px;border:1px solid #efd28b;border-radius:14px;background:linear-gradient(135deg,#fff9e7,#fff);margin-bottom:12px}.loyalty-cart-box strong{display:block;color:#59340e}.loyalty-cart-box small{display:block;margin-top:4px;color:#7b695d;line-height:1.35}.loyalty-cart-box a{flex:0 0 auto;padding:9px 11px;border-radius:10px;background:#25160e;color:#fff;font-size:.76rem;font-weight:900;text-align:center}.loyalty-logged .loyalty-cart-box{border-color:#9bd2b5;background:#effaf4}.loyalty-logged .loyalty-cart-box a{background:#168b51}@media(max-width:520px){.loyalty-cart-box{align-items:stretch;flex-direction:column}.loyalty-cart-box a{width:100%}}
+
+/* V60 — seletores visuais isolados da lógica de pagamento */
+.choice-row{align-items:start}.choice-field{display:grid;gap:9px}.choice-label{font-size:13px;font-weight:900;color:#4c4037;text-transform:uppercase;letter-spacing:.04em}.visual-select-hidden{position:absolute!important;left:-9999px!important;width:1px!important;height:1px!important;opacity:0!important}.toggle-group{display:grid;gap:10px}.white-red{grid-template-columns:1fr 1fr}.toggle-btn{border:1.5px solid #e3d9d0;background:#fff;color:#2b211b;border-radius:14px;padding:13px;font-weight:900;cursor:pointer;box-shadow:0 5px 14px rgba(42,23,15,.05)}.toggle-btn.active{background:#ea1d2c;border-color:#ea1d2c;color:#fff;box-shadow:0 10px 22px rgba(234,29,44,.22)}.payment-group{grid-template-columns:1fr 1fr}.pay-btn{min-height:72px;display:flex;align-items:center;gap:11px;text-align:left}.pay-btn>span:last-child{display:grid;gap:3px}.pay-btn strong{font-size:15px}.pay-btn small{font-size:10px;color:#776960;font-weight:700}.pay-btn.active small{color:#fff}.pay-icon{width:40px;height:40px;display:grid;place-items:center;border-radius:11px;background:#f4eee8;font-weight:900}.pay-btn.active .pay-icon{background:rgba(255,255,255,.18)}.pix-icon{font-size:24px}.card-icon{font-size:25px;transform:rotate(90deg)}.money-btn{grid-column:1/-1;min-height:62px}@media(max-width:760px){.payment-group{grid-template-columns:1fr}.money-btn{grid-column:auto}}
+
+/* V61 — seleção de pagamento azul e sem dinheiro */
+.white-red .toggle-btn.active{background:#ea1d2c;border-color:#ea1d2c;color:#fff;box-shadow:0 10px 22px rgba(234,29,44,.22)}
+.payment-group .toggle-btn.active{background:#1769d2;border-color:#1769d2;color:#fff;box-shadow:0 10px 22px rgba(23,105,210,.25)}
+.payment-group{grid-template-columns:repeat(3,1fr)}
+@media(max-width:900px){.payment-group{grid-template-columns:1fr}}
+
+
+/* V62 — logos reais nos botões de pagamento */
+.pay-btn{min-height:84px;gap:14px;padding:14px 16px}
+.pay-btn>span:last-child{display:grid;gap:4px;align-content:center}
+.pay-btn strong{font-size:16px;line-height:1.1}
+.pay-btn small{font-size:11px}
+.pay-icon{width:72px;height:48px;display:flex;align-items:center;justify-content:center;background:transparent!important;border-radius:0;padding:0;overflow:visible;flex:none}
+.pay-btn.active .pay-icon{background:transparent!important}
+.pay-icon img{display:block;max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 2px 3px rgba(0,0,0,.10))}
+@media(max-width:760px){.pay-btn{min-height:78px}.pay-icon{width:68px;height:46px}}
+
+/* V63 — botões de pagamento menores e sempre em linha */
+.payment-group{
+  grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  gap:8px;
+}
+.pay-btn{
+  min-height:68px;
+  padding:8px 6px;
+  gap:6px;
+  flex-direction:column;
+  justify-content:center;
+  text-align:center;
+  border-radius:12px;
+}
+.pay-btn>span:last-child{
+  display:grid;
+  gap:2px;
+  justify-items:center;
+  align-content:center;
+}
+.pay-btn strong{
+  font-size:13px;
+  line-height:1.05;
+}
+.pay-btn small{
+  font-size:9px;
+  line-height:1.1;
+}
+.pay-icon{
+  width:52px;
+  height:32px;
+}
+@media(max-width:900px){
+  .payment-group{
+    grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  }
+}
+@media(max-width:560px){
+  .payment-group{gap:6px}
+  .pay-btn{min-height:62px;padding:7px 4px}
+  .pay-icon{width:44px;height:28px}
+  .pay-btn strong{font-size:12px}
+  .pay-btn small{display:none}
+}
+
+/* V66 — banners de destaque em formato wide */
+.promo-wide{max-width:1160px}
+@media (min-width:761px) and (max-width:980px){
+  .promo-card{aspect-ratio:2.15 / 1;padding:34px 38px}
+}
+@media (max-width:480px){
+  .promo-card{aspect-ratio:1.55 / 1}
+  .promo-card p{font-size:.92rem;line-height:1.4}
+  .promo-card a{min-height:43px;padding:0 16px}
+}
+
+
+/* V70 — promoções com imagens reais de combos */
+.promo-image-mode .promo-card-image{
+  padding:0;
+  background-size:contain;
+  background-repeat:no-repeat;
+  background-position:center;
+  background-color:#000;
+}
+.promo-image-mode .promo-card-image::before{display:none}
+.promo-image-mode .promo-banner-link{
+  position:absolute;
+  inset:0;
+  display:block;
+  z-index:2;
+}
+.promo-image-mode .promo-card-image:focus-within,
+.promo-image-mode .promo-card-image:hover{
+  transform:translateY(-1px);
+}
+
+
+/* V72 — corrige proporção dos banners para manter o botão alinhado */
+.promo-image-mode .promo-card-image{
+  aspect-ratio:1672 / 941 !important;
+}
+@media (max-width:720px){
+  .promo-image-mode .promo-card-image{
+    aspect-ratio:1672 / 941 !important;
+  }
+}
+
+
+/* V75 — remove estilo de botão sobreposto nos banners */
+.promo-image-mode .promo-banner-link{
+  position:absolute;
+  inset:0;
+  display:block;
+  z-index:2;
+  min-height:0 !important;
+  margin:0 !important;
+  padding:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  color:transparent !important;
+  font-size:0 !important;
+  line-height:0 !important;
+  box-shadow:none !important;
+  text-decoration:none !important;
+}
+.promo-image-mode .promo-banner-link:focus-visible{
+  outline:3px solid rgba(255,255,255,.85);
+  outline-offset:-6px;
+}
+
+
+/* V78 — identificação e finalidade do app para verificação OAuth do Google */
+.app-purpose{
+  width:min(1160px,calc(100% - 34px));
+  margin:28px auto 22px;
+  padding:28px clamp(22px,4vw,44px);
+  border:1px solid rgba(240,170,70,.34);
+  border-radius:24px;
+  background:linear-gradient(135deg,rgba(35,21,13,.98),rgba(16,10,7,.98));
+  box-shadow:var(--v9-shadow);
+  color:#fff;
+}
+.app-purpose-badge{
+  display:inline-flex;
+  padding:7px 12px;
+  border-radius:999px;
+  background:var(--v9-gold);
+  color:#21150d;
+  font-size:.76rem;
+  font-weight:900;
+  letter-spacing:.08em;
+}
+.app-purpose h2{
+  margin:12px 0 8px;
+  font-family:Oswald,sans-serif;
+  font-size:clamp(2rem,5vw,3.2rem);
+  line-height:1;
+  text-transform:uppercase;
+}
+.app-purpose p{
+  max-width:920px;
+  margin:0;
+  color:#f4e9df;
+  font-size:1.05rem;
+  line-height:1.65;
+}
+.app-purpose-links{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:18px;
+}
+.app-purpose-links a{
+  display:inline-flex;
+  align-items:center;
+  min-height:42px;
+  padding:0 15px;
+  border:1px solid rgba(255,255,255,.22);
+  border-radius:13px;
+  background:rgba(255,255,255,.07);
+  color:#fff;
+  font-weight:800;
+  text-decoration:none;
+}
+.app-purpose-links a:hover,
+.app-purpose-links a:focus-visible{
+  background:rgba(255,255,255,.14);
+}
+@media (max-width:720px){
+  .app-purpose{width:calc(100% - 28px);margin-top:18px;padding:22px 18px;border-radius:20px}
+  .app-purpose p{font-size:.97rem;line-height:1.55}
+  .app-purpose-links{display:grid;grid-template-columns:1fr 1fr}
+  .app-purpose-links a{justify-content:center;text-align:center;font-size:.85rem;padding:8px 10px}
+}
+
+/* V89 - pagamento temporariamente apenas via Pix */
+.payment-group.payment-pix-only{grid-template-columns:1fr!important}.payment-group.payment-pix-only .pay-btn{width:100%}
+
+/* V92: Pix automático e visibilidade correta do frete */
+.delivery-whatsapp[hidden]{display:none!important}
+.fulfillment-only{display:block}
+.fulfillment-only .choice-field{width:100%}
+
+/* V94: textos dos produtos maiores dentro do carrinho */
+.cart-items .cart-item h4{
+  font-size:19px;
+  line-height:1.3;
+  font-weight:800;
+  margin:0 0 6px;
+}
+.cart-items .cart-item small{
+  font-size:15px;
+  line-height:1.35;
+}
+.cart-items .cart-item .qty b{
+  font-size:17px;
+}
+.cart-items .cart-item .qty .remove{
+  font-size:14px;
+  font-weight:700;
+}
+@media (max-width:580px){
+  .cart-items .cart-item h4{font-size:18px}
+  .cart-items .cart-item small{font-size:14px}
+}
+
+/* V96 - Cupom de desconto */
+.coupon-box{border:1px solid #e5e7eb;background:#fffaf1;border-radius:12px;padding:12px;display:grid;gap:7px}.coupon-box>label{font-weight:800;color:#333}.coupon-row{display:grid;grid-template-columns:1fr auto;gap:8px}.coupon-row input{min-width:0;text-transform:uppercase;font-weight:700;letter-spacing:.5px}.coupon-row button{border:0;border-radius:9px;padding:0 16px;background:#171717;color:#fff;font-weight:900;cursor:pointer}.coupon-row button:disabled{opacity:.55;cursor:wait}.coupon-box small{color:#6b7280}.coupon-box small.success{color:#15803d;font-weight:700}.coupon-box small.error{color:#b91c1c;font-weight:700}.coupon-box small.loading{color:#92400e}.coupon-box.applied{border-color:#86efac;background:#f0fdf4}.coupon-box.invalid{border-color:#fecaca;background:#fff7f7}@media(max-width:420px){.coupon-row{grid-template-columns:1fr}.coupon-row button{min-height:42px}}

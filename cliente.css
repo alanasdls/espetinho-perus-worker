@@ -167,3 +167,102 @@ button,input{font:inherit}
   .profile-form button{grid-column:auto}
   .order-card-top,.order-card-bottom{align-items:flex-start;flex-direction:column}
 }
+
+/* V46 — autenticação e fidelidade Supabase */
+.auth-box{min-width:0}.auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:5px;border-radius:14px;background:#f2ebe6;margin-bottom:14px}.auth-tabs button{min-height:43px;border:0;border-radius:10px;background:transparent;font-weight:900;color:#77675d}.auth-tabs button.active{background:#fff;color:#27170f;box-shadow:0 5px 14px rgba(50,28,17,.1)}
+.auth-form{display:none}.auth-form.active{display:grid}.text-button{background:transparent!important;color:#6f594d!important;box-shadow:none!important;min-height:34px!important}.privacy-note{color:#8b7b71;line-height:1.4}.auth-message{min-height:20px;margin:10px 0 0;font-size:.84rem;font-weight:800}.auth-message.error{color:#b51b2b}.auth-message.success{color:#168b51}.guest-link{display:inline-flex;margin-top:15px;padding:11px 15px;border:1px solid #d9cbc2;border-radius:12px;font-weight:900;color:#4c382c;background:#fff}.points-card{background:linear-gradient(145deg,#fff7df,#fff)!important;border-color:#edd18d!important}.points-card strong{color:#9a5a05}.loyalty-explain{margin:0 0 16px;padding:15px 17px;border-radius:15px;background:#fff8df;border:1px solid #efd799;color:#65502e;line-height:1.5}.movement{display:flex;align-items:center;justify-content:space-between;gap:15px}.movement small,.movement time{display:block;color:#887970;margin-top:5px}.local-note{padding:11px 13px;border-radius:12px;background:#f6f0eb;color:#78685e;margin-bottom:10px;font-size:.83rem}.client-tabs{grid-template-columns:repeat(3,1fr)}
+@media(max-width:620px){.auth-tabs{position:static}.movement{align-items:flex-start}.client-tabs button{min-width:90px}}
+
+/* Garante que login e painel nunca apareçam ao mesmo tempo.
+   O atributo hidden precisa prevalecer sobre display:grid da access-card. */
+[hidden]{display:none!important}
+
+/* V65 — cartões de informações mais compactos na área do cliente */
+.client-kpis{
+  gap:8px;
+  margin:12px 0;
+}
+.client-kpis article{
+  min-height:78px;
+  padding:11px 13px;
+  border-radius:14px;
+  box-shadow:0 6px 16px rgba(46,26,15,.06);
+}
+.client-kpis span{
+  font-size:.69rem;
+}
+.client-kpis strong{
+  margin:5px 0 2px;
+  font-size:1.18rem;
+  line-height:1.1;
+}
+.client-kpis small{
+  font-size:.69rem;
+}
+@media(max-width:620px){
+  .client-kpis{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:7px;
+  }
+  .client-kpis article{
+    min-height:72px;
+    padding:10px 11px;
+    border-radius:13px;
+  }
+  .client-kpis strong{
+    font-size:1.08rem;
+  }
+}
+
+
+/* V70 — login social com Google */
+.google-login-button{
+  width:100%;min-height:52px;padding:0 16px;border:1px solid #d6cbc3;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;gap:12px;background:#fff;color:#34251d;
+  font:800 .94rem Roboto,Arial,sans-serif;cursor:pointer;box-shadow:0 6px 18px rgba(50,28,17,.07);
+  transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease
+}
+.google-login-button:hover{transform:translateY(-1px);border-color:#bfaea3;box-shadow:0 9px 22px rgba(50,28,17,.11)}
+.google-login-button:disabled{opacity:.7;cursor:wait;transform:none}
+.google-icon{width:22px;height:22px;display:grid;place-items:center;flex:0 0 22px}
+.google-icon svg{display:block;width:22px;height:22px}
+.auth-divider{display:flex;align-items:center;gap:12px;margin:14px 0;color:#9a8b82;font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.auth-divider::before,.auth-divider::after{content:"";height:1px;flex:1;background:#e7ddd7}
+.auth-divider span{white-space:nowrap}
+
+
+/* V95 — histórico detalhado + troca de pontos por produtos */
+.client-tabs{grid-template-columns:repeat(4,1fr)}
+.order-items{display:grid;gap:7px}
+.order-items p{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0;padding-bottom:7px;border-bottom:1px solid #f0e7e1}
+.order-items p:last-child{padding-bottom:0;border-bottom:0}
+.order-items p b{font-size:.88rem;color:#443128}
+.order-items p span{white-space:nowrap;color:#79685e;font-size:.84rem}
+.order-items-empty{font-size:.82rem;color:#8d7c72}
+.rewards-head p{margin:4px 0 0;color:#85736a;font-size:.86rem}
+.rewards-balance{min-width:130px;padding:11px 14px;border-radius:14px;background:#fff7df;border:1px solid #ecd188;text-align:right}
+.rewards-balance span{display:block;color:#80633b;font-size:.72rem;font-weight:900}
+.rewards-balance strong{display:block;margin-top:3px;color:#995a05;font-size:1.25rem}
+.rewards-toolbar{margin-bottom:12px}
+.rewards-toolbar input{width:100%;min-height:48px;padding:0 14px;border:1px solid #ddcfc6;border-radius:13px;background:#fff}
+.rewards-toolbar input:focus{outline:0;border-color:#d8972e;box-shadow:0 0 0 4px rgba(239,173,59,.13)}
+.rewards-message{margin:0 0 14px;color:#7d6f66;font-size:.82rem;font-weight:800}
+.rewards-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.reward-card{display:grid;grid-template-columns:96px 1fr;min-height:132px;overflow:hidden;border:1px solid #eadfd8;border-radius:18px;background:#fcfaf8}
+.reward-card img{width:96px;height:100%;min-height:132px;object-fit:cover;background:#eee}
+.reward-copy{padding:12px;display:flex;flex-direction:column;align-items:flex-start;min-width:0}
+.reward-copy small{color:#8a766b;font-size:.72rem;font-weight:800}
+.reward-copy h3{margin:4px 0 7px;font-size:.96rem;line-height:1.2}
+.reward-copy strong{color:#9a5a05;font-size:.88rem}
+.reward-copy button{width:100%;min-height:38px;margin-top:auto;border:0;border-radius:11px;background:linear-gradient(135deg,#168b51,#0b6d3d);color:#fff;font-weight:900;cursor:pointer}
+.reward-copy button:disabled{background:#ddd4cf;color:#8d817a;cursor:not-allowed}
+.reward-available{border-color:#d7c78c;background:linear-gradient(145deg,#fffdf7,#fff8e7)}
+@media(max-width:920px){.rewards-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){
+  .client-tabs button{min-width:104px}
+  .rewards-grid{grid-template-columns:1fr}
+  .rewards-head{align-items:flex-start}
+  .rewards-balance{min-width:110px}
+  .reward-card{grid-template-columns:88px 1fr}
+  .reward-card img{width:88px;min-height:126px}
+}

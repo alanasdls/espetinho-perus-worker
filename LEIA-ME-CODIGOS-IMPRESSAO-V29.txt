@@ -1,0 +1,10 @@
+WORKER V29 — CÓDIGOS DE IMPRESSÃO SEM INTERFERIR NO PIX
+
+Alterações:
+- O Worker reconhece automaticamente 11 produtos pelo nome e aplica o Cód. PDV somente no pedido enviado ao Consumer.
+- O código de impressão não é mais usado como ID de item no Mercado Pago.
+- Pix MisticPay, cartão Mercado Pago, PagBank e pedido em dinheiro continuam recebendo o formato normal de pagamento.
+- Compatível com o site V58, que envia apenas nome e quantidade dos produtos.
+
+Publicação:
+Envie/substitua os arquivos deste ZIP no projeto do Worker e faça o deploy normalmente.

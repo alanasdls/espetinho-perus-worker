@@ -7,7 +7,7 @@ const fmt=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function headers(){return {'X-Admin-Key':key,'Content-Type':'application/json'}}
 async function api(path,opt={}){const r=await fetch(API+path,{...opt,headers:{...headers(),...(opt.headers||{})},cache:'no-store'});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.erro||`HTTP ${r.status}`);return d}
-function startFallback(){clearInterval(fallbackTimer);fallbackTimer=setInterval(()=>{if(document.visibilityState==='visible')load()},60000)}
+function startFallback(){clearInterval(fallbackTimer);fallbackTimer=setInterval(()=>{if(document.visibilityState==='visible')load()},5000)}
 function connectRealtime(){
   clearTimeout(reconnectTimer);
   if(!key||document.visibilityState==='hidden')return;
@@ -15,7 +15,7 @@ function connectRealtime(){
   const wsUrl=API.replace(/^http/,'ws')+'/admin/realtime?key='+encodeURIComponent(key);
   realtimeSocket=new WebSocket(wsUrl);
   realtimeSocket.onopen=()=>{clearInterval(fallbackTimer);$('#kitchenConnection').textContent='ONLINE • WebSocket';};
-  realtimeSocket.onmessage=e=>{if(e.data==='pong')return;load();};
+  realtimeSocket.onmessage=e=>{if(e.data==='pong')return;let payload=null;try{payload=JSON.parse(e.data)}catch(_){}const incoming=payload?.order;if(incoming?.order_id){const id=String(incoming.order_id),i=orders.findIndex(o=>String(o.order_id)===id);if(i>=0)orders[i]={...orders[i],...incoming};else orders.unshift(incoming);render();setTimeout(load,1500);return}load();};
   realtimeSocket.onerror=()=>{try{realtimeSocket.close()}catch(_){}};
   realtimeSocket.onclose=()=>{realtimeSocket=null;$('#kitchenConnection').textContent='RECONECTANDO • modo econômico';startFallback();reconnectTimer=setTimeout(connectRealtime,5000);};
 }

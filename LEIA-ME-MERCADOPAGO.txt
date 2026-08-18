@@ -1,0 +1,10 @@
+WORKER V28 - MERCADO PAGO COM DADOS COMPLETOS DO CLIENTE
+
+Alteracoes:
+- Envia nome, sobrenome, e-mail, CPF, telefone e endereco no payer do Mercado Pago.
+- Envia endereco de entrega em shipments quando o pedido for Entrega.
+- Salva CPF, data de nascimento e endereco estruturado dentro do pedido.
+- Exige CPF com 11 digitos para checkout de cartao.
+
+Publique todos os arquivos deste ZIP no mesmo projeto Worker.
+Mantenha as mesmas variaveis e secrets ja configuradas no Cloudflare.
