@@ -1,8 +1,8 @@
-// V104-BANNERS-NOVOS
-const CACHE = 'espetinho-perus-v104-banners-novos';
+// V105-BANNERS-HARDWIRED
+const CACHE = 'espetinho-perus-v105-banners-hardwired';
 const PRECACHE = [
-  './', './index.html', './pedido.html','./cliente.html','./cliente.css?v=20260815-v95-fidelidade-resgate','./cliente.js?v=20260815-v95-fidelidade-resgate', './pedido.css?v=20260724-v2', './pedido.js?v=20260724-v3', './admin.html', './admin.css?v=20260727-v79-admin-studio', './admin.js?v=20260727-v79-admin-studio', './admin-catalog.json?v=20260727-v79', './styles.css?v=20260831-v104-banners-novos', './app-misticpay-cpf-v102.js?v=20260817-v102-hard-refresh', './pagamento-sucesso.html', './pagamento-pendente.html', './pagamento-falhou.html',
-  './manifest.webmanifest', './manifest-admin.webmanifest', './assets/promo-10-primeiro-pedido.jpg', './assets/promo-karaoke-double.jpg', './assets/promo-instagram-musica.jpg', './alerta-pedido.wav?v=20260724-v4', './icon-192.png', './icon-512.png', './apple-touch-icon.png',
+  './', './index.html', './pedido.html','./cliente.html','./cliente.css?v=20260815-v95-fidelidade-resgate','./cliente.js?v=20260815-v95-fidelidade-resgate', './pedido.css?v=20260724-v2', './pedido.js?v=20260724-v3', './admin.html', './admin.css?v=20260727-v79-admin-studio', './admin.js?v=20260727-v79-admin-studio', './admin-catalog.json?v=20260727-v79', './styles-v105.css?v=20260831-v105-hardwired', './app-misticpay-cpf-v102.js?v=20260817-v102-hard-refresh', './pagamento-sucesso.html', './pagamento-pendente.html', './pagamento-falhou.html',
+  './manifest.webmanifest', './manifest-admin.webmanifest', './assets/banner-v105-01-10-desconto.jpg', './assets/banner-v105-02-karaoke-double.jpg', './assets/banner-v105-03-instagram-musica.jpg', './alerta-pedido.wav?v=20260724-v4', './icon-192.png', './icon-512.png', './apple-touch-icon.png',
   './assets/products/azeitona-20260723.webp',
   './assets/products/batata-com-calabresa-ou-frango-600g-20260723.webp',
   './assets/products/batata-com-cheddar-e-bacon-600g-20260723.webp',

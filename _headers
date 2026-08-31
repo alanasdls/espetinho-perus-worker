@@ -41,3 +41,12 @@
 
 /og-whatsapp-v7.jpg
   Cache-Control: public, max-age=31536000, immutable
+
+/styles-v105.css
+  Cache-Control: no-cache, no-store, must-revalidate
+/assets/banner-v105-01-10-desconto.jpg
+  Cache-Control: public, max-age=31536000, immutable
+/assets/banner-v105-02-karaoke-double.jpg
+  Cache-Control: public, max-age=31536000, immutable
+/assets/banner-v105-03-instagram-musica.jpg
+  Cache-Control: public, max-age=31536000, immutable
