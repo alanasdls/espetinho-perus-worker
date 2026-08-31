@@ -1,0 +1,11 @@
+V104 — BANNERS NOVOS
+
+Foram substituídos os três banners atuais pelas imagens fornecidas pelo usuário, sem alterar o conteúdo das imagens.
+
+Ordem do carrossel:
+1. 10% de desconto no primeiro pedido
+2. Karaokê Double
+3. Instagram / Música ao vivo
+
+A V103 foi preservada como base, inclusive aumento de R$ 0,50 apenas nos espetinhos.
+O Service Worker e o cache-buster do CSS foram atualizados para forçar a publicação das novas imagens.

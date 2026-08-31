@@ -1,7 +1,8 @@
-const CACHE = 'espetinho-perus-v102-hard-refresh-20260817';
+// V104-BANNERS-NOVOS
+const CACHE = 'espetinho-perus-v104-banners-novos';
 const PRECACHE = [
-  './', './index.html', './pedido.html','./cliente.html','./cliente.css?v=20260815-v95-fidelidade-resgate','./cliente.js?v=20260815-v95-fidelidade-resgate', './pedido.css?v=20260724-v2', './pedido.js?v=20260724-v3', './admin.html', './admin.css?v=20260727-v79-admin-studio', './admin.js?v=20260727-v79-admin-studio', './admin-catalog.json?v=20260727-v79', './styles.css?v=20260725-cart-black-v73', './app-misticpay-cpf-v102.js?v=20260817-v102-hard-refresh', './pagamento-sucesso.html', './pagamento-pendente.html', './pagamento-falhou.html',
-  './manifest.webmanifest', './manifest-admin.webmanifest', './alerta-pedido.wav?v=20260724-v4', './icon-192.png', './icon-512.png', './apple-touch-icon.png',
+  './', './index.html', './pedido.html','./cliente.html','./cliente.css?v=20260815-v95-fidelidade-resgate','./cliente.js?v=20260815-v95-fidelidade-resgate', './pedido.css?v=20260724-v2', './pedido.js?v=20260724-v3', './admin.html', './admin.css?v=20260727-v79-admin-studio', './admin.js?v=20260727-v79-admin-studio', './admin-catalog.json?v=20260727-v79', './styles.css?v=20260831-v104-banners-novos', './app-misticpay-cpf-v102.js?v=20260817-v102-hard-refresh', './pagamento-sucesso.html', './pagamento-pendente.html', './pagamento-falhou.html',
+  './manifest.webmanifest', './manifest-admin.webmanifest', './assets/promo-10-primeiro-pedido.jpg', './assets/promo-karaoke-double.jpg', './assets/promo-instagram-musica.jpg', './alerta-pedido.wav?v=20260724-v4', './icon-192.png', './icon-512.png', './apple-touch-icon.png',
   './assets/products/azeitona-20260723.webp',
   './assets/products/batata-com-calabresa-ou-frango-600g-20260723.webp',
   './assets/products/batata-com-cheddar-e-bacon-600g-20260723.webp',

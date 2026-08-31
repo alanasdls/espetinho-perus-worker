@@ -10,9 +10,9 @@ function getImageKey(p,i){return String(p.id??i)} function imageOverrides(){retu
 function persistAll(){save(KEYS.products,products);save(KEYS.categories,categories);save(KEYS.addons,addons);save(KEYS.users,users);save(KEYS.promotions,promotions)}
 function normalizeProduct(p,i){return {id:p.id??i,cod:p.cod||'',name:p.name||'Produto',category:p.category||'Outros',price:Number(p.price||0),cost:Number(p.cost||0),description:p.description||'',stock:Number.isFinite(Number(p.stock))?Number(p.stock):0,lowStock:Number.isFinite(Number(p.lowStock))?Number(p.lowStock):5,available:p.available!==false,featured:!!p.featured,order:Number(p.order??i+1),promoPrice:Number(p.promoPrice||0),promoStart:p.promoStart||'',promoEnd:p.promoEnd||'',addonIds:Array.isArray(p.addonIds)?p.addonIds:[],image:p.image||'',badge:p.badge||''}}
 function seedPromotions(){return [
-{id:1,title:'Combo Casal',subtitle:'4 espetos + 2 refrigerantes + batata frita',price:39.90,start:'',end:'',active:true,order:1,image:'assets/promo-combo-casal.webp',productIds:[]},
-{id:2,title:'Combo Família',subtitle:'8 espetos + refrigerante 2L + batata frita',price:69.90,start:'',end:'',active:true,order:2,image:'assets/promo-combo-familia.webp',productIds:[]},
-{id:3,title:'Combo Resenha',subtitle:'10 espetos + 4 refrigerantes + calabresa',price:89.90,start:'',end:'',active:true,order:3,image:'assets/promo-combo-resenha.webp',productIds:[]}
+{id:1,title:'10% no primeiro pedido',subtitle:'10% de desconto no primeiro pedido realizado no app',price:0,start:'',end:'',active:true,order:1,image:'assets/promo-10-primeiro-pedido.jpg',productIds:[]},
+{id:2,title:'Karaokê Double',subtitle:'Quarta-feira especial: Double Narguilé + Double Caipirinha',price:0,start:'',end:'',active:true,order:2,image:'assets/promo-karaoke-double.jpg',productIds:[]},
+{id:3,title:'Instagram e música ao vivo',subtitle:'Siga o Espetinho Perus no Instagram e acompanhe nossa programação',price:0,start:'',end:'',active:true,order:3,image:'assets/promo-instagram-musica.jpg',productIds:[]}
 ]}
 function normalizePromotion(x,i){return {id:x.id??Date.now()+i,title:x.title||'Nova promoção',subtitle:x.subtitle||'',price:Number(x.price||0),start:x.start||'',end:x.end||'',active:x.active!==false,order:Number(x.order??i+1),image:x.image||'',productIds:Array.isArray(x.productIds)?x.productIds:[]}}
 function promotionStatus(x){const t=today();if(!x.active)return 'disabled';if(x.start&&x.start>t)return 'scheduled';if(x.end&&x.end<t)return 'expired';return 'active'}

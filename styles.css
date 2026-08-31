@@ -165,9 +165,9 @@ body{
   z-index:-1;
   background:linear-gradient(90deg,rgba(12,8,5,.96) 0%,rgba(12,8,5,.76) 48%,rgba(12,8,5,.18) 100%);
 }
-.promo-one{background-image:url("assets/promo-combo-casal.webp")}
-.promo-two{background-image:url("assets/promo-combo-familia.webp")}
-.promo-three{background-image:url("assets/promo-combo-resenha.webp")}
+.promo-one{background-image:url("assets/promo-10-primeiro-pedido.jpg")}
+.promo-two{background-image:url("assets/promo-karaoke-double.jpg")}
+.promo-three{background-image:url("assets/promo-instagram-musica.jpg")}
 .promo-card>div{max-width:580px}
 .promo-card span{
   display:inline-flex;
