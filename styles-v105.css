@@ -2103,3 +2103,12 @@ button[data-add].added-feedback::after{
     padding-top:12px!important;
   }
 }
+
+
+/* V114 — sobe o slogan manuscrito do hero */
+@media(max-width:760px){
+  .hero-script{
+    top:6px!important;
+    right:10px!important;
+  }
+}
