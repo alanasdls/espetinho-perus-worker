@@ -4,7 +4,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const VERSION = '20260920-v126-logo-larger';
+const VERSION = '20260920-v127-criar-conta';
 const ART = 'assets/hero-reference-v117.webp';
 const EXPECTED_ART_SHA256 = 'ff59d613e0ac9fa4eefa8c46738c50680a888c2cabc127841675f15aaf20bea7';
 
@@ -26,7 +26,7 @@ function renderHero(original) {
     </div>
     <div class="hero-actions">
       <a class="btn primary" href="#cardapio"><svg class="ep-cta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 2v5c0 3 6 3 6 0V2M7 2v20M20 2c-3 3-4 6-4 10h4V2Zm0 10v10"/></svg><span>Ver cardápio</span><svg class="ep-cta-arrow" viewBox="0 0 12 20" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m3 3 6 7-6 7"/></svg></a>
-      <a class="btn ghost" href="#como-funciona"><svg class="ep-play-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m10 7 7 5-7 5Z" fill="currentColor"/></svg><span>Como funciona</span></a>
+      <a class="btn ghost hero-register-btn" href="cliente.html?mode=register"><svg class="ep-user-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg><span>Criar conta</span><svg class="ep-cta-arrow" viewBox="0 0 12 20" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m3 3 6 7-6 7"/></svg></a>
     </div>
     ${benefits[0]}
   </div>
