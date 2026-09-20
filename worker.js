@@ -554,9 +554,9 @@ function misticGatewayHeaders(env) {
 }
 
 async function consultarMisticPay(env,id) {
-  const r=await fetch("https://api.misticpay.com/api/transactions/check",{
+  const r=await fetch(`${misticApiBase(env)}/api/transactions/check`,{
     method:"POST",
-    headers:{ci:credenciaisMistic(env).ci,cs:credenciaisMistic(env).cs,"Content-Type":"application/json"},
+    headers:misticGatewayHeaders(env),
     body:JSON.stringify({transactionId:String(id)})
   });
   let data={}; try{data=await r.json()}catch{data={erro:"Resposta invalida da MisticPay"}}
@@ -1657,7 +1657,7 @@ export default { async fetch(request,env,ctx) {
     const tx=d?.data||d?.transaction||d;const paymentId=tx?.transactionId??tx?.id;if(paymentId===undefined||paymentId===null){p.payment_status="error";p.payment_status_detail="MisticPay nao retornou transactionId";await gravarPedido(env,p);return responder({erro:"A MisticPay nao retornou o ID da transacao.",detalhes:d},502)}
     const copiaCola=tx?.copyPaste||tx?.qrCode||tx?.qr_code;let qrBase64=texto(tx?.qrCodeBase64||tx?.qrcodeBase64||tx?.qr_code_base64,2000000);qrBase64=qrBase64.replace(/^data:image\/[^;]+;base64,/i,"");
     if(!copiaCola||!qrBase64){p.payment_status="error";p.payment_status_detail="QR Code ausente na resposta";await gravarPedido(env,p);return responder({erro:"A MisticPay nao retornou o QR Code Pix completo.",detalhes:d},502)}
-    p.payment_id=String(paymentId);p.payment_provider="misticpay";p.payment_status=statusMisticParaSite(tx?.transactionState||"PENDENTE");p.payment_status_detail=texto(tx?.transactionState||"PENDENTE",100);await gravarPedido(env,p);
+    p.payment_id=String(paymentId);p.payment_provider="misticpay";p.payment_status=statusMisticParaSite(tx?.transactionState||"PENDENTE");p.payment_status_detail=texto(tx?.transactionState||"PENDENTE",100);await gravarPedido(env,p);await env.ORDERS_KV.put(`payment:${paymentId}`,orderId);
     return responder({payment_id:String(paymentId),numero_pedido:orderId,tracking_token:p.tracking_token,status:p.payment_status,total,qr_code:copiaCola,qr_code_base64:qrBase64,ticket_url:tx?.qrcodeUrl||tx?.qrCodeUrl||null,resumo:itens.map(i=>`${i.quantity}x ${i.name}`).join(", "),diagnostico_disponivel:true},201);
   }catch(e){console.error(e);if(e?.code==="CUPOM_INVALIDO")return responder({erro:e.message},400);return responder({erro:"Erro ao criar o Pix.",detalhes:e instanceof Error?e.message:String(e)},500)}
 } };
