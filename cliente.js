@@ -126,8 +126,8 @@ $('#clientProfileForm').addEventListener('submit',async e=>{
 });
 
 function translateError(message=''){const m=message.toLowerCase();if(m.includes('invalid login'))return 'E-mail ou senha incorretos.';if(m.includes('already registered')||m.includes('already been registered'))return 'Este e-mail já possui cadastro.';if(m.includes('password'))return 'A senha precisa ter pelo menos 6 caracteres.';if(m.includes('rate limit'))return 'Muitas tentativas. Aguarde um pouco e tente novamente.';return message||'Não foi possível concluir. Tente novamente.'}
-function renderLoggedOut(){const access=$('#clientAccess'),dashboard=$('#clientDashboard');dashboard.hidden=true;dashboard.setAttribute('aria-hidden','true');access.hidden=false;access.setAttribute('aria-hidden','false');$('#clientGreeting').textContent='Sua conta. Seus pontos.';$('#clientAvatar').textContent='EP'}
-function renderHeader(){const name=currentProfile?.nome||currentUser?.user_metadata?.nome||currentUser?.user_metadata?.full_name||currentUser?.user_metadata?.name||'Cliente';$('#clientGreeting').textContent=`Olá, ${name.split(' ')[0]}!`;$('#clientAvatar').textContent=name.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase()||'EP'}
+function renderLoggedOut(){const access=$('#clientAccess'),dashboard=$('#clientDashboard');dashboard.hidden=true;dashboard.setAttribute('aria-hidden','true');access.hidden=false;access.setAttribute('aria-hidden','false');$('#clientGreeting').textContent='Sua conta. Seus pontos.';$('#clientAvatar').textContent='EP';$('#clientIntro').textContent='Entre para acompanhar seus pontos e vantagens.'}
+function renderHeader(){$('#clientIntro').textContent='Acompanhe seus pontos, resgates e pedidos.';const name=currentProfile?.nome||currentUser?.user_metadata?.nome||currentUser?.user_metadata?.full_name||currentUser?.user_metadata?.name||'Cliente';$('#clientGreeting').textContent=`Olá, ${name.split(' ')[0]}!`;$('#clientAvatar').textContent=name.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase()||'EP'}
 function empty(text,link=false){return `<div class="empty-client"><b>${esc(text)}</b>${link?'<br><a href="index.html#cardapio">Fazer primeiro pedido</a>':''}</div>`}
 
 async function apiFidelidade(path,options={}){
@@ -154,8 +154,8 @@ function renderOrderCard(o){
   const totalLabel=redeemed?`Resgate de ${points.toLocaleString('pt-BR')} pts`:fmt(o.total||o.valor_total||0);
   const pointsText=redeemed?'Sem geração de pontos':`+${Number(o?.loyalty?.points||o.pontos_gerados||0)} pontos`;
   return `<article class="client-order-card">
-    <div class="order-card-top"><div><strong>Pedido ${esc(o.order_id||o.numero_pedido||'')}</strong><small>${new Date(o.created_at||o.criado_em).toLocaleString('pt-BR')}</small></div><span class="order-status">${esc(statusLabel(o.order_status||o.status))}</span></div>
-    ${renderItems(o.items)}
+    <div class="order-card-top"><div><strong>Pedido • ${esc(String(o.order_id||o.numero_pedido||'').slice(-6))}</strong><small>${new Date(o.created_at||o.criado_em).toLocaleString('pt-BR')}</small></div><span class="order-status">${esc(statusLabel(o.order_status||o.status))}</span></div>
+    <details class="order-details"><summary>Ver detalhes</summary><small>${esc(o.order_id||o.numero_pedido||'')}</small>${renderItems(o.items)}</details>
     <div class="order-card-bottom"><strong>${esc(totalLabel)}</strong><small>${esc(pointsText)}</small></div>
   </article>`;
 }
@@ -180,7 +180,7 @@ function renderRewards(){
     return `<article class="reward-card ${enough?'reward-available':'reward-locked'}">
       <img src="${esc(image)}" alt="${esc(p.name)}" loading="lazy">
       <div class="reward-copy"><small>${fmt(p.price)}</small><h3>${esc(p.name)}</h3><strong>${Number(p.points||0).toLocaleString('pt-BR')} pontos</strong>
-      <button type="button" data-redeem-product="${esc(p.name)}" ${enough?'':'disabled'}>${enough?'Resgatar produto':'Pontos insuficientes'}</button></div>
+      <button type="button" data-redeem-product="${esc(p.name)}" ${enough?'':'disabled'}>${enough?'Resgatar':`Faltam ${Math.max(0,Number(p.points||0)-points).toLocaleString('pt-BR')} pontos`}</button></div>
     </article>`;
   }).join('');
 }
@@ -221,11 +221,16 @@ async function loadDashboard(){
   const orderList=ordersResult?.pedidos||[];
   $('#clientOrdersCount').textContent=orderList.length;
   $('#clientSpent').textContent=fmt(orderList.reduce((s,o)=>s+Number(o.total??o.valor_total??0),0));
+  $('#clientOrdersSummary').hidden=!orderList.length;
   $('#pointsHistory').innerHTML=(movs||[]).length?(movs||[]).map(m=>`<article class="client-order-card movement"><div><strong>${m.tipo==='debito'?'-':'+'}${Number(m.pontos).toLocaleString('pt-BR')} pontos</strong><small>${esc(m.descricao||'Movimentação de fidelidade')}</small></div><time>${new Date(m.criado_em).toLocaleDateString('pt-BR')}</time></article>`).join(''):empty('Você ainda não possui movimentações de pontos.');
   $('#clientOrders').innerHTML=orderList.length?orderList.map(renderOrderCard).join(''):renderLocalOrders();
   await loadRewards();
 }
-function renderLocalOrders(){let list=[];try{list=JSON.parse(localStorage.getItem('ep-customer-orders')||'[]')}catch{}if(!list.length)return empty('Nenhum pedido vinculado ainda.',true);return `<div class="local-note">Pedidos feitos neste aparelho antes da vinculação:</div>`+list.slice(0,10).map(o=>`<article class="client-order-card"><div class="order-card-top"><div><strong>${esc(o.order_id||'Pedido')}</strong><small>Histórico local</small></div></div><div class="order-card-bottom"><strong>${fmt(o.estimated_total||0)}</strong><small>Aguardando vinculação</small></div></article>`).join('')}
+function renderLocalOrders(){
+  let list=[];try{const saved=JSON.parse(localStorage.getItem('ep-customer-orders')||'[]');list=Array.isArray(saved)?saved:[]}catch{}
+  if(!list.length)return empty('Nenhum pedido vinculado disponível neste histórico.',true);
+  return '<div class="local-note"><b>Pedidos deste aparelho</b><br>Ainda não vinculados à conta. Os pontos são consultados separadamente no extrato.</div>'+list.slice(0,10).map(o=>`<article class="client-order-card local-order"><div class="order-card-top"><strong>Pedido • ${esc(String(o.order_id||'').slice(-6))}</strong></div><div class="order-card-bottom"><strong>${fmt(o.estimated_total||0)}</strong><span class="order-status">Aguardando vinculação</span></div><details class="order-details"><summary>Ver detalhes</summary><small>${esc(o.order_id||'Pedido')} · Histórico deste aparelho</small></details></article>`).join('');
+}
 
 
 $('#rewardsSearch')?.addEventListener('input',renderRewards);

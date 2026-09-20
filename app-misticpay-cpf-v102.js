@@ -896,3 +896,11 @@ document.addEventListener('click',e=>{
 // V90 — sincroniza visualmente a promoção com a sessão do cliente
 window.addEventListener('load',()=>setTimeout(epRefreshRegisteredDiscount,300));
 window.addEventListener('ep-loyalty-session-changed',epRefreshRegisteredDiscount);
+
+// Navegação da área do cliente para o carrinho da página inicial.
+function openCartFromAccount(){
+  if(location.hash==='#carrinho') document.querySelector('#floatingCart')?.click();
+}
+window.addEventListener('hashchange',openCartFromAccount);
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',openCartFromAccount);
+else openCartFromAccount();

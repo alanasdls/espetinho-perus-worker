@@ -266,3 +266,57 @@ button,input{font:inherit}
   .reward-card{grid-template-columns:88px 1fr}
   .reward-card img{width:88px;min-height:126px}
 }
+
+/* V144 — área do cliente aprovada: saldo, três abas e listas compactas. */
+:root{--ink:#242424;--red:#ea1d2c;--muted:#716c67;--shadow:0 4px 18px rgba(30,20,12,.05)}
+body{background:#f6f3ef;color:var(--ink);padding-bottom:calc(78px + env(safe-area-inset-bottom,0px))}
+.client-top{background:#0c0a08;min-height:70px;box-shadow:none;gap:10px}
+.client-brand{min-width:0;gap:8px}.client-brand img{object-fit:contain;mix-blend-mode:screen;border-radius:0}
+.client-brand strong{font-size:17px;letter-spacing:0}.client-brand small{font-size:12px;letter-spacing:.02em;text-transform:none}
+.client-order-link{background:var(--red);box-shadow:none;font-size:14px;border-radius:12px;white-space:nowrap}
+.client-main{margin:18px auto;width:min(1100px,calc(100% - 32px))}
+.client-hero{min-height:0;padding:0 2px 16px;gap:12px;background:none;color:var(--ink);box-shadow:none;border-radius:0;overflow:visible}
+.client-hero>div:first-child{min-width:0}.client-hero>div>small{display:none}
+.client-hero h1{font:700 25px/1.2 Roboto,Arial,sans-serif;text-transform:none;margin:0 0 5px}
+.client-hero p{color:var(--muted);font-size:14px;line-height:1.4}
+.client-avatar{width:46px;height:46px;flex-basis:46px;border-radius:50%;font-size:20px;box-shadow:none;background:#ffe2a0}
+.client-balance{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px;background:#fff;border-radius:18px;box-shadow:var(--shadow)}
+.client-balance span,.client-balance small{display:block;color:var(--muted);font-size:14px}
+.client-balance strong{display:block;font-size:28px;line-height:1.15;margin:4px 0;color:#8b4310}
+.client-balance button{border:0;border-radius:12px;background:var(--red);color:#fff;font-weight:700;min-height:44px;padding:10px 14px;cursor:pointer}
+.client-tabs{position:static;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:4px;margin:14px 0;border-radius:14px;overflow:visible;box-shadow:none}
+.client-tabs button{min-width:0;min-height:44px;padding:8px 4px;font-size:14px;white-space:nowrap;border-radius:10px}
+.client-tabs button.active{background:var(--red)}
+.client-panel{padding:16px;border-radius:18px;scroll-margin-top:85px}
+.panel-head{gap:10px;margin-bottom:14px}.panel-head small{display:none}
+.panel-head h2{font:700 22px/1.25 Roboto,Arial,sans-serif;text-transform:none;margin:0;overflow-wrap:anywhere}
+.panel-head a{background:var(--red);font-size:13px;padding:10px 12px;white-space:nowrap;min-height:40px;display:flex;align-items:center}
+.client-orders{gap:10px}.client-order-card{padding:13px;border-radius:14px;background:#fff;border-color:#e8e4e0}
+.movement{align-items:flex-start;gap:10px}.movement>div{min-width:0}.movement strong{font-size:16px}
+.movement small{font-size:13px;line-height:1.4;overflow-wrap:anywhere}.movement time{flex:none;font-size:12px;margin-top:2px;white-space:nowrap}
+.loyalty-explain{font-size:13px;padding:12px;margin:14px 0 0;border-radius:12px;line-height:1.45}
+.rewards-head{align-items:center}.rewards-head p{font-size:13px;margin:5px 0 0}.rewards-balance{display:none}
+.rewards-toolbar input{min-height:46px;font-size:16px;border-color:#e1dcd7}
+.rewards-message{font-size:12px;font-weight:500;margin-bottom:10px}
+.rewards-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.reward-card{grid-template-columns:82px minmax(0,1fr);min-height:106px;background:#fff;border-color:#e8e4e0;border-radius:14px}
+.reward-card img{width:82px;height:100%;min-height:106px;object-fit:cover}
+.reward-copy{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto auto;column-gap:8px;padding:10px;align-items:center}
+.reward-copy h3{grid-column:1;grid-row:1;font-size:14px;line-height:1.25;margin:0 0 4px;overflow-wrap:anywhere}
+.reward-copy strong{grid-column:1;grid-row:2;font-size:15px}
+.reward-copy small{grid-column:1;grid-row:3;font-size:12px;font-weight:400;margin-top:3px}
+.reward-copy button{grid-column:2;grid-row:1/4;max-width:112px;min-height:40px;align-self:center;margin:0;padding:8px 12px;font-size:13px;background:var(--red);border-radius:10px}
+.reward-copy button:disabled{background:#e7e5e3;color:#68625e}
+.order-card-top{flex-direction:row;align-items:flex-start;gap:8px}.order-card-top strong{font-size:16px}.order-card-top small{font-size:12px}
+.order-card-bottom{flex-direction:row;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}.order-card-bottom strong{font-size:18px}
+.order-status{font-size:12px;white-space:normal;padding:6px 9px}
+.order-details{margin:10px 0 0;font-size:13px;color:var(--muted)}
+.order-details summary{cursor:pointer;min-height:32px;padding:7px 0}.order-details small{overflow-wrap:anywhere}
+.local-note{font-size:13px;line-height:1.45;padding:12px;background:#f5f2ee}
+.client-actions{justify-content:space-between}.client-actions button{font-size:14px}.client-actions button.active{border-color:var(--red);color:var(--red)}
+.client-bottom-nav{min-height:64px;padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));background:#0b0b0b;border-color:#292929;box-shadow:none}
+.client-bottom-nav a{color:#eee;min-height:48px;gap:3px}.client-bottom-nav a.active{color:var(--red)}
+.client-bottom-nav svg{display:block;width:24px;height:24px}.client-bottom-nav small{font-size:12px}
+button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--red);outline-offset:3px}
+@media(max-width:700px){.rewards-grid{grid-template-columns:1fr}.client-panel{padding:14px}.client-top{padding:8px 12px}.client-brand img{width:42px;height:44px}.client-brand strong{font-size:15px}.client-brand small{font-size:11px}.client-order-link{padding:0 10px;font-size:13px}.client-balance{padding:14px}.client-balance strong{font-size:25px}.client-balance button{font-size:14px}.panel-head h2{font-size:20px}}
+@media(max-width:380px){.client-main{width:calc(100% - 24px)}.reward-card{grid-template-columns:66px minmax(0,1fr)}.reward-card img{width:66px}.reward-copy{column-gap:5px;padding:8px}.reward-copy button{padding:8px;font-size:12px;max-width:87px}.client-balance strong{font-size:23px}.client-balance button{padding:9px 10px}.client-brand strong{font-size:14px}.client-order-link{font-size:12px}}
