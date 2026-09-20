@@ -4,7 +4,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const VERSION = '20260920-v117-reference-verified';
+const VERSION = '20260920-v124-logo-header';
 const ART = 'assets/hero-reference-v117.webp';
 const EXPECTED_ART_SHA256 = 'ff59d613e0ac9fa4eefa8c46738c50680a888c2cabc127841675f15aaf20bea7';
 
@@ -15,7 +15,7 @@ function renderHero(original) {
   return `<header class="hero ep-reference-header" id="inicio" data-hero-version="${VERSION}">
   <div class="ep-reference-art" aria-hidden="true"><img src="${ART}" width="317" height="331" alt="" fetchpriority="high" decoding="async"></div>
   <nav aria-label="Navegação principal">
-    <a class="brand" href="#inicio">ESPETINHO <small>PERUS</small></a>
+    <a class="brand brand-logo" href="#inicio" aria-label="Espetinho Perus"><img src="logo-premium.png" alt="Espetinho Perus"></a>
     ${navlinks[0]}
     <span class="ep-reference-slogan">Sabor,<br>cerveja gelada<br>e resenha</span>
   </nav>
