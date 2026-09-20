@@ -4,7 +4,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const VERSION = '20260920-v142-approved-home';
+const VERSION = '20260920-v143-approved-home';
 const ART = 'assets/hero-approved-v142.webp';
 const EXPECTED_ART_SHA256 = '01edd3090025a549ebe5535b649642cb2a1ecfcfbccc923d3662695ea73607de';
 
@@ -51,6 +51,8 @@ function prepare(dist = 'dist', root = __dirname) {
       bytes.subarray(0, 4).toString() !== 'RIFF' || bytes.subarray(8, 12).toString() !== 'WEBP') {
     throw new Error('Approved header image is invalid or corrupted; not publishing.');
   }
+  // Embed the verified hero so static-host fallback cannot replace it with HTML.
+  html = html.replace(`src="${ART}"`, () => `src="data:image/webp;base64,${bytes.toString('base64')}"`);
   fs.mkdirSync(path.join(dist, 'assets'), {recursive: true});
   fs.writeFileSync(path.join(dist, ART), bytes);
   const cssPath = path.join(dist, 'styles-v105.css');
