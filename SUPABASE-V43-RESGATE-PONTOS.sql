@@ -1,5 +1,5 @@
 -- ESPETINHO PERUS — V43
--- Execute uma única vez no SQL Editor do Supabase ANTES de publicar o Worker V43.
+-- Dependência do Worker: RPC restrita ao service_role, com privilégios do chamador.
 -- Não apaga dados. Cria somente a função transacional de débito de pontos usada nos resgates.
 
 begin;
@@ -15,8 +15,8 @@ returns table (
   saldo_atual integer
 )
 language plpgsql
-security definer
-set search_path = public
+security invoker
+set search_path = public, pg_temp
 as $$
 declare
   v_saldo integer;
@@ -62,4 +62,7 @@ revoke all on function public.resgatar_pontos_produto(uuid,integer,text) from an
 revoke all on function public.resgatar_pontos_produto(uuid,integer,text) from authenticated;
 grant execute on function public.resgatar_pontos_produto(uuid,integer,text) to service_role;
 
+notify pgrst, 'reload schema';
+
 commit;
+
