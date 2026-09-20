@@ -3034,3 +3034,24 @@ button[data-add].added-feedback::after{
     overflow:hidden!important;
   }
 }
+
+
+/* V136 — reduz diferença entre cabeçalho e cards */
+@media(max-width:760px){
+  main{
+    padding-top:6px!important;
+  }
+
+  .store-schedule{
+    margin:8px 0 8px!important;
+  }
+
+  .promo-section{
+    margin:0 0 8px!important;
+  }
+
+  .menu-section{
+    margin-top:8px!important;
+    padding-top:22px!important;
+  }
+}
