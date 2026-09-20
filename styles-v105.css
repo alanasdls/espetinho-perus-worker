@@ -3015,3 +3015,22 @@ button[data-add].added-feedback::after{
     margin-right:0!important;
   }
 }
+
+
+/* V135 — acabamento superior dos cards em largura total */
+@media(max-width:760px){
+  .store-schedule{
+    width:100%!important;
+    max-width:none!important;
+    margin:12px 0!important;
+    border-radius:24px!important;
+  }
+
+  .promo-section{
+    width:100%!important;
+    max-width:none!important;
+    margin:0 0 12px!important;
+    border-radius:24px!important;
+    overflow:hidden!important;
+  }
+}
