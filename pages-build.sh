@@ -15,6 +15,9 @@ mkdir -p "$DIST/assets"
 if [ -s "assets-src/hero-v112.b64" ]; then
   base64 -d "assets-src/hero-v112.b64" > "$DIST/assets/hero-v112.webp"
 fi
+if [ -s "assets-src/hero-v117.b64" ]; then
+  base64 -d "assets-src/hero-v117.b64" > "$DIST/assets/hero-v117.webp"
+fi
 if [ -s "assets-src/promo-combo-casal.b64" ]; then
   base64 -d "assets-src/promo-combo-casal.b64" > "$DIST/assets/promo-combo-casal.webp"
 fi

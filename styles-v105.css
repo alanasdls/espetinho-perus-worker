@@ -2398,3 +2398,106 @@ button[data-add].added-feedback::after{
     padding-top:12px!important;
   }
 }
+
+
+/* V117 — cerveja e espetinhos proporcionais à referência */
+@media(max-width:760px){
+  .hero{
+    position:relative!important;
+    overflow:hidden!important;
+    background:#080604!important;
+    isolation:isolate!important;
+  }
+
+  .hero::before{
+    content:""!important;
+    position:absolute!important;
+    inset:0!important;
+    z-index:0!important;
+    background:
+      url('assets/hero-v117.webp') center right / cover no-repeat!important;
+    opacity:1!important;
+    pointer-events:none!important;
+    -webkit-mask-image:none!important;
+    mask-image:none!important;
+  }
+
+  .hero::after{
+    content:""!important;
+    position:absolute!important;
+    inset:0!important;
+    z-index:1!important;
+    pointer-events:none!important;
+    background:
+      linear-gradient(90deg,
+        rgba(8,6,4,.98) 0%,
+        rgba(8,6,4,.96) 27%,
+        rgba(8,6,4,.82) 41%,
+        rgba(8,6,4,.42) 57%,
+        rgba(8,6,4,.10) 72%,
+        rgba(8,6,4,0) 100%),
+      linear-gradient(180deg,
+        rgba(8,6,4,.72) 0%,
+        rgba(8,6,4,.22) 16%,
+        rgba(8,6,4,0) 34%,
+        rgba(8,6,4,0) 72%,
+        rgba(8,6,4,.42) 86%,
+        #080604 100%)!important;
+  }
+
+  .hero nav,
+  .hero-inner{
+    position:relative!important;
+    z-index:2!important;
+  }
+
+  .hero-art{
+    position:absolute!important;
+    inset:0!important;
+    background:none!important;
+    width:auto!important;
+    height:auto!important;
+    border:0!important;
+    box-shadow:none!important;
+    overflow:visible!important;
+    z-index:4!important;
+    pointer-events:none!important;
+  }
+  .hero-art::after{display:none!important}
+
+  .hero-script{
+    top:-72px!important;
+    right:18px!important;
+    font-size:19px!important;
+    line-height:1.06!important;
+    text-shadow:0 3px 12px rgba(0,0,0,.72)!important;
+  }
+
+  .hero-copy{
+    width:76%!important;
+    min-height:338px!important;
+    padding-top:8px!important;
+  }
+
+  .hero h1{
+    font-size:clamp(40px,11.4vw,50px)!important;
+    line-height:.89!important;
+    white-space:nowrap!important;
+  }
+
+  .hero p{
+    width:72%!important;
+    max-width:295px!important;
+    margin-top:20px!important;
+    font-size:14.5px!important;
+    line-height:1.4!important;
+  }
+
+  .hero-actions{
+    margin-top:7px!important;
+  }
+
+  .app-benefits{
+    margin-top:16px!important;
+  }
+}
