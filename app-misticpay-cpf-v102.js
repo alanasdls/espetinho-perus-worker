@@ -570,12 +570,13 @@ async function epApiHeaders(){
   const headers={'Content-Type':'application/json'};
   const db=window.epLoyaltyDb;
   if(!db){
-    throw new Error('A área de fidelidade ainda não carregou. Atualize a página e entre novamente na sua conta.');
+    epRegisteredCustomer=false;
+    updateOrderSummary();
+    return headers;
   }
 
-  let session=null;
   try{
-    ({data:{session}}=await db.auth.getSession());
+    let {data:{session}}=await db.auth.getSession();
     if(!session&&window.epLoyaltyGetAccessToken){
       await window.epLoyaltyGetAccessToken();
       ({data:{session}}=await db.auth.getSession());
@@ -584,18 +585,24 @@ async function epApiHeaders(){
       const expiresAt=Number(session.expires_at||0)*1000;
       if(expiresAt&&expiresAt-Date.now()<120000){
         const refreshed=await db.auth.refreshSession();
-        if(refreshed.error)throw refreshed.error;
-        session=refreshed.data.session;
+        if(!refreshed.error)session=refreshed.data.session;
       }
     }
     if(!session?.access_token){
-      throw new Error('Entre na sua conta neste mesmo endereço do site antes de concluir o pedido.');
+      epRegisteredCustomer=false;
+      window.epLoyaltyCustomerId='';
+      window.epLoyaltyAccessToken='';
+      updateOrderSummary();
+      return headers;
     }
 
-    // Valida o token antes de criar o pedido para impedir pedidos sem vínculo de fidelidade.
     const {data:userData,error:userError}=await db.auth.getUser(session.access_token);
     if(userError||!userData?.user?.id){
-      throw userError||new Error('Sessão inválida.');
+      epRegisteredCustomer=false;
+      window.epLoyaltyCustomerId='';
+      window.epLoyaltyAccessToken='';
+      updateOrderSummary();
+      return headers;
     }
 
     window.epLoyaltyCustomerId=userData.user.id;
@@ -606,11 +613,14 @@ async function epApiHeaders(){
     updateOrderSummary();
     return headers;
   }catch(e){
-    console.warn('Falha ao validar sessão de fidelidade',e);
-    throw new Error(e?.message||'Sua sessão expirou. Entre novamente na conta antes de fazer o pedido.');
+    console.warn('Sessão de fidelidade indisponível; pedido seguirá sem cadastro',e);
+    epRegisteredCustomer=false;
+    window.epLoyaltyCustomerId='';
+    window.epLoyaltyAccessToken='';
+    updateOrderSummary();
+    return headers;
   }
 }
-
 function getOrderPayload(requireCpf=true){
   const ids=Object.keys(cart);
   if(!ids.length){ alert('Adicione pelo menos um item ao pedido.'); return null; }
@@ -636,7 +646,7 @@ function getOrderPayload(requireCpf=true){
     items:ids.map(id=>({name:products[id].name,quantity:cart[id]})),
     order_id:`EP-${Date.now()}`,
     site_url:window.location.origin,
-    promotion:{code:'CADASTRADO10',discount_rate:0.10},
+    promotion:epRegisteredCustomer?{code:'CADASTRADO10',discount_rate:0.10}:null,
     coupon_code:epCouponState.valid?epCouponState.code:null
   };
   epSaveCustomerOrder(payload);
