@@ -296,7 +296,18 @@ function showItemAdded(id){
   },2200);
 }
 function add(id){if(!epCartEditable())return;cart[id]=(cart[id]||0)+1;updateCart();showItemAdded(id)}
-function change(id,d){if(!epCartEditable())return;cart[id]=(cart[id]||0)+d;if(cart[id]<=0)delete cart[id];updateCart();if(d>0)showItemAdded(id)}function updateCart(){epPersistCart();const ids=Object.keys(cart);const cartQty=ids.reduce((s,id)=>s+cart[id],0);const topCartCount=document.querySelector('#cartCount');if(topCartCount)topCartCount.textContent=cartQty;document.querySelector('#floatingCartCount').textContent=cartQty;document.querySelector('#cartItems').innerHTML=ids.length?ids.map(id=>{const p=products[id],q=cart[id];return `<div class="cart-item"><div><h4>${p.name}</h4><small>${fmt(p.price)} cada${p.reward?` · Resgate: ${p.rewardPoints} pontos`:""}</small></div><div class="qty"><button onclick="change(${id},-1)">−</button><b>${q}</b><button onclick="change(${id},1)">+</button><button class="remove" onclick="change(${id},-${q})">remover</button></div></div>`}).join(''):'<div class="empty">Seu carrinho está vazio.</div>';updateOrderSummary()}
+function change(id,d){if(!epCartEditable())return;cart[id]=(cart[id]||0)+d;if(cart[id]<=0)delete cart[id];updateCart();if(d>0)showItemAdded(id)}function updateCart(){
+  epPersistCart();
+  const ids=Object.keys(cart),cartQty=ids.reduce((sum,id)=>sum+cart[id],0);
+  const topCartCount=document.querySelector('#cartCount');if(topCartCount)topCartCount.textContent=cartQty;
+  document.querySelector('#floatingCartCount').textContent=cartQty;
+  const escape=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+  document.querySelector('#cartItems').innerHTML=ids.length?ids.map(id=>{
+    const p=products[id],q=cart[id];
+    return `<article class="cart-item"><img class="cart-item-photo" src="${escape(p.image||'logo-premium.png')}" alt="" loading="lazy"><div class="cart-item-copy"><h4>${escape(p.name)}</h4><strong class="cart-item-price">${fmt(p.price*q)}</strong>${p.reward?`<span class="cart-reward-badge">Resgate · ${p.rewardPoints*q} pontos</span>`:''}</div><div class="qty"><button type="button" aria-label="Diminuir quantidade de ${escape(p.name)}" onclick="change(${id},-1)">−</button><b>${q}</b><button type="button" aria-label="Aumentar quantidade de ${escape(p.name)}" onclick="change(${id},1)">+</button></div><button type="button" class="cart-remove" aria-label="Remover ${escape(p.name)}" onclick="change(${id},-${q})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg></button></article>`;
+  }).join(''):'<div class="empty">Seu carrinho está vazio.</div>';
+  updateOrderSummary();
+}
 const overlay=document.querySelector('#cartOverlay');const floatingCart=document.querySelector('#floatingCart');document.documentElement.appendChild(floatingCart);const openCartPanel=()=>{overlay.style.display='';overlay.removeAttribute('aria-hidden');overlay.classList.add('open');document.body.classList.add('cart-open')};const closeCartPanel=()=>{overlay.classList.remove('open');overlay.setAttribute('aria-hidden','true');overlay.style.display='none';document.body.classList.remove('cart-open')};const topCartButton=document.querySelector('#openCart');if(topCartButton)topCartButton.onclick=openCartPanel;floatingCart.onclick=openCartPanel;document.querySelector('#closeCart').onclick=closeCartPanel;const itemAddedToast=document.querySelector('#itemAddedToast');if(itemAddedToast)itemAddedToast.onclick=()=>{itemAddedToast.classList.remove('show');openCartPanel()};overlay.onclick=e=>{if(e.target===overlay)closeCartPanel()};let DELIVERY_FEE=Number(epGeneralConfig.deliveryFee??10);
 const PERUS_CEP_PREFIXES=new Set(['05201','05202','05203','05204','05205','05206','05207','05208','05209','05210','05211','05212','05215','05230']);
 const fulfillmentSelect=document.querySelector('#fulfillment');
@@ -444,11 +455,17 @@ function updateOrderSummary(){
   if(couponEl){couponEl.textContent=`- ${fmt(couponExtra)}`;couponEl.classList.toggle('muted-fee',!epCouponState.valid||couponExtra<=0);}
   if(couponLabel)couponLabel.classList.toggle('muted-fee',!epCouponState.valid||couponExtra<=0);
   if(promoInfo)promoInfo.textContent=epRegisteredCustomer?'✓ Desconto de 10% de cliente cadastrado considerado automaticamente.':'🎁 Entre ou cadastre-se para receber 10% de desconto em todos os produtos.';
-  document.querySelector('#deliveryFee').textContent=fmt(fee);
+  document.querySelector('#deliveryFee').textContent=isDelivery()?fmt(fee):'Grátis';
+  document.querySelector('#deliveryFeeLabel').textContent=isDelivery()?'Taxa de entrega':'Retirada';
+  if(couponEl)couponEl.hidden=!epCouponState.valid||couponExtra<=0;
+  if(couponLabel)couponLabel.hidden=!epCouponState.valid||couponExtra<=0;
+  if(discountEl)discountEl.hidden=registeredDiscount<=0;
+  if(discountLabel)discountLabel.hidden=registeredDiscount<=0;
   document.querySelector('#deliveryFeeLabel').classList.toggle('muted-fee',!isDelivery());
   document.querySelector('#deliveryFeeInfo').textContent=isDelivery()?'CEP atendido em Perus: taxa fixa de R$ 10,00.':'Retirada no local: sem taxa de entrega.';
   document.querySelector('#cartTotal').textContent=fmt(total);
   updateCheckoutAvailability();
+  window.epUpdateCartDesign?.(total);
 }
 const atualizarRecebimento=()=>{document.querySelector('#addressWrap').classList.toggle('hidden',!isDelivery());updateOrderSummary()};
 fulfillmentSelect.onchange=atualizarRecebimento;
@@ -623,6 +640,10 @@ async function epApiHeaders(){
   }
 }
 function getOrderPayload(requireCpf=true){
+  const zeroRewardPickup=!isDelivery()&&getSubtotal()===0&&Object.keys(cart).some(id=>products[id]?.reward);
+  if(zeroRewardPickup)requireCpf=false;
+  const details=document.getElementById('customerDetails');
+  if(details&&(!document.querySelector('#customerName').value.trim()||!document.querySelector('#customerEmail').value.trim()||!document.querySelector('#customerPhone').value.trim()||(requireCpf&&!validarCpf(document.querySelector('#customerCpf').value))))details.open=true;
   const ids=Object.keys(cart);
   if(!ids.length){ alert('Adicione pelo menos um item ao pedido.'); return null; }
   const name=document.querySelector('#customerName').value.trim();
