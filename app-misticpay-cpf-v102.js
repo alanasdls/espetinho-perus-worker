@@ -184,7 +184,8 @@ const curatedPhotos = {
 };
 products.forEach((p,index)=>{
   const list=curatedPhotos[p.category]||curatedPhotos['Porções'];
-  p.image=localProductPhotos[p.name] || list[index % list.length];
+  p.fallbackImage=list[index % list.length];
+  p.image=localProductPhotos[p.name] || p.fallbackImage;
   p.badge = index % 17 === 0 ? 'Mais pedido' : index % 29 === 0 ? 'Destaque' : '';
 });
 // V79 — aplica prévias salvas pelo painel administrativo neste navegador
@@ -272,7 +273,7 @@ function isPackagedDrink(p){
 function render(){
   const q=search.value.toLowerCase();
   const list=products.filter(p=>p.available!==false&&(active==='Todos'||p.category===active)&&(p.name.toLowerCase().includes(q)||p.category.toLowerCase().includes(q)));
-  grid.innerHTML=list.length?list.map(p=>`<article class="menu-card"><div class="product-image ${isPackagedDrink(p)?'packaged-drink':''}"><img src="${p.image}" alt="${p.name}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='assets/503042.jpg'"><button class="favorite ${favorites.includes(p.id)?'active':''}" onclick="toggleFavorite(${p.id})" aria-label="Favoritar">${favorites.includes(p.id)?'♥':'♡'}</button>${p.badge?`<span class="badge">${p.badge}</span>`:''}</div><div class="menu-card-content"><small>${p.category}</small><h3>${p.name}</h3>${p.description&&p.description.trim()?`<p>${p.description}</p>`:''}<footer><span class="price">${fmt(p.price)}</span><button class="add" onclick="add(${p.id})" aria-label="Adicionar ${p.name} ao carrinho" title="Adicionar ao carrinho"><b>+</b></button></footer></div></article>`).join(''):'<p class="empty">Nenhum item encontrado.</p>';
+  grid.innerHTML=list.length?list.map(p=>`<article class="menu-card"><div class="product-image ${isPackagedDrink(p)?'packaged-drink':''}"><img src="${p.image}" alt="${p.name}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${p.fallbackImage}'"><button class="favorite ${favorites.includes(p.id)?'active':''}" onclick="toggleFavorite(${p.id})" aria-label="Favoritar">${favorites.includes(p.id)?'♥':'♡'}</button>${p.badge?`<span class="badge">${p.badge}</span>`:''}</div><div class="menu-card-content"><small>${p.category}</small><h3>${p.name}</h3>${p.description&&p.description.trim()?`<p>${p.description}</p>`:''}<footer><span class="price">${fmt(p.price)}</span><button class="add" onclick="add(${p.id})" aria-label="Adicionar ${p.name} ao carrinho" title="Adicionar ao carrinho"><b>+</b></button></footer></div></article>`).join(''):'<p class="empty">Nenhum item encontrado.</p>';
 }
 search.oninput=render;render();
 let itemAddedTimer;

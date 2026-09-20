@@ -1590,7 +1590,7 @@ button[data-add].added-feedback::after{
     background:
       linear-gradient(90deg,#0d0805 0%,rgba(13,8,5,.70) 16%,rgba(13,8,5,.12) 54%,rgba(13,8,5,.03) 100%),
       linear-gradient(0deg,rgba(6,4,3,.12),rgba(6,4,3,.02)),
-      url('assets/products/carne-e-bacon-20260723.webp') 50% 50%/cover no-repeat;
+      url('https://images.unsplash.com/photo-1529042410759-befb1204b468?auto=format&fit=crop&w=1000&q=88') 50% 50%/cover no-repeat;
     box-shadow:-28px 22px 50px rgba(0,0,0,.34);
   }
   .hero-art:after{
@@ -1721,4 +1721,47 @@ button[data-add].added-feedback::after{
   .mobile-app-nav a,.mobile-app-nav button{color:#f3eee9!important}
   .mobile-app-nav .active{color:#f11b31!important}
   .mobile-app-nav small{color:inherit!important}
+}
+
+
+/* V110 — imagens resilientes e promo editorial */
+@media(max-width:760px){
+  .promo-section{background:#090705!important}
+  .promo-card{
+    aspect-ratio:1.72 / 1!important;
+    min-height:0!important;
+    padding:22px 20px 42px!important;
+    background-size:cover!important;
+    background-position:center!important;
+    align-items:flex-end!important;
+  }
+  .promo-card::before{
+    display:block!important;
+    background:linear-gradient(90deg,rgba(7,4,2,.94) 0%,rgba(7,4,2,.72) 48%,rgba(7,4,2,.20) 100%)!important;
+  }
+  .promo-card>div{max-width:72%}
+  .promo-card span{
+    padding:5px 8px!important;
+    font-size:9px!important;
+    background:#e22b24!important;
+    color:#fff!important;
+  }
+  .promo-card h2{
+    margin:8px 0 5px!important;
+    font-size:28px!important;
+    color:#fff!important;
+  }
+  .promo-card p{
+    margin:0!important;
+    font-size:11px!important;
+    line-height:1.35!important;
+    color:#f6ece4!important;
+  }
+  .promo-card a{
+    min-height:36px!important;
+    margin-top:9px!important;
+    padding:0 13px!important;
+    border-radius:10px!important;
+    font-size:11px!important;
+  }
 }
