@@ -4,7 +4,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const VERSION = '20260920-v139-logo-left';
+const VERSION = '20260920-v140-safe-left-edge';
 const ART = 'assets/hero-reference-v117.webp';
 const EXPECTED_ART_SHA256 = 'ff59d613e0ac9fa4eefa8c46738c50680a888c2cabc127841675f15aaf20bea7';
 
