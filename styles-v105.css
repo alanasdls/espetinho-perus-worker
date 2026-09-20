@@ -2541,3 +2541,51 @@ button[data-add].added-feedback::after{
     line-height:0!important;
   }
 }
+
+
+/* V119 — CTA Cadastre-se alinhado ao Ver cardápio */
+@media(max-width:760px){
+  .hero-actions{
+    grid-template-columns:1.06fr .94fr!important;
+    align-items:stretch!important;
+  }
+  .hero-actions .btn{
+    display:grid!important;
+    grid-template-columns:auto 1fr auto!important;
+    align-items:center!important;
+    column-gap:8px!important;
+    min-width:0!important;
+    padding:0 14px!important;
+    text-align:center!important;
+  }
+  .hero-actions .btn>span:nth-child(2){
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+  }
+  .hero-register-btn{
+    background:rgba(6,4,3,.70)!important;
+    border:1px solid rgba(255,255,255,.76)!important;
+    backdrop-filter:blur(2px)!important;
+  }
+  .hero-user-icon{
+    width:28px!important;
+    height:28px!important;
+    display:grid!important;
+    place-items:center!important;
+    color:#fff!important;
+  }
+  .hero-user-icon svg{
+    width:25px!important;
+    height:25px!important;
+    fill:none!important;
+    stroke:currentColor!important;
+    stroke-width:1.8!important;
+    stroke-linecap:round!important;
+    stroke-linejoin:round!important;
+  }
+  .hero-register-btn .hero-btn-arrow{
+    margin-left:0!important;
+    font-size:1.45em!important;
+  }
+}
