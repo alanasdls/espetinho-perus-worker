@@ -541,3 +541,43 @@
     margin-top:0!important;
   }
 }
+
+
+/* V133 — corrige enquadramentos gerais da home mobile */
+@media(max-width:760px){
+  .hero.ep-reference-header{
+    overflow:hidden!important;
+  }
+
+  .hero.ep-reference-header .hero-inner{
+    padding-top:6px!important;
+    padding-bottom:14px!important;
+  }
+
+  .hero.ep-reference-header .hero-copy{
+    position:relative!important;
+    z-index:2!important;
+  }
+
+  .hero.ep-reference-header h1{
+    margin:0 0 10px!important;
+  }
+
+  .hero.ep-reference-header .ep-reference-summary{
+    margin:10px 0 0!important;
+  }
+
+  .hero.ep-reference-header .hero-actions{
+    margin-top:14px!important;
+  }
+
+  .hero.ep-reference-header .app-benefits{
+    margin:8px 0 0!important;
+  }
+
+  .hero.ep-reference-header .ep-reference-art{
+    top:calc(84px + 2vw)!important;
+    right:0!important;
+    width:56%!important;
+  }
+}
