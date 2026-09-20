@@ -90,7 +90,7 @@ $('#registerForm').addEventListener('submit',async e=>{
     const {data,error}=await db.auth.signUp({email,password,options:{data:{nome:name,first_name:names.first_name,last_name:names.last_name,telefone:phone,cpf,birth_date,address}}});
     if(error)throw error;
     if(!data.session){authMessage('Conta criada. Faça o login para continuar.','success');showTab('login');$('#loginEmail').value=email;return}
-    toast('Conta criada com sucesso.');await loadSession().catch(err=>{console.error('Falha ao abrir área do cliente',err);renderLoggedOut();authMessage(err?.message||'Não foi possível carregar sua conta. Tente entrar novamente.','error')});
+    toast('Conta criada com sucesso.');await loadSession();
   }catch(err){authMessage(translateError(err.message),'error')}
   finally{setBusy(form,false)}
 });
@@ -255,4 +255,4 @@ $('#rewardsGrid')?.addEventListener('click',async e=>{
 async function loadSession(){const session=await getPersistentSession();if(!session){renderLoggedOut();return}currentUser=session.user;let {data:profile}=await db.from('clientes').select('id,nome,telefone,email,pontos,ativo').eq('id',currentUser.id).maybeSingle();if(!profile){await new Promise(r=>setTimeout(r,500));({data:profile}=await db.from('clientes').select('id,nome,telefone,email,pontos,ativo').eq('id',currentUser.id).maybeSingle())}const meta=currentUser.user_metadata||{};currentProfile={...(profile||{id:currentUser.id,nome:meta.nome||meta.full_name||meta.name||'Cliente',telefone:meta.telefone||'',email:currentUser.email,pontos:0}),cpf:meta.cpf||'',birth_date:meta.birth_date||'',address:meta.address||{}};localStorage.setItem('ep-customer-profile',JSON.stringify({name:currentProfile.nome,phone:currentProfile.telefone,email:currentUser.email,cpf:currentProfile.cpf,birth_date:currentProfile.birth_date,address:currentProfile.address}));localStorage.setItem('ep-loyalty-user-id',currentUser.id);await loadDashboard()}
 
 db.auth.onAuthStateChange((_event,session)=>{if(session)saveSessionBackup(session);else localStorage.removeItem('ep-loyalty-user-id')});
-loadSession();
+loadSession().catch(err=>{console.error('Falha ao abrir área do cliente',err);renderLoggedOut();authMessage(err?.message||'Não foi possível carregar sua conta. Tente entrar novamente.','error')});
