@@ -612,3 +612,36 @@
     border-left:1px solid rgba(255,255,255,.14)!important;
   }
 }
+
+
+/* V136 — imagem superior mais próxima da borda + menos espaço até os cards */
+@media(max-width:760px){
+  .hero.ep-reference-header{
+    margin-bottom:0!important;
+    overflow:hidden!important;
+  }
+
+  .hero.ep-reference-header .hero-inner{
+    padding-top:6px!important;
+    padding-bottom:10px!important;
+  }
+
+  .hero.ep-reference-header .ep-reference-art{
+    top:calc(72px + 1vw)!important;
+    right:-4px!important;
+    width:57%!important;
+  }
+
+  .hero.ep-reference-header .ep-reference-summary{
+    margin:8px 0 0!important;
+  }
+
+  .hero.ep-reference-header .hero-actions{
+    margin-top:12px!important;
+  }
+
+  .hero.ep-reference-header .app-benefits{
+    margin-top:8px!important;
+    margin-bottom:0!important;
+  }
+}
