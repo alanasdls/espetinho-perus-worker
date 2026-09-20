@@ -71,5 +71,39 @@ done < "$TMP_LIST"
 
 rm -f "$TMP_LIST"
 
+# Torna a home autocontida para evitar tela sem CSS/JS em caso de falha
+# de cache/rota de arquivos auxiliares durante deploy/migração de domínio.
+node <<'NODE'
+const fs = require('fs');
+const path = require('path');
+const dist = 'dist';
+const indexPath = path.join(dist, 'index.html');
+let html = fs.readFileSync(indexPath, 'utf8');
+
+const cssPath = path.join(dist, 'styles-v105.css');
+if (fs.existsSync(cssPath)) {
+  const css = fs.readFileSync(cssPath, 'utf8');
+  html = html.replace(/<link\s+rel=["']stylesheet["']\s+href=["']styles-v105\.css[^"']*["']\s*\/?>(?:\s*)/i, '<style id="ep-critical-styles">\n' + css + '\n</style>\n');
+}
+
+const localScripts = ['loyalty.js','app-misticpay-cpf-v102.js','cart-buttons-v60.js'];
+for (const file of localScripts) {
+  const filePath = path.join(dist, file);
+  if (!fs.existsSync(filePath)) continue;
+  const js = fs.readFileSync(filePath, 'utf8').replace(/<\/script/gi, '<\\/script');
+  const escaped = file.replace(/[.*+?^$(){}|[\]\\]/g, '\\rm -f "$TMP_LIST"
+
 echo "Pages build concluído: copiados=$copied baixados=$downloaded falhas=$failed"
 test -f "$DIST/index.html"
+');
+  const re = new RegExp('<script\\s+[^>]*src=["\\\']' + escaped + '(?:\\?[^"\\\']*)?["\\\'][^>]*>\\s*<\\/script>', 'i');
+  html = html.replace(re, '<script data-inline-source="' + file + '">\n' + js + '\n</script>');
+}
+
+fs.writeFileSync(indexPath, html);
+console.log('Home crítica incorporada ao index.html');
+NODE
+
+echo "Pages build concluído: copiados=$copied baixados=$downloaded falhas=$failed"
+test -f "$DIST/index.html"
+test -s "$DIST/index.html"
