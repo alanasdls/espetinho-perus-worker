@@ -581,3 +581,16 @@
     width:56%!important;
   }
 }
+
+
+/* V134 — benefícios na mesma largura da seção de categorias */
+@media(max-width:760px){
+  .hero.ep-reference-header .app-benefits{
+    width:calc(100% + 36px)!important;
+    max-width:none!important;
+    margin:8px -18px 0!important;
+    border-radius:0!important;
+    border-left:0!important;
+    border-right:0!important;
+  }
+}
