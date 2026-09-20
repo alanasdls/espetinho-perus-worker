@@ -2541,3 +2541,44 @@ button[data-add].added-feedback::after{
     line-height:0!important;
   }
 }
+
+
+/* V119 — CTA Cadastre-se no hero */
+.hero-user-icon{
+  width:26px;
+  height:26px;
+  display:grid;
+  place-items:center;
+  flex:0 0 26px;
+}
+.hero-user-icon svg{
+  width:24px;
+  height:24px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+@media(max-width:760px){
+  .hero-actions{
+    grid-template-columns:1.06fr .94fr!important;
+    gap:10px!important;
+  }
+  .hero-actions .signup-btn{
+    justify-content:flex-start!important;
+    gap:8px!important;
+    padding:0 15px!important;
+    overflow:hidden!important;
+  }
+  .hero-actions .signup-btn>span:nth-child(2){
+    flex:1 1 auto;
+    text-align:left;
+    white-space:nowrap;
+  }
+  .hero-actions .signup-btn .hero-btn-arrow{
+    margin-left:auto!important;
+    font-size:1.45em!important;
+    line-height:.8!important;
+  }
+}
