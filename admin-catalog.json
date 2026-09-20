@@ -3,7 +3,7 @@
     "id": 0,
     "category": "Espetinhos",
     "name": "Queijo coalho",
-    "price": 10.9,
+    "price": 11.4,
     "description": "",
     "image": "assets/products/queijo-coalho-20260723.webp",
     "badge": "Mais pedido"
@@ -12,7 +12,7 @@
     "id": 1,
     "category": "Espetinhos",
     "name": "Pão de alho",
-    "price": 10.9,
+    "price": 11.4,
     "description": "",
     "image": "assets/products/pao-de-alho-20260723.webp",
     "badge": ""
@@ -21,7 +21,7 @@
     "id": 2,
     "category": "Espetinhos",
     "name": "Carne",
-    "price": 11.9,
+    "price": 12.4,
     "description": "",
     "image": "assets/products/carne-20260723.webp",
     "badge": ""
@@ -30,7 +30,7 @@
     "id": 3,
     "category": "Espetinhos",
     "name": "Carne e bacon",
-    "price": 12.5,
+    "price": 13,
     "description": "",
     "image": "assets/products/carne-e-bacon-20260723.webp",
     "badge": ""
@@ -39,7 +39,7 @@
     "id": 4,
     "category": "Espetinhos",
     "name": "Carne e toscana",
-    "price": 11.9,
+    "price": 12.4,
     "description": "",
     "image": "assets/products/linguica-toscana-20260723.webp",
     "badge": ""
@@ -48,7 +48,7 @@
     "id": 5,
     "category": "Espetinhos",
     "name": "Carne e calabresa",
-    "price": 11.9,
+    "price": 12.4,
     "description": "",
     "image": "assets/products/carne-e-calabresa-20260723.webp",
     "badge": ""
@@ -57,7 +57,7 @@
     "id": 6,
     "category": "Espetinhos",
     "name": "Frango",
-    "price": 11.9,
+    "price": 12.4,
     "description": "",
     "image": "assets/products/frango-20260723.webp",
     "badge": ""
@@ -66,7 +66,7 @@
     "id": 7,
     "category": "Espetinhos",
     "name": "Pernil",
-    "price": 11.9,
+    "price": 12.4,
     "description": "",
     "image": "assets/products/pernil-20260723.webp",
     "badge": ""
@@ -75,7 +75,7 @@
     "id": 8,
     "category": "Espetinhos",
     "name": "Pernil e bacon",
-    "price": 12.5,
+    "price": 13,
     "description": "",
     "image": "assets/products/pernil-e-bacon-20260723.webp",
     "badge": ""
@@ -84,7 +84,7 @@
     "id": 9,
     "category": "Espetinhos",
     "name": "Tulipa",
-    "price": 12.5,
+    "price": 13,
     "description": "",
     "image": "assets/products/tulipa-20260723.webp",
     "badge": ""
@@ -93,7 +93,7 @@
     "id": 10,
     "category": "Espetinhos",
     "name": "Coração de frango",
-    "price": 11.9,
+    "price": 12.4,
     "description": "",
     "image": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=900&q=82",
     "badge": ""
@@ -102,7 +102,7 @@
     "id": 11,
     "category": "Espetinhos",
     "name": "Linguiça toscana",
-    "price": 11.9,
+    "price": 12.4,
     "description": "",
     "image": "assets/products/linguica-toscana-20260723.webp",
     "badge": ""
@@ -111,7 +111,7 @@
     "id": 12,
     "category": "Espetinhos",
     "name": "Linguiça calabresa",
-    "price": 11.9,
+    "price": 12.4,
     "description": "",
     "image": "assets/products/linguica-calabresa-20260723.webp",
     "badge": ""
@@ -120,7 +120,7 @@
     "id": 13,
     "category": "Espetinhos",
     "name": "Linguiça apimentada",
-    "price": 12.5,
+    "price": 13,
     "description": "",
     "image": "assets/products/linguica-apimentada-20260723.webp",
     "badge": ""
@@ -129,7 +129,7 @@
     "id": 14,
     "category": "Espetinhos",
     "name": "Medalhão de frango",
-    "price": 14.9,
+    "price": 15.4,
     "description": "",
     "image": "assets/products/medalhao-de-frango-20260723.webp",
     "badge": ""
@@ -138,7 +138,7 @@
     "id": 15,
     "category": "Espetinhos",
     "name": "Camarão",
-    "price": 14.9,
+    "price": 15.4,
     "description": "",
     "image": "assets/products/camarao-20260723.webp",
     "badge": ""
@@ -147,7 +147,7 @@
     "id": 16,
     "category": "Espetinhos",
     "name": "Kafta",
-    "price": 14.9,
+    "price": 15.4,
     "description": "",
     "image": "assets/products/kafta-20260723.webp",
     "badge": ""
@@ -156,7 +156,7 @@
     "id": 17,
     "category": "Espetinhos",
     "name": "Kafta com queijo",
-    "price": 18.9,
+    "price": 19.4,
     "description": "",
     "image": "assets/products/kafta-com-queijo-20260723.webp",
     "badge": "Mais pedido"
