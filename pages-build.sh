@@ -50,6 +50,15 @@ while IFS= read -r asset; do
     continue
   fi
 
+  # Compatibilidade: alguns banners antigos estão versionados na raiz,
+  # mas o frontend histórico os referencia dentro de assets/.
+  base="$(basename "$asset")"
+  if [ -f "$base" ]; then
+    cp "$base" "$DIST/$asset"
+    copied=$((copied+1))
+    continue
+  fi
+
   url="$SOURCE_ORIGIN/$asset"
   if curl -fsSL --retry 3 --connect-timeout 10 --max-time 45 "$url" -o "$DIST/$asset"; then
     downloaded=$((downloaded+1))
