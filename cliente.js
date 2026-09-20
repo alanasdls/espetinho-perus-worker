@@ -192,7 +192,7 @@ async function loadRewards(){
   try{
     const [data]=await Promise.all([apiFidelidade('/fidelidade/catalogo'),carregarImagensRecompensas()]);
     rewardsCatalog=Array.isArray(data.produtos)?data.produtos:[];
-    msg.textContent=`${rewardsCatalog.length} produtos disponíveis para troca • retirada no local`;
+    msg.textContent=`${rewardsCatalog.length} produtos disponíveis para troca • entrega ou retirada`;
     renderRewards();
   }catch(e){
     msg.textContent=e.message||'Não foi possível carregar os produtos para resgate.';
@@ -242,22 +242,11 @@ $('#rewardsGrid')?.addEventListener('click',async e=>{
   if(!reward)return;
   const pontos=Number(reward.points||0);
   if(Number(currentProfile?.pontos||0)<pontos)return toast('Você ainda não possui pontos suficientes.');
-  const ok=window.confirm(`Confirmar resgate de ${product} por ${pontos.toLocaleString('pt-BR')} pontos?\n\nO produto será preparado para retirada no Espetinho Perus.`);
-  if(!ok)return;
-  const original=btn.textContent;btn.disabled=true;btn.textContent='Resgatando...';
   try{
-    const result=await apiFidelidade('/fidelidade/resgatar',{
-      method:'POST',
-      body:JSON.stringify({product_name:product,request_id:crypto.randomUUID()})
-    });
-    toast(`Resgate confirmado: ${product}`);
-    if(result.tracking_token) localStorage.setItem('ep-last-order-token',result.tracking_token);
-    await loadSession();
-    showClientTab('ordersPanel');
-  }catch(err){
-    toast(err.message||'Não foi possível concluir o resgate.');
-    btn.disabled=false;btn.textContent=original;
-  }
+    EPCart.addReward(reward,currentUser.id);
+    window.location.href='index.html#carrinho';
+  }catch(err){toast(err.message||'Não foi possível salvar o carrinho.');}
+
 });
 
 async function loadSession(){const session=await getPersistentSession();if(!session){renderLoggedOut();return}currentUser=session.user;let {data:profile}=await db.from('clientes').select('id,nome,telefone,email,pontos,ativo').eq('id',currentUser.id).maybeSingle();if(!profile){await new Promise(r=>setTimeout(r,500));({data:profile}=await db.from('clientes').select('id,nome,telefone,email,pontos,ativo').eq('id',currentUser.id).maybeSingle())}const meta=currentUser.user_metadata||{};currentProfile={...(profile||{id:currentUser.id,nome:meta.nome||meta.full_name||meta.name||'Cliente',telefone:meta.telefone||'',email:currentUser.email,pontos:0}),cpf:meta.cpf||'',birth_date:meta.birth_date||'',address:meta.address||{}};localStorage.setItem('ep-customer-profile',JSON.stringify({name:currentProfile.nome,phone:currentProfile.telefone,email:currentUser.email,cpf:currentProfile.cpf,birth_date:currentProfile.birth_date,address:currentProfile.address}));localStorage.setItem('ep-loyalty-user-id',currentUser.id);await loadDashboard()}

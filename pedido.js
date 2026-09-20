@@ -1,4 +1,4 @@
-const API = 'https://summer-field-09b7.alanasdls.workers.dev';
+const API = 'https://espetinho-perus-api.alanasdls.workers.dev';
 const token = new URLSearchParams(location.search).get('token') || localStorage.getItem('ep-last-tracking-token') || '';
 const $ = (s) => document.querySelector(s);
 const labels = {
@@ -27,6 +27,14 @@ async function load(){
 }
 function showError(t){$('#content').hidden=true;$('#error').hidden=false;$('#error').textContent=t;}
 function render(p){
+  try{
+    const pending=JSON.parse(localStorage.getItem('ep-reward-checkout-v1')||'null');
+    if(pending?.orderId===p.order_id){
+      if(p.payment_status==='approved'){localStorage.removeItem('ep-cart-v1');localStorage.removeItem('ep-reward-checkout-v1');}
+      else if(['rejected','cancelled','refunded'].includes(p.payment_status))localStorage.removeItem('ep-reward-checkout-v1');
+    }
+  }catch{}
+
   $('#error').hidden=true;$('#content').hidden=false;
   $('#orderNumber').textContent=`Pedido ${p.order_id}`;
   const info=labels[p.order_status]||['📦',p.order_status,'Acompanhe as atualizações.'];
@@ -35,7 +43,7 @@ function render(p){
   let i=steps.indexOf(p.order_status);if(p.order_status==='recebido')i=0;if(p.order_status==='cancelado')i=0;
   $('#progressBar').style.width=`${p.order_status==='finalizado'?100:Math.max(12,(i+1)/steps.length*100)}%`;
   $('#steps').innerHTML=steps.map((s,n)=>`<div class="step ${n<i?'done':n===i?'current':''}"><span class="dot">${labels[s][0]}</span><div><b>${labels[s][1]}</b></div></div>`).join('');
-  $('#items').innerHTML=(p.items||[]).map(x=>`<div class="item"><span>${x.quantity}x ${x.name}</span><b>${Number(x.subtotal||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</b></div>`).join('');
+  $('#items').innerHTML=(p.items||[]).map(x=>`<div class="item"><span>${x.quantity}x ${x.name}${x.reward?" · Resgate":""}</span><b>${Number(x.reward?0:(x.subtotal||0)).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</b></div>`).join('');
   $('#total').textContent=Number(p.total||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   $('#fulfillment').textContent=p.customer?.fulfillment?`📦 ${p.customer.fulfillment}`:'';
   $('#address').textContent=p.customer?.address?`📍 ${p.customer.address}`:'';

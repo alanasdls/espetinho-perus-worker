@@ -295,8 +295,8 @@ function showItemAdded(id){
     document.querySelector('#floatingCart')?.classList.remove('cart-bump');
   },2200);
 }
-function add(id){cart[id]=(cart[id]||0)+1;updateCart();showItemAdded(id)}
-function change(id,d){cart[id]=(cart[id]||0)+d;if(cart[id]<=0)delete cart[id];updateCart();if(d>0)showItemAdded(id)}function updateCart(){const ids=Object.keys(cart);const cartQty=ids.reduce((s,id)=>s+cart[id],0);const topCartCount=document.querySelector('#cartCount');if(topCartCount)topCartCount.textContent=cartQty;document.querySelector('#floatingCartCount').textContent=cartQty;document.querySelector('#cartItems').innerHTML=ids.length?ids.map(id=>{const p=products[id],q=cart[id];return `<div class="cart-item"><div><h4>${p.name}</h4><small>${fmt(p.price)} cada</small></div><div class="qty"><button onclick="change(${id},-1)">−</button><b>${q}</b><button onclick="change(${id},1)">+</button><button class="remove" onclick="change(${id},-${q})">remover</button></div></div>`}).join(''):'<div class="empty">Seu carrinho está vazio.</div>';updateOrderSummary()}
+function add(id){if(!epCartEditable())return;cart[id]=(cart[id]||0)+1;updateCart();showItemAdded(id)}
+function change(id,d){if(!epCartEditable())return;cart[id]=(cart[id]||0)+d;if(cart[id]<=0)delete cart[id];updateCart();if(d>0)showItemAdded(id)}function updateCart(){epPersistCart();const ids=Object.keys(cart);const cartQty=ids.reduce((s,id)=>s+cart[id],0);const topCartCount=document.querySelector('#cartCount');if(topCartCount)topCartCount.textContent=cartQty;document.querySelector('#floatingCartCount').textContent=cartQty;document.querySelector('#cartItems').innerHTML=ids.length?ids.map(id=>{const p=products[id],q=cart[id];return `<div class="cart-item"><div><h4>${p.name}</h4><small>${fmt(p.price)} cada${p.reward?` · Resgate: ${p.rewardPoints} pontos`:""}</small></div><div class="qty"><button onclick="change(${id},-1)">−</button><b>${q}</b><button onclick="change(${id},1)">+</button><button class="remove" onclick="change(${id},-${q})">remover</button></div></div>`}).join(''):'<div class="empty">Seu carrinho está vazio.</div>';updateOrderSummary()}
 const overlay=document.querySelector('#cartOverlay');const floatingCart=document.querySelector('#floatingCart');document.documentElement.appendChild(floatingCart);const openCartPanel=()=>{overlay.style.display='';overlay.removeAttribute('aria-hidden');overlay.classList.add('open');document.body.classList.add('cart-open')};const closeCartPanel=()=>{overlay.classList.remove('open');overlay.setAttribute('aria-hidden','true');overlay.style.display='none';document.body.classList.remove('cart-open')};const topCartButton=document.querySelector('#openCart');if(topCartButton)topCartButton.onclick=openCartPanel;floatingCart.onclick=openCartPanel;document.querySelector('#closeCart').onclick=closeCartPanel;const itemAddedToast=document.querySelector('#itemAddedToast');if(itemAddedToast)itemAddedToast.onclick=()=>{itemAddedToast.classList.remove('show');openCartPanel()};overlay.onclick=e=>{if(e.target===overlay)closeCartPanel()};let DELIVERY_FEE=Number(epGeneralConfig.deliveryFee??10);
 const PERUS_CEP_PREFIXES=new Set(['05201','05202','05203','05204','05205','05206','05207','05208','05209','05210','05211','05212','05215','05230']);
 const fulfillmentSelect=document.querySelector('#fulfillment');
@@ -644,12 +644,20 @@ function getOrderPayload(requireCpf=true){
   const payload={
     customer:{name,first_name:name.trim().split(/\s+/)[0]||name,last_name:name.trim().split(/\s+/).slice(1).join(' '),email,phone,cpf,document:cpf,birth_date:epLoadJson('ep-customer-profile',{}).birth_date||'',fulfillment,address,cep:cepInput?.value||'',street:streetInput?.value||'',number:numberInput?.value||'',complement:complementInput?.value||'',bairro:neighborhoodInput?.value||'',city:cityInput?.value||'',state:stateInput?.value||'',reference:referenceInput?.value||'',notes,loyalty_customer_id:window.epLoyaltyCustomerId||localStorage.getItem('ep-loyalty-user-id')||null},
     delivery_fee:isDelivery()?DELIVERY_FEE:0,
-    items:ids.map(id=>({name:products[id].name,quantity:cart[id]})),
+    items:ids.map(id=>({name:products[id].name,quantity:cart[id],...(products[id].reward?{reward:true}:{})})),
+    reward_customer_id:EPCart.read().owner,
     order_id:`EP-${Date.now()}`,
     site_url:window.location.origin,
     promotion:epRegisteredCustomer?{code:'CADASTRADO10',discount_rate:0.10}:null,
     coupon_code:epCouponState.valid?epCouponState.code:null
   };
+  if(payload.items.some(i=>i.reward)){
+    const signature=JSON.stringify({...payload,order_id:null});
+    const pending=epLoadJson('ep-reward-checkout-v1',null);
+    if(pending?.started&&pending.signature!==signature){alert('Existe um resgate em confirmação. Retome o pedido pendente antes de alterar os dados.');return null;}
+    payload.order_id=(pending?.signature===signature?pending.orderId:null)||`EP-R-${crypto.randomUUID()}`;
+    try{localStorage.setItem('ep-reward-checkout-v1',JSON.stringify({...((pending?.signature===signature)?pending:{}),signature,orderId:payload.order_id}));}catch{alert('Não foi possível salvar o pedido neste aparelho.');return null;}
+  }
   epSaveCustomerOrder(payload);
   return payload;
 }
@@ -662,12 +670,14 @@ async function iniciarCheckoutMercadoPago(){
   pagBankButton.textContent='Abrindo Mercado Pago...';
   try{
     const response=await fetch('https://espetinho-perus-api.alanasdls.workers.dev/criar-checkout-mercadopago',{
-      method:'POST',headers:await epApiHeaders(),body:JSON.stringify(payload)
+      method:'POST',headers:await epCheckoutHeaders(payload),body:JSON.stringify(payload)
     });
     const data=await response.json().catch(()=>({}));
+    if(epHandleRewardResponse(payload,data,response))return;
     if(!response.ok||!data.checkout_url) throw new Error(data.erro||data.detalhes||'Não foi possível abrir o Mercado Pago.');
     if(data.tracking_token){localStorage.setItem('ep-last-tracking-token',data.tracking_token);epAttachTrackingToken(payload.order_id,data.tracking_token,{payment_provider:'mercadopago',preference_id:data.preference_id});}
     localStorage.setItem('ep-last-order',JSON.stringify({...payload,payment_provider:'mercadopago',preference_id:data.preference_id,tracking_token:data.tracking_token}));
+    epRememberRewardPayment(payload,data);
     window.location.href=data.checkout_url;
   }catch(e){alert(e.message);}
   finally{pagBankButton.disabled=false;pagBankButton.textContent=original;}
@@ -702,6 +712,7 @@ async function consultarPix(paymentId){
     const response=await fetch(`https://espetinho-perus-api.alanasdls.workers.dev/pagamento-status?id=${encodeURIComponent(paymentId)}`);
     const data=await response.json();
     if(data.status==='approved'){
+      EPCart.clear();cart={};
       pixStatus.textContent='✅ Pagamento aprovado! Abrindo o acompanhamento do pedido...';
       pixStatus.className='pix-status approved';
       if(pixPollTimer){clearInterval(pixPollTimer);pixPollTimer=null;}
@@ -730,10 +741,12 @@ if(mpButton){
     mpButton.textContent='Gerando Pix...';
     try{
       const response=await fetch('https://espetinho-perus-api.alanasdls.workers.dev/criar-pix',{
-        method:'POST',headers:await epApiHeaders(),body:JSON.stringify(payload)
+        method:'POST',headers:await epCheckoutHeaders(payload),body:JSON.stringify(payload)
       });
       const data=await response.json().catch(()=>({}));
+      if(epHandleRewardResponse(payload,data,response))return;
       if(!response.ok||!data.qr_code||!data.qr_code_base64) throw new Error(data.erro||data.error||'Não foi possível gerar o Pix.');
+      epRememberRewardPayment(payload,data);
       pixTrackingToken=data.tracking_token||'';
       localStorage.setItem('ep-last-order',JSON.stringify({...payload,payment_id:data.payment_id,tracking_token:pixTrackingToken}));
       if(pixTrackingToken)localStorage.setItem('ep-last-tracking-token',pixTrackingToken);
@@ -904,3 +917,82 @@ function openCartFromAccount(){
 window.addEventListener('hashchange',openCartFromAccount);
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',openCartFromAccount);
 else openCartFromAccount();
+
+
+// Persistent cart stores product names; prices are reloaded from the catalog.
+function epPersistCart(){
+  const previous=EPCart.read();
+  EPCart.write({owner:previous.owner,items:Object.keys(cart).filter(id=>products[id]).map(id=>({name:products[id].name,quantity:cart[id],reward:products[id].reward===true,points:products[id].rewardPoints||0}))});
+}
+function epRestoreCart(){
+  const state=EPCart.read();
+  for(const row of state.items){
+    const product=products.find(p=>p.name===row.name);
+    if(!product)continue;
+    let id=product.id;
+    if(row.reward){id=-(Number(product.id)+1);products[id]={...product,id,price:0,reward:true,rewardPoints:Math.ceil(product.price*20)};}
+    cart[id]=row.quantity;
+  }
+  updateCart();
+}
+async function epCheckoutHeaders(payload){
+  const headers=await epApiHeaders();
+  if(payload.items.some(i=>i.reward)){
+    if(!headers.Authorization)throw Error('Entre na sua conta para concluir o resgate.');
+    const r=await fetch('https://espetinho-perus-api.alanasdls.workers.dev/fidelidade/checkout-capabilities',{headers});
+    const c=await r.json().catch(()=>({}));
+    if(!r.ok||!c.reward_cart)throw Error('O checkout de resgates está sendo atualizado. Seu carrinho está salvo; tente novamente após a atualização.');
+  }
+  if(payload.items.some(i=>i.reward)){const saved=epLoadJson('ep-reward-checkout-v1',{});epSaveJson('ep-reward-checkout-v1',{...saved,started:true});}
+  return headers;
+}
+function epRememberRewardPayment(payload,data){
+  if(!payload.items.some(i=>i.reward))return;
+  const saved=epLoadJson('ep-reward-checkout-v1',{});
+  localStorage.setItem('ep-reward-checkout-v1',JSON.stringify({...saved,tracking_token:data.tracking_token}));
+}
+function epHandleRewardResponse(payload,data,response){
+  if(!payload.items.some(i=>i.reward))return false;
+  if(data.reservation_state==='released'||data.retry_allowed)localStorage.removeItem('ep-reward-checkout-v1');
+  if(data.resume&&data.tracking_token){window.location.href=`pedido.html?token=${encodeURIComponent(data.tracking_token)}`;return true;}
+  if(response.ok&&data.status==='approved'&&data.tracking_token){
+    EPCart.clear();cart={};
+    window.location.href=`pedido.html?token=${encodeURIComponent(data.tracking_token)}`;return true;
+  }
+  return false;
+}
+// Cash checkout must also validate and settle points on the server.
+const epOriginalWhatsAppCheckout=document.querySelector('#checkout').onclick;
+document.querySelector('#checkout').onclick=async function(){
+  if(!Object.keys(cart).some(id=>products[id]?.reward))return epOriginalWhatsAppCheckout();
+  const payload=getOrderPayload(false);if(!payload)return;
+  this.disabled=true;
+  try{
+    const response=await fetch('https://espetinho-perus-api.alanasdls.workers.dev/criar-pedido',{method:'POST',headers:await epCheckoutHeaders(payload),body:JSON.stringify(payload)});
+    const data=await response.json();
+    if(epHandleRewardResponse(payload,data,response))return;
+    throw Error(data.erro||'Não foi possível confirmar o pedido.');
+  }catch(error){alert(error.message);}finally{this.disabled=false;}
+};
+epRestoreCart();
+// Keep address and checkout fields on refresh, in this browser only.
+const epDraftFields=['customerName','customerEmail','customerPhone','customerCpf','fulfillment','payment','deliveryCep','deliveryStreet','deliveryNumber','deliveryComplement','deliveryNeighborhood','deliveryCity','deliveryState','deliveryReference','notes'];
+const epDraft=epLoadJson('ep-checkout-fields-v1',{});
+for(const id of epDraftFields){const field=document.getElementById(id);if(!field)continue;if(typeof epDraft[id]==='string')field.value=epDraft[id];for(const event of ['input','change'])field.addEventListener(event,()=>{const data={};for(const key of epDraftFields){const el=document.getElementById(key);if(el)data[key]=el.value;}epSaveJson('ep-checkout-fields-v1',data);});}
+fulfillmentSelect.dispatchEvent(new Event('change'));
+paymentSelect.dispatchEvent(new Event('change'));
+
+if(isDelivery()&&deliveryCepDigits().length===8)buscarCep();
+
+const epPendingReward=epLoadJson('ep-reward-checkout-v1',null);
+if(epPendingReward?.tracking_token){
+  const link=document.createElement('a');link.href=`pedido.html?token=${encodeURIComponent(epPendingReward.tracking_token)}`;
+  link.textContent='Acompanhar resgate em pagamento';link.className='btn primary';
+  document.querySelector('#cartItems').before(link);
+}
+
+function epCartEditable(){
+  const pending=epLoadJson('ep-reward-checkout-v1',null);
+  if(pending?.started){alert('Existe um resgate em pagamento. Conclua ou acompanhe esse pedido antes de alterar o carrinho.');return false;}
+  return true;
+}

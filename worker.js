@@ -1,3 +1,4 @@
+import { REWARD_CONTEXT, handleRewardCheckout, saveRewardOrder } from './reward-checkout.js';
 
 export class OrderRealtime {
   constructor(ctx, env) {
@@ -330,6 +331,12 @@ function validarCupomServidor(env,codigo,subtotal){
   return {valid:true,code,discount,stack:Boolean(config.stack_with_registered_discount??config.acumula_com_cadastrado??false),description:texto(config.description||config.descricao||`Cupom ${code}`,120),type,value,min_subtotal:minimo};
 }
 function calcularDescontosPedido(env,entrada,subtotal,clienteRegistrado){
+  const reward=env[REWARD_CONTEXT];
+  if(reward){
+    const clean={...env};delete clean[REWARD_CONTEXT];
+    const result=calcularDescontosPedido(clean,entrada,Math.max(0,subtotal-reward.discount),clienteRegistrado);
+    return {...result,total_discount:Math.round((result.total_discount+reward.discount)*100)/100};
+  }
   const base=Math.max(0,Number(subtotal||0));
   const registeredDiscount=clienteRegistrado?Math.round(base*0.10*100)/100:0;
   const code=normalizarCodigoCupom(entrada?.coupon_code||entrada?.coupon?.code||"");
@@ -503,6 +510,7 @@ function pedidoFidelidadePublico(p) {
 
 function adminAutorizado(request, env) { return Boolean(env.ADMIN_KEY) && (request.headers.get("X-Admin-Key") || "") === env.ADMIN_KEY; }
 async function gravarPedido(env, pedido, options = {}) {
+  await saveRewardOrder(env,pedido);
   pedido.updated_at = new Date().toISOString();
   await env.ORDERS_KV.put(`order:${pedido.order_id}`, JSON.stringify(pedido));
   if (pedido.payment_id) await env.ORDERS_KV.put(`payment:${pedido.payment_id}`, pedido.order_id);
@@ -964,6 +972,7 @@ function detalheConsumer(p, env) {
   const registeredDiscount = Math.max(0, Number(p.registered_discount_amount || 0));
   const couponDiscount = Math.max(0, Number(p.coupon_discount_amount || 0));
 
+  if(p.reward_discount_amount>0)benefits.push({target:"CART",targetId:"CART",value:p.reward_discount_amount,sponsorshipValues:[{name:"MERCHANT",value:p.reward_discount_amount,description:"Resgate de pontos"}]});
   if (p.promotion_code === "FIDELIDADE_RESGATE" && discountAmount > 0) {
     benefits.push({
       target: "CART",
@@ -1103,7 +1112,7 @@ async function marcarConsumer(env, p, patch = {}) {
 }
 // ===== FIM INTEGRACAO CONSUMER =====
 
-export default { async fetch(request,env,ctx) {
+async function coreFetch(request,env,ctx) {
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:CORS}); const url=new URL(request.url);
   if(request.method==="POST"&&["/criar-pix","/criar-checkout-pagbank","/criar-checkout-mercadopago","/criar-pedido"].includes(url.pathname)){const delivery=await estadoDelivery(env);if(!delivery.aberto)return responder({erro:delivery.modo==="manual_closed"?"Delivery fechado manualmente no momento.":`Pedidos fechados no momento. Próxima abertura: ${proximaAbertura()}.`,delivery},403);}
   if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",versao:"V45",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),pagbank_sandbox:Boolean(env.PAGBANK_SANDBOX_TOKEN),pagbank_producao:Boolean(env.PAGBANK_TOKEN),consumer_api:Boolean(env.CONSUMER_API_TOKEN),mercadopago:Boolean(env.MERCADOPAGO_ACCESS_TOKEN)});
@@ -1150,98 +1159,7 @@ export default { async fetch(request,env,ctx) {
     }
 
     if(request.method==="POST" && url.pathname==="/fidelidade/resgatar"){
-      try{
-        const body = await request.json().catch(()=>({}));
-        const nome = texto(body.product_name || body.name,150);
-        if(!nome || !Object.prototype.hasOwnProperty.call(CODIGOS_IMPRESSAO_POR_PRODUTO,nome) ||
-           !Object.prototype.hasOwnProperty.call(PRECOS,nome)){
-          return responder({erro:"Produto não disponível para resgate neste momento."},400);
-        }
-
-        const requestId = texto(body.request_id,120) || crypto.randomUUID();
-        const idemKey = `fidelidade:resgate:${clienteAuth.id}:${requestId}`;
-        const anterior = await env.ORDERS_KV.get(idemKey,"json");
-        if(anterior) return responder({...anterior,idempotente:true});
-
-        const preco = Number(PRECOS[nome]);
-        const pontos = Math.ceil(preco * PONTOS_POR_REAL_RESgate);
-        const descricao = `Resgate: ${nome}`;
-        const debito = await debitarPontosProduto(env, clienteAuth.id, pontos, descricao);
-
-        const perfil = await perfilClienteSupabase(env, clienteAuth.id);
-        const agora = new Date().toISOString();
-        const orderId = `RES-${Date.now()}-${crypto.randomUUID().slice(0,8).toUpperCase()}`;
-        const tracking = crypto.randomUUID().replaceAll("-","") + crypto.randomUUID().replaceAll("-","").slice(0,16);
-        const p = {
-          order_id: orderId,
-          tracking_token: tracking,
-          site_url: "https://espetinhoperus.com.br",
-          created_at: agora,
-          updated_at: agora,
-          customer: {
-            name: texto(perfil?.nome || clienteAuth.email || "Cliente fidelidade",100),
-            email: texto(perfil?.email || clienteAuth.email,150).toLowerCase(),
-            phone: texto(perfil?.telefone,30),
-            fulfillment: "Retirada",
-            address: "",
-            cep: "",
-            bairro: "",
-            notes: "RESGATE DE PONTOS - retirar no local",
-            loyalty_customer_id: clienteAuth.id
-          },
-          items: [{
-            name: nome,
-            quantity: 1,
-            unit_price: preco,
-            subtotal: preco,
-            external_code: codigoImpressaoProduto(nome,{})
-          }],
-          subtotal: preco,
-          delivery_fee: 0,
-          discount_amount: preco,
-          promotion_code: "FIDELIDADE_RESGATE",
-          total: 0,
-          payment_id: null,
-          payment_provider: "fidelidade",
-          payment_method: "PONTOS",
-          payment_status: "approved",
-          payment_status_detail: `${pontos} pontos utilizados`,
-          order_status: "recebido",
-          paid_at: agora,
-          estimated_minutes: 25,
-          push_subscriptions: [],
-          status_history: [{status:"recebido",at:agora,origem:"fidelidade"}],
-          consumer_sync: {status:"pending",created_at:agora},
-          loyalty: {
-            redeemed: true,
-            points_used: pontos,
-            product: nome,
-            balance_before: Number(debito?.saldo_anterior ?? 0),
-            balance_after: Number(debito?.saldo_atual ?? Math.max(0,Number(perfil?.pontos||0)-pontos)),
-            updated_at: agora
-          }
-        };
-
-        await gravarPedido(env,p);
-        const resposta = {
-          ok:true,
-          order_id:orderId,
-          tracking_token:tracking,
-          product:nome,
-          points_used:pontos,
-          points_balance:Number(p.loyalty.balance_after||0),
-          status:"recebido",
-          message:"Resgate confirmado. O produto foi enviado para preparo e ficará disponível para retirada."
-        };
-        await env.ORDERS_KV.put(idemKey,JSON.stringify(resposta),{expirationTtl:86400});
-        const tarefa = notificarNovoPedidoPago(env,p).catch(e=>console.error("Falha notificação resgate",e));
-        if(ctx?.waitUntil) ctx.waitUntil(tarefa); else await tarefa;
-        return responder(resposta,201);
-      }catch(e){
-        console.error("fidelidade/resgatar",e);
-        if(e?.code==="PONTOS_INSUFICIENTES") return responder({erro:e.message},409);
-        return responder({erro:"Não foi possível concluir o resgate.",detalhes:e instanceof Error?e.message:String(e)},500);
-      }
+      return responder({erro:"Atualize a página: o resgate agora é confirmado pelo carrinho.",cart_required:true},409);
     }
 
     return responder({erro:"Rota de fidelidade não encontrada."},404);
@@ -1533,7 +1451,7 @@ export default { async fetch(request,env,ctx) {
       let p={order_id:orderId,tracking_token:tracking,site_url:texto(entrada.site_url,300)||"https://espetinhoperus.com.br",created_at:agora,updated_at:agora,customer:{name:nome,first_name:primeiroNome,last_name:sobrenome,email,phone:texto(entrada.customer?.phone,30),cpf,birth_date:texto(entrada.customer?.birth_date,10),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep,street:rua,number:numeroEndereco,complement:complemento,bairro,city:cidade,state:estado,reference:texto(entrada.customer?.reference,150),notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},items:itens,subtotal,registered_discount_amount:descontos.registered_discount,coupon_discount_amount:descontos.coupon_discount,discount_amount:descontos.total_discount,discounted_subtotal:discountedSubtotal,loyalty_subtotal_eligible:discountedSubtotal,coupon_code:descontos.coupon?.code||null,coupon_description:descontos.coupon?.description||null,promotion_code:descontos.coupon?.code?"CUPOM":(descontos.registered_discount>0?"CADASTRADO10":null),delivery_fee:deliveryFee,total,payment_id:null,preference_id:null,payment_provider:"mercadopago",payment_method:"CREDIT_CARD",payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};await gravarPedido(env,p);
       const site=p.site_url.replace(/\/$/,"");
       const mpItems=descontos.total_discount>0
-        ? [{id:`${orderId}-produtos`,title:"Produtos Espetinho Perus com desconto",quantity:1,currency_id:"BRL",unit_price:Number(discountedSubtotal)},...(deliveryFee>0?[{id:`${orderId}-frete`,title:"Taxa de entrega - Perus",quantity:1,currency_id:"BRL",unit_price:Number(deliveryFee)}]:[])]
+        ? [...(discountedSubtotal>0?[{id:`${orderId}-produtos`,title:"Produtos Espetinho Perus com desconto",quantity:1,currency_id:"BRL",unit_price:Number(discountedSubtotal)}]:[]),...(deliveryFee>0?[{id:`${orderId}-frete`,title:"Taxa de entrega - Perus",quantity:1,currency_id:"BRL",unit_price:Number(deliveryFee)}]:[])]
         : [...itens.map((i,index)=>({id:`${orderId}-item-${index+1}`,title:i.name,quantity:i.quantity,currency_id:"BRL",unit_price:Number(i.unit_price)})),...(deliveryFee>0?[{id:`${orderId}-frete`,title:"Taxa de entrega - Perus",quantity:1,currency_id:"BRL",unit_price:Number(deliveryFee)}]:[])];
       const payer={name:primeiroNome,surname:sobrenome,email,identification:{type:"CPF",number:cpf}};
       if(ddd&&numeroTelefone)payer.phone={area_code:ddd,number:numeroTelefone};
@@ -1574,7 +1492,7 @@ export default { async fetch(request,env,ctx) {
       let p={order_id:orderId,tracking_token:tracking,site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},items:itens,subtotal,registered_discount_amount:descontos.registered_discount,coupon_discount_amount:descontos.coupon_discount,discount_amount:descontos.total_discount,discounted_subtotal:discountedSubtotal,loyalty_subtotal_eligible:discountedSubtotal,coupon_code:descontos.coupon?.code||null,coupon_description:descontos.coupon?.description||null,promotion_code:descontos.coupon?.code?"CUPOM":(descontos.registered_discount>0?"CADASTRADO10":null),delivery_fee:deliveryFee,total,payment_id:null,checkout_id:null,payment_provider:"pagbank",payment_method:method,payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]}; await gravarPedido(env,p);
       const site=p.site_url.replace(/\/$/,""); const webhook=`${url.origin}/webhook-pagbank`;
       const checkoutItems=descontos.total_discount>0
-        ? [{reference_id:`${orderId}-produtos`,name:"Produtos Espetinho Perus com desconto",quantity:1,unit_amount:Math.round(discountedSubtotal*100)},...(deliveryFee>0?[{reference_id:`${orderId}-frete`,name:"Taxa de entrega - Perus",quantity:1,unit_amount:Math.round(deliveryFee*100)}]:[])]
+        ? [...(discountedSubtotal>0?[{reference_id:`${orderId}-produtos`,name:"Produtos Espetinho Perus com desconto",quantity:1,unit_amount:Math.round(discountedSubtotal*100)}]:[]),...(deliveryFee>0?[{reference_id:`${orderId}-frete`,name:"Taxa de entrega - Perus",quantity:1,unit_amount:Math.round(deliveryFee*100)}]:[])]
         : [...itens.map((i,n)=>({reference_id:`${orderId}-${n+1}`,name:i.name,quantity:i.quantity,unit_amount:Math.round(i.unit_price*100)})),...(deliveryFee>0?[{reference_id:`${orderId}-frete`,name:"Taxa de entrega - Perus",quantity:1,unit_amount:Math.round(deliveryFee*100)}]:[])];
       const body={reference_id:orderId,customer_modifiable:true,items:checkoutItems,payment_methods:[{type:method}],payment_methods_configs:method==="CREDIT_CARD"?[{type:"CREDIT_CARD",config_options:[{option:"INSTALLMENTS_LIMIT",value:String(Math.max(1,Math.min(12,Number(env.PAGBANK_INSTALLMENTS_LIMIT||3))))}]}]:undefined,notification_urls:[webhook],payment_notification_urls:[webhook],redirect_url:`${site}/pedido.html?token=${encodeURIComponent(tracking)}`,return_url:`${site}/pedido.html?token=${encodeURIComponent(tracking)}`,redirect_waiting_time:5};
       if(!body.payment_methods_configs)delete body.payment_methods_configs;
@@ -1660,4 +1578,6 @@ export default { async fetch(request,env,ctx) {
     p.payment_id=String(paymentId);p.payment_provider="misticpay";p.payment_status=statusMisticParaSite(tx?.transactionState||"PENDENTE");p.payment_status_detail=texto(tx?.transactionState||"PENDENTE",100);await gravarPedido(env,p);await env.ORDERS_KV.put(`payment:${paymentId}`,orderId);
     return responder({payment_id:String(paymentId),numero_pedido:orderId,tracking_token:p.tracking_token,status:p.payment_status,total,qr_code:copiaCola,qr_code_base64:qrBase64,ticket_url:tx?.qrcodeUrl||tx?.qrCodeUrl||null,resumo:itens.map(i=>`${i.quantity}x ${i.name}`).join(", "),diagnostico_disponivel:true},201);
   }catch(e){console.error(e);if(e?.code==="CUPOM_INVALIDO")return responder({erro:e.message},400);return responder({erro:"Erro ao criar o Pix.",detalhes:e instanceof Error?e.message:String(e)},500)}
-} };
+}
+
+export default {fetch(request,env,ctx){return handleRewardCheckout(request,env,ctx,coreFetch,{headers:CORS,authenticate:clienteSupabaseAutenticado,store:estadoDelivery,prices:PRECOS,codes:CODIGOS_IMPRESSAO_POR_PRODUTO,delivery:calcularEntrega,discounts:calcularDescontosPedido});}};
