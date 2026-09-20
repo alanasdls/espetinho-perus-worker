@@ -1,5 +1,5 @@
 
-const API='https://espetinho-perus-api.alanasdls.workers.dev';
+const API='https://api.espetinhoperus.com.br';
 localStorage.removeItem('ep-admin-key');
 let key=sessionStorage.getItem('ep-staff-session')||'',orders=[],loading=false;
 let realtimeSocket=null,reconnectTimer=null,fallbackTimer=null;

@@ -21,7 +21,15 @@
   "migrations": [
     {
       "tag": "v1-realtime",
-      "new_sqlite_classes": ["OrderRealtime"]
+      "new_sqlite_classes": [
+        "OrderRealtime"
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "pattern": "api.espetinhoperus.com.br",
+      "custom_domain": true
     }
   ]
 }

@@ -2,7 +2,7 @@ const SUPABASE_URL='https://xikhljdlmeinihpeuwlj.supabase.co';
 const SUPABASE_KEY='sb_publishable_SUPqs1Kjmmz_GIwVTDMFrA_WXDnNAM-';
 const SUPABASE_AUTH_OPTIONS={auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:window.localStorage,storageKey:'espetinho-perus-auth'}};
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,SUPABASE_AUTH_OPTIONS);
-const API_FIDELIDADE='https://espetinho-perus-api.alanasdls.workers.dev';
+const API_FIDELIDADE='https://api.espetinhoperus.com.br';
 const $=s=>document.querySelector(s);
 const fmt=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));

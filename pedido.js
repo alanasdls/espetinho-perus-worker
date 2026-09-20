@@ -1,5 +1,5 @@
 const escapeOrderText=value=>String(value??" ").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const API = 'https://espetinho-perus-api.alanasdls.workers.dev';
+const API = 'https://api.espetinhoperus.com.br';
 const token = new URLSearchParams(location.search).get('token') || localStorage.getItem('ep-last-tracking-token') || '';
 const $ = (s) => document.querySelector(s);
 const labels = {

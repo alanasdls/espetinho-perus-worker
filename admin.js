@@ -1,4 +1,4 @@
-const API = 'https://espetinho-perus-api.alanasdls.workers.dev';
+const API = 'https://api.espetinhoperus.com.br';
 const $ = (s) => document.querySelector(s);
 localStorage.removeItem('ep-admin-key');
 let key = sessionStorage.getItem('ep-staff-session') || '';

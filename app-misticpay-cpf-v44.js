@@ -358,7 +358,7 @@ async function epApplyCoupon(){
   if(couponStatus){couponStatus.textContent='Validando cupom...';couponStatus.className='loading';}
   couponBox?.classList.remove('applied','invalid');
   try{
-    const response=await fetch('https://espetinho-perus-api.alanasdls.workers.dev/cupons/validar',{
+    const response=await fetch('https://api.espetinhoperus.com.br/cupons/validar',{
       method:'POST',headers:await epApiHeaders(),body:JSON.stringify({code,subtotal:getSubtotal()})
     });
     const data=await response.json().catch(()=>({}));
@@ -650,7 +650,7 @@ async function iniciarCheckoutMercadoPago(){
   pagBankButton.disabled=true;
   pagBankButton.textContent='Abrindo Mercado Pago...';
   try{
-    const response=await fetch('https://espetinho-perus-api.alanasdls.workers.dev/criar-checkout-mercadopago',{
+    const response=await fetch('https://api.espetinhoperus.com.br/criar-checkout-mercadopago',{
       method:'POST',headers:await epApiHeaders(),body:JSON.stringify(payload)
     });
     const data=await response.json().catch(()=>({}));
@@ -688,7 +688,7 @@ document.querySelector('#copyPix').onclick=async()=>{
 
 async function consultarPix(paymentId){
   try{
-    const response=await fetch(`https://espetinho-perus-api.alanasdls.workers.dev/pagamento-status?id=${encodeURIComponent(paymentId)}`);
+    const response=await fetch(`https://api.espetinhoperus.com.br/pagamento-status?id=${encodeURIComponent(paymentId)}`);
     const data=await response.json();
     if(data.status==='approved'){
       pixStatus.textContent='✅ Pagamento aprovado! Abrindo o acompanhamento do pedido...';
@@ -718,7 +718,7 @@ if(mpButton){
     mpButton.disabled=true;
     mpButton.textContent='Gerando Pix...';
     try{
-      const response=await fetch('https://espetinho-perus-api.alanasdls.workers.dev/criar-pix',{
+      const response=await fetch('https://api.espetinhoperus.com.br/criar-pix',{
         method:'POST',headers:await epApiHeaders(),body:JSON.stringify(payload)
       });
       const data=await response.json().catch(()=>({}));
@@ -778,7 +778,7 @@ function nextOpeningLabel(){
   }
   return 'Quarta-feira às 18h';
 }
-const DELIVERY_STATUS_URL='https://espetinho-perus-api.alanasdls.workers.dev/delivery-status';
+const DELIVERY_STATUS_URL='https://api.espetinhoperus.com.br/delivery-status';
 let remoteDeliveryState=null;
 
 function effectiveDeliveryState(){
