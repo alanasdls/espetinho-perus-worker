@@ -704,3 +704,16 @@
     padding-left:0!important;
   }
 }
+
+
+/* V139 — logo encostada na lateral esquerda */
+@media(max-width:760px){
+  .hero.ep-reference-header nav{
+    padding-left:0!important;
+    padding-right:20px!important;
+  }
+
+  .hero.ep-reference-header .brand-logo{
+    margin-left:-14px!important;
+  }
+}
