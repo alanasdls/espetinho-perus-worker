@@ -539,6 +539,20 @@ function credenciaisMistic(env) {
   };
 }
 
+function misticApiBase(env) {
+  return texto(env.MISTICPAY_API_BASE || "https://api.misticpay.com", 300).replace(/\/+$/, "");
+}
+function misticGatewayHeaders(env) {
+  const h = {
+    ci: credenciaisMistic(env).ci,
+    cs: credenciaisMistic(env).cs,
+    "Content-Type": "application/json"
+  };
+  const gatewayKey = texto(env.MISTICPAY_GATEWAY_KEY || "", 500);
+  if (gatewayKey) h["X-Gateway-Key"] = gatewayKey;
+  return h;
+}
+
 async function consultarMisticPay(env,id) {
   const r=await fetch("https://api.misticpay.com/api/transactions/check",{
     method:"POST",
@@ -1606,13 +1620,13 @@ export default { async fetch(request,env,ctx) {
     const pay={amount:total,payerName:nome,transactionId:orderId,description:`Pedido ${orderId} - Espetinho Perus`,projectWebhook:`${url.origin}/webhook-misticpay`};
     const documento=texto(entrada.customer?.document||entrada.customer?.cpf||entrada.payerDocument||env.MISTICPAY_PAYER_DOCUMENT,30).replace(/\D/g,"");
     if(documento)pay.payerDocument=documento;
-    const r=await fetch("https://api.misticpay.com/api/transactions/create",{method:"POST",headers:{ci:credenciaisMistic(env).ci,cs:credenciaisMistic(env).cs,"Content-Type":"application/json"},body:JSON.stringify(pay)});
+    const r=await fetch(`${misticApiBase(env)}/api/transactions/create`,{method:"POST",headers:misticGatewayHeaders(env),body:JSON.stringify(pay)});
     let d={};try{d=await r.json()}catch{d={erro:"Resposta invalida da MisticPay"}}
     const diagnosticoCriacao={
       registrado_em:new Date().toISOString(),
       http_status:r.status,
       http_status_text:r.statusText,
-      endpoint:"https://api.misticpay.com/api/transactions/create",
+      endpoint:`${misticApiBase(env)}/api/transactions/create`,
       payload_enviado:{...pay,payerDocument:pay.payerDocument?`${pay.payerDocument.slice(0,3)}*****${pay.payerDocument.slice(-2)}`:"nao informado"},
       resposta_misticpay:d
     };
