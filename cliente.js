@@ -39,6 +39,9 @@ function setBusy(form,busy,label){const btn=form.querySelector('button[type="sub
 function showTab(name){document.querySelectorAll('[data-auth-tab]').forEach(b=>b.classList.toggle('active',b.dataset.authTab===name));document.querySelectorAll('[data-auth-panel]').forEach(p=>p.classList.toggle('active',p.dataset.authPanel===name));authMessage('')}
 
 document.querySelectorAll('[data-auth-tab]').forEach(btn=>btn.addEventListener('click',()=>showTab(btn.dataset.authTab)));
+const requestedAuthMode=new URLSearchParams(location.search).get('mode');
+if(requestedAuthMode==='register') showTab('register');
+
 
 $('#googleLoginButton')?.addEventListener('click',async e=>{
   const button=e.currentTarget;
