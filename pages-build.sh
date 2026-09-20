@@ -2,16 +2,18 @@
 set -euo pipefail
 
 DIST="dist"
-SOURCE_ORIGIN="${STATIC_ASSET_SOURCE_ORIGIN:-https://espetinhoperus.com.br}"
+# O pages.dev sempre aponta para o último deploy bem-sucedido e serve como
+# origem segura dos assets históricos que ainda não estão versionados.
+SOURCE_ORIGIN="${STATIC_ASSET_SOURCE_ORIGIN:-https://espetinho-perus-site.pages.dev}"
 
 rm -rf "$DIST"
 mkdir -p "$DIST"
 
-# Publica apenas arquivos necessários do frontend na raiz.
+# Copia os arquivos públicos versionados na raiz.
 for pattern in "*.html" "*.css" "*.js" "*.json" "*.webmanifest" "*.png" "*.jpg" "*.jpeg" "*.webp" "*.wav" "_headers"; do
-  for f in $pattern; do
-    [ -f "$f" ] || continue
-    cp "$f" "$DIST/"
+  for file in $pattern; do
+    [ -f "$file" ] || continue
+    cp "$file" "$DIST/"
   done
 done
 
@@ -20,10 +22,10 @@ TMP_LIST="$(mktemp)"
 find . -maxdepth 1 -type f \( -name '*.html' -o -name '*.css' -o -name '*.js' -o -name '*.json' -o -name '*.webmanifest' \) -print0 \
   | xargs -0 grep -Eho "([.]/)?[A-Za-z0-9_./-]+\.(png|jpg|jpeg|webp|wav)" \
   | sed 's#^\./##' \
-  | grep -vE '^(https?:|data:|[^/]*\.com/|[^/]*\.dev/)' \
+  | grep -vE '^(https?:|data:|//)' \
+  | grep -vE '^[^/]+\.(com|dev|co|br)/' \
   | sort -u > "$TMP_LIST" || true
 
-# Acrescenta os assets essenciais conhecidos da home V105/V107.
 cat >> "$TMP_LIST" <<'EOF'
 assets/503042.jpg
 assets/banner-v105-01-10-desconto.jpg
@@ -50,8 +52,8 @@ while IFS= read -r asset; do
     continue
   fi
 
-  # Compatibilidade: alguns banners antigos estão versionados na raiz,
-  # mas o frontend histórico os referencia dentro de assets/.
+  # Alguns banners antigos estão versionados na raiz, embora o frontend
+  # histórico ainda possa referenciá-los dentro de assets/.
   base="$(basename "$asset")"
   if [ -f "$base" ]; then
     cp "$base" "$DIST/$asset"
@@ -71,11 +73,12 @@ done < "$TMP_LIST"
 
 rm -f "$TMP_LIST"
 
-# Torna a home autocontida para evitar tela sem CSS/JS em caso de falha
-# de cache/rota de arquivos auxiliares durante deploy/migração de domínio.
+# Deixa a home autocontida: CSS e scripts locais essenciais são incorporados
+# diretamente no index.html. Os arquivos externos continuam no dist também.
 node <<'NODE'
 const fs = require('fs');
 const path = require('path');
+
 const dist = 'dist';
 const indexPath = path.join(dist, 'index.html');
 let html = fs.readFileSync(indexPath, 'utf8');
@@ -83,22 +86,34 @@ let html = fs.readFileSync(indexPath, 'utf8');
 const cssPath = path.join(dist, 'styles-v105.css');
 if (fs.existsSync(cssPath)) {
   const css = fs.readFileSync(cssPath, 'utf8');
-  html = html.replace(/<link\s+rel=["']stylesheet["']\s+href=["']styles-v105\.css[^"']*["']\s*\/?>(?:\s*)/i, '<style id="ep-critical-styles">\n' + css + '\n</style>\n');
+  html = html.replace(
+    /<link\s+rel=["']stylesheet["']\s+href=["']styles-v105\.css[^"']*["']\s*\/?>(?:\s*)/i,
+    '<style id="ep-critical-styles">\n' + css + '\n</style>\n'
+  );
 }
 
-const localScripts = ['loyalty.js','app-misticpay-cpf-v102.js','cart-buttons-v60.js'];
-for (const file of localScripts) {
+function inlineScript(file, pattern) {
   const filePath = path.join(dist, file);
-  if (!fs.existsSync(filePath)) continue;
+  if (!fs.existsSync(filePath)) return;
   const js = fs.readFileSync(filePath, 'utf8').replace(/<\/script/gi, '<\\/script');
-  const escaped = file.replace(/[.*+?^$(){}|[\]\\]/g, '\\rm -f "$TMP_LIST"
-
-echo "Pages build concluído: copiados=$copied baixados=$downloaded falhas=$failed"
-test -f "$DIST/index.html"
-');
-  const re = new RegExp('<script\\s+[^>]*src=["\\\']' + escaped + '(?:\\?[^"\\\']*)?["\\\'][^>]*>\\s*<\\/script>', 'i');
-  html = html.replace(re, '<script data-inline-source="' + file + '">\n' + js + '\n</script>');
+  html = html.replace(
+    pattern,
+    '<script data-inline-source="' + file + '">\n' + js + '\n</script>'
+  );
 }
+
+inlineScript(
+  'loyalty.js',
+  /<script\s+[^>]*src=["']loyalty\.js(?:\?[^"']*)?["'][^>]*>\s*<\/script>/i
+);
+inlineScript(
+  'app-misticpay-cpf-v102.js',
+  /<script\s+[^>]*src=["']app-misticpay-cpf-v102\.js(?:\?[^"']*)?["'][^>]*>\s*<\/script>/i
+);
+inlineScript(
+  'cart-buttons-v60.js',
+  /<script\s+[^>]*src=["']cart-buttons-v60\.js(?:\?[^"']*)?["'][^>]*>\s*<\/script>/i
+);
 
 fs.writeFileSync(indexPath, html);
 console.log('Home crítica incorporada ao index.html');
