@@ -2501,3 +2501,43 @@ button[data-add].added-feedback::after{
     margin-top:16px!important;
   }
 }
+
+
+/* V118 — restaura banners 2 e 3 originais */
+@media(max-width:760px){
+  .promo-image-mode .promo-two.promo-card-image,
+  .promo-image-mode .promo-three.promo-card-image{
+    position:relative!important;
+    aspect-ratio:1672 / 941!important;
+    min-height:0!important;
+    padding:0!important;
+    align-items:stretch!important;
+    background-size:cover!important;
+    background-position:center!important;
+    background-repeat:no-repeat!important;
+    background-color:#050403!important;
+  }
+
+  .promo-image-mode .promo-two.promo-card-image::before,
+  .promo-image-mode .promo-three.promo-card-image::before{
+    display:none!important;
+    content:none!important;
+  }
+
+  .promo-image-mode .promo-two .promo-banner-link,
+  .promo-image-mode .promo-three .promo-banner-link{
+    position:absolute!important;
+    inset:0!important;
+    z-index:4!important;
+    display:block!important;
+    min-height:0!important;
+    margin:0!important;
+    padding:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    color:transparent!important;
+    font-size:0!important;
+    line-height:0!important;
+  }
+}
