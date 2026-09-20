@@ -717,3 +717,35 @@
     margin-left:-14px!important;
   }
 }
+
+
+/* V140 — mantém logo e conteúdo dentro da borda esquerda */
+@media(max-width:760px){
+  .hero.ep-reference-header nav{
+    padding-left:8px!important;
+    padding-right:20px!important;
+  }
+
+  .hero.ep-reference-header .brand-logo{
+    margin-left:0!important;
+  }
+
+  .hero.ep-reference-header .hero-inner{
+    padding-left:8px!important;
+    padding-right:14px!important;
+  }
+
+  .hero.ep-reference-header .hero-copy{
+    width:100%!important;
+    margin-left:0!important;
+    padding-left:0!important;
+  }
+
+  .hero.ep-reference-header h1,
+  .hero.ep-reference-header .ep-reference-summary{
+    margin-left:0!important;
+    padding-left:0!important;
+    transform:none!important;
+    max-width:100%!important;
+  }
+}
