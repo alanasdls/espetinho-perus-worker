@@ -165,9 +165,9 @@ body{
   z-index:-1;
   background:linear-gradient(90deg,rgba(12,8,5,.96) 0%,rgba(12,8,5,.76) 48%,rgba(12,8,5,.18) 100%);
 }
-.promo-one{background-image:url("assets/banner-v105-01-10-desconto.jpg")}
-.promo-two{background-image:url("assets/banner-v105-02-karaoke-double.jpg")}
-.promo-three{background-image:url("assets/banner-v105-03-instagram-musica.jpg")}
+.promo-one{background-image:url("banner-v105-01-10-desconto.jpg")}
+.promo-two{background-image:url("banner-v105-02-karaoke-double.jpg")}
+.promo-three{background-image:url("banner-v105-03-instagram-musica.jpg")}
 .promo-card>div{max-width:580px}
 .promo-card span{
   display:inline-flex;
