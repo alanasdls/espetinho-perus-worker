@@ -1,0 +1,188 @@
+/* Header-only layout. More specific than the historical V105-V116 overrides. */
+.hero.ep-reference-header .ep-reference-art,
+.hero.ep-reference-header .ep-reference-slogan { display: none; }
+.hero.ep-reference-header .ep-title-line { display: block; }
+.hero.ep-reference-header .ep-title-accent { color: #f5bf43; }
+.hero.ep-reference-header .ep-cta-icon { width: 18px; height: 20px; flex: none; }
+.hero.ep-reference-header .ep-cta-arrow { width: 12px; height: 18px; flex: none; }
+.hero.ep-reference-header .ep-play-icon { width: 22px; height: 22px; flex: none; }
+
+@media (max-width: 760px) {
+  .hero.ep-reference-header {
+    position: relative !important;
+    isolation: isolate !important;
+    overflow: hidden !important;
+    min-height: 0 !important;
+    background: #090705 !important;
+    color: #fff !important;
+  }
+  /* Disable the old photographic layers, not the rest of the site's styles. */
+  .hero.ep-reference-header::before,
+  .hero.ep-reference-header::after { content: none !important; display: none !important; }
+  .hero.ep-reference-header .ep-reference-art {
+    display: block;
+    position: absolute;
+    z-index: 0;
+    pointer-events: none;
+    right: 0;
+    top: calc(75px + 2vw);
+    width: 57%;
+    margin: 0;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, transparent 5%, #000 13%, #000 86%, transparent);
+    mask-image: linear-gradient(180deg, transparent 0%, transparent 5%, #000 13%, #000 86%, transparent);
+  }
+  .hero.ep-reference-header .ep-reference-art img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 317 / 331;
+    object-fit: contain;
+  }
+  .hero.ep-reference-header .ep-reference-art::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, #090705, rgba(9,7,5,.65) 12%, rgba(9,7,5,.12) 35%, transparent 60%);
+  }
+  .hero.ep-reference-header nav {
+    position: relative !important;
+    z-index: 2 !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 84px !important;
+    padding: 20px 20px 14px !important;
+    margin: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+  .hero.ep-reference-header .brand {
+    font-family: Oswald, 'Roboto Condensed', 'Arial Narrow', sans-serif !important;
+    font-size: clamp(25px, 7.4vw, 39px) !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    letter-spacing: .25px !important;
+    white-space: nowrap;
+    color: #fff;
+  }
+  .hero.ep-reference-header .brand small {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 7px !important;
+    margin: 7px 0 0 !important;
+    font-size: clamp(9px, 2.6vw, 13px) !important;
+    letter-spacing: 4px !important;
+    color: #f5bf43 !important;
+  }
+  .hero.ep-reference-header .brand small::before,
+  .hero.ep-reference-header .brand small::after {
+    content: '' !important;
+    display: block !important;
+    width: 22px !important;
+    height: 1px !important;
+    background: #d6a63b !important;
+  }
+  .hero.ep-reference-header .navlinks { display: none !important; }
+  .hero.ep-reference-header .ep-reference-slogan {
+    display: block;
+    position: relative;
+    flex: none;
+    width: 37%;
+    margin: 0;
+    padding: 0 0 7px;
+    color: #eec05b;
+    font: 700 clamp(17px, 5vw, 28px)/.97 'Caveat', 'Brush Script MT', 'Segoe Script', 'Z003', cursive;
+    text-align: center;
+    transform: rotate(-5deg);
+  }
+  .hero.ep-reference-header .ep-reference-slogan::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 16%;
+    width: 68%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #eec05b 25%, #eec05b 80%, transparent);
+    transform: rotate(-5deg);
+  }
+  .hero.ep-reference-header .hero-inner {
+    position: relative !important;
+    z-index: 1 !important;
+    padding: 9px 18px 16px !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0 !important;
+  }
+  .hero.ep-reference-header .hero-copy {
+    position: relative !important;
+    width: 100% !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+    z-index: 1 !important;
+  }
+  .hero.ep-reference-header h1 {
+    width: max-content !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    font-family: Oswald, 'Roboto Condensed', 'Arial Narrow', sans-serif !important;
+    font-size: clamp(27px, 8.8vw, 52px) !important;
+    line-height: .99 !important;
+    font-weight: 700 !important;
+    letter-spacing: -.02em !important;
+    text-transform: uppercase !important;
+    text-shadow: 0 2px 14px rgba(0,0,0,.7) !important;
+  }
+  .hero.ep-reference-header .ep-title-line { white-space: nowrap; }
+  .hero.ep-reference-header .ep-reference-summary {
+    width: max-content !important;
+    max-width: 100% !important;
+    margin: 14px 0 0 !important;
+    font: 400 clamp(11px, 3.2vw, 16px)/1.42 Roboto, Arial, sans-serif !important;
+    color: #f4f0eb !important;
+    text-shadow: 0 1px 8px #090705 !important;
+  }
+  .hero.ep-reference-header .ep-reference-summary span { display: block; }
+  .hero.ep-reference-header .hero-actions {
+    display: grid !important;
+    grid-template-columns: 1.08fr .92fr !important;
+    position: relative !important;
+    z-index: 2 !important;
+    gap: 10px !important;
+    margin: 19px 0 0 !important;
+  }
+  .hero.ep-reference-header .hero-actions .btn {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 7px !important;
+    padding: 10px 8px !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    min-height: 48px !important;
+    border-radius: 15px !important;
+    font-size: clamp(12px, 3.4vw, 17px) !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+  }
+  .hero.ep-reference-header .hero-actions .primary {
+    color: #fff !important;
+    background: linear-gradient(135deg, #ef0925, #d3001c) !important;
+    box-shadow: 0 8px 25px rgba(223,0,30,.16) !important;
+  }
+  .hero.ep-reference-header .hero-actions .ghost {
+    color: #fff !important;
+    border: 1px solid #99928a !important;
+    background: rgba(9,7,5,.88) !important;
+    box-shadow: none !important;
+  }
+  .hero.ep-reference-header .hero-actions .btn:focus-visible {
+    outline: 2px solid #f5bf43;
+    outline-offset: 4px;
+  }
+  .hero.ep-reference-header .app-benefits { position: relative !important; z-index: 2 !important; }
+}

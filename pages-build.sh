@@ -2,16 +2,13 @@
 set -euo pipefail
 
 DIST="dist"
-# O pages.dev sempre aponta para o último deploy bem-sucedido e serve como
-# origem segura dos assets históricos que ainda não estão versionados.
+# Origem dos assets históricos ainda não versionados (mantida).
 SOURCE_ORIGIN="${STATIC_ASSET_SOURCE_ORIGIN:-https://espetinho-perus-site.pages.dev}"
 
 rm -rf "$DIST"
 mkdir -p "$DIST"
 mkdir -p "$DIST/assets"
 
-# Assets V112 aprovados: armazenados em base64 no GitHub para manter o Pages
-# completamente versionado, sem depender de origem externa.
 if [ -s "assets-src/hero-v112.b64" ]; then
   base64 -d "assets-src/hero-v112.b64" > "$DIST/assets/hero-v112.webp"
 fi
@@ -19,7 +16,6 @@ if [ -s "assets-src/promo-combo-casal.b64" ]; then
   base64 -d "assets-src/promo-combo-casal.b64" > "$DIST/assets/promo-combo-casal.webp"
 fi
 
-# Copia os arquivos públicos versionados na raiz.
 for pattern in "*.html" "*.css" "*.js" "*.json" "*.webmanifest" "*.png" "*.jpg" "*.jpeg" "*.webp" "*.wav" "_headers"; do
   for file in $pattern; do
     [ -f "$file" ] || continue
@@ -27,7 +23,6 @@ for pattern in "*.html" "*.css" "*.js" "*.json" "*.webmanifest" "*.png" "*.jpg" 
   done
 done
 
-# Descobre recursos estáticos relativos referenciados pelo frontend.
 TMP_LIST="$(mktemp)"
 find . -maxdepth 1 -type f \( -name '*.html' -o -name '*.css' -o -name '*.js' -o -name '*.json' -o -name '*.webmanifest' \) -print0 \
   | xargs -0 grep -Eho "([.]/)?[A-Za-z0-9_./-]+\.(png|jpg|jpeg|webp|wav)" \
@@ -53,30 +48,22 @@ while IFS= read -r asset; do
   case "$asset" in
     *'..'*) continue ;;
   esac
-
   mkdir -p "$DIST/$(dirname "$asset")"
-
-  # Se o asset já foi gerado no dist (ex.: V112 base64), preserva-o.
   if [ -s "$DIST/$asset" ]; then
     copied=$((copied+1))
     continue
   fi
-
   if [ -f "$asset" ]; then
     cp "$asset" "$DIST/$asset"
     copied=$((copied+1))
     continue
   fi
-
-  # Alguns banners antigos estão versionados na raiz, embora o frontend
-  # histórico ainda possa referenciá-los dentro de assets/.
   base="$(basename "$asset")"
   if [ -f "$base" ]; then
     cp "$base" "$DIST/$asset"
     copied=$((copied+1))
     continue
   fi
-
   url="$SOURCE_ORIGIN/$asset"
   if curl -fsSL --retry 3 --connect-timeout 10 --max-time 45 "$url" -o "$DIST/$asset"; then
     downloaded=$((downloaded+1))
@@ -86,55 +73,38 @@ while IFS= read -r asset; do
     failed=$((failed+1))
   fi
 done < "$TMP_LIST"
-
 rm -f "$TMP_LIST"
 
-# Deixa a home autocontida: CSS e scripts locais essenciais são incorporados
-# diretamente no index.html. Os arquivos externos continuam no dist também.
+# Cabeçalho isolado e validado. Não altera combo, catálogo nem scripts do negócio.
+node home-reference-v117.cjs "$DIST"
+
+# Mantém a incorporação de CSS/JS. Callbacks preservam literalmente $& e $`.
 node <<'NODE'
 const fs = require('fs');
 const path = require('path');
-
 const dist = 'dist';
 const indexPath = path.join(dist, 'index.html');
 let html = fs.readFileSync(indexPath, 'utf8');
-
 const cssPath = path.join(dist, 'styles-v105.css');
 if (fs.existsSync(cssPath)) {
   const css = fs.readFileSync(cssPath, 'utf8');
   html = html.replace(
     /<link\s+rel=["']stylesheet["']\s+href=["']styles-v105\.css[^"']*["']\s*\/?>(?:\s*)/i,
-    '<style id="ep-critical-styles">\n' + css + '\n</style>\n'
+    () => '<style id="ep-critical-styles">\n' + css + '\n</style>\n'
   );
 }
-
 function inlineScript(file, pattern) {
   const filePath = path.join(dist, file);
   if (!fs.existsSync(filePath)) return;
   const js = fs.readFileSync(filePath, 'utf8').replace(/<\/script/gi, '<\\/script');
-  html = html.replace(
-    pattern,
-    '<script data-inline-source="' + file + '">\n' + js + '\n</script>'
-  );
+  html = html.replace(pattern, () => '<script data-inline-source="' + file + '">\n' + js + '\n</script>');
 }
-
-inlineScript(
-  'loyalty.js',
-  /<script\s+[^>]*src=["']loyalty\.js(?:\?[^"']*)?["'][^>]*>\s*<\/script>/i
-);
-inlineScript(
-  'app-misticpay-cpf-v102.js',
-  /<script\s+[^>]*src=["']app-misticpay-cpf-v102\.js(?:\?[^"']*)?["'][^>]*>\s*<\/script>/i
-);
-inlineScript(
-  'cart-buttons-v60.js',
-  /<script\s+[^>]*src=["']cart-buttons-v60\.js(?:\?[^"']*)?["'][^>]*>\s*<\/script>/i
-);
-
+inlineScript('loyalty.js', /<script\s+[^>]*src=["']loyalty\.js(?:\?[^"']*)?["'][^>]*>\s*<\/script>/i);
+inlineScript('app-misticpay-cpf-v102.js', /<script\s+[^>]*src=["']app-misticpay-cpf-v102\.js(?:\?[^"']*)?["'][^>]*>\s*<\/script>/i);
+inlineScript('cart-buttons-v60.js', /<script\s+[^>]*src=["']cart-buttons-v60\.js(?:\?[^"']*)?["'][^>]*>\s*<\/script>/i);
 fs.writeFileSync(indexPath, html);
 console.log('Home crítica incorporada ao index.html');
 NODE
 
 echo "Pages build concluído: copiados=$copied baixados=$downloaded falhas=$failed"
-test -f "$DIST/index.html"
 test -s "$DIST/index.html"
