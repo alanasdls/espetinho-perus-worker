@@ -837,8 +837,8 @@ function applyStoreSchedule(){
     box?.classList.add('open'); box?.classList.remove('closed');
     checkoutButtons.forEach(btn=>{btn.disabled=false;btn.classList.remove('store-closed-button');btn.removeAttribute('data-store-closed')});
   }else{
-    if(title) title.textContent=info.mode==='manual_closed'?'Pedidos fechados pelo estabelecimento':'Pedidos fechados no momento';
-    if(desc) desc.textContent=info.mode==='manual_closed'?'O delivery foi pausado temporariamente pelo painel.':`Próxima abertura: ${nextOpeningLabel()}. Você pode consultar o cardápio e montar o carrinho.`;
+    if(title) title.textContent=info.mode==='manual_closed'?'Pedidos pausados no momento':`Abrimos ${nextOpeningLabel().toLowerCase()}`;
+    if(desc) desc.textContent=info.mode==='manual_closed'?'O delivery está temporariamente pausado.':'Você já pode montar seu carrinho.';
     if(status) status.textContent=info.mode==='manual_closed'?'Fechado manualmente':`Fechado agora • abre ${nextOpeningLabel().toLowerCase()}`;
     box?.classList.add('closed'); box?.classList.remove('open');
     checkoutButtons.forEach(btn=>{btn.disabled=true;btn.classList.add('store-closed-button');btn.dataset.storeClosed='1'});

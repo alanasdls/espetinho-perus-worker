@@ -4,22 +4,23 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const VERSION = '20260920-v140-safe-left-edge';
-const ART = 'assets/hero-reference-v117.webp';
-const EXPECTED_ART_SHA256 = 'ff59d613e0ac9fa4eefa8c46738c50680a888c2cabc127841675f15aaf20bea7';
+const VERSION = '20260920-v142-approved-home';
+const ART = 'assets/hero-approved-v142.webp';
+const EXPECTED_ART_SHA256 = '01edd3090025a549ebe5535b649642cb2a1ecfcfbccc923d3662695ea73607de';
 
 function renderHero(original) {
   const benefits = original.match(/<section class="app-benefits"[\s\S]*?<\/section>/);
   const navlinks = original.match(/<div class="navlinks">[\s\S]*?<\/div>/);
   if (!benefits || !navlinks) throw new Error('Hero source changed: preserve benefits/navigation before publishing.');
   return `<header class="hero ep-reference-header" id="inicio" data-hero-version="${VERSION}">
-  <div class="ep-reference-art" aria-hidden="true"><img src="${ART}" width="317" height="331" alt="" fetchpriority="high" decoding="async"></div>
   <nav aria-label="Navegação principal">
     <a class="brand brand-logo" href="#inicio" aria-label="Espetinho Perus"><img src="logo-premium.png" alt="Espetinho Perus"></a>
     ${navlinks[0]}
     <span class="ep-reference-slogan">Sabor,<br>cerveja gelada<br>e resenha</span>
   </nav>
   <div class="hero-inner">
+  <div class="ep-reference-art" aria-hidden="true"><img src="${ART}" width="768" height="768" alt="" fetchpriority="high" decoding="async"></div>
+
     <div class="hero-copy">
       <h1><span class="ep-title-line">O melhor</span><span class="ep-title-line">do espetinho</span><span class="ep-title-line ep-title-accent">no coração</span><span class="ep-title-line ep-title-accent">de Perus</span></h1>
       <p class="ep-reference-summary"><span>Escolha seus itens, monte o carrinho</span><span>e finalize seu pedido com rapidez.</span></p>
