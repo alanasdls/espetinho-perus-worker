@@ -730,7 +730,7 @@ document.querySelector('#copyPix').onclick=async()=>{
 
 async function consultarPix(paymentId){
   try{
-    const response=await fetch(`https://espetinho-perus-api.alanasdls.workers.dev/pagamento-status?id=${encodeURIComponent(paymentId)}`);
+    const response=await fetch(`https://espetinho-perus-api.alanasdls.workers.dev/pagamento-status?id=${encodeURIComponent(paymentId)}`,{headers:{"X-Order-Token":pixTrackingToken}});
     const data=await response.json();
     if(data.status==='approved'){
       EPCart.clear();cart={};

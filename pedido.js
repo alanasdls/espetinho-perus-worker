@@ -1,3 +1,4 @@
+const escapeOrderText=value=>String(value??" ").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const API = 'https://espetinho-perus-api.alanasdls.workers.dev';
 const token = new URLSearchParams(location.search).get('token') || localStorage.getItem('ep-last-tracking-token') || '';
 const $ = (s) => document.querySelector(s);
@@ -43,7 +44,7 @@ function render(p){
   let i=steps.indexOf(p.order_status);if(p.order_status==='recebido')i=0;if(p.order_status==='cancelado')i=0;
   $('#progressBar').style.width=`${p.order_status==='finalizado'?100:Math.max(12,(i+1)/steps.length*100)}%`;
   $('#steps').innerHTML=steps.map((s,n)=>`<div class="step ${n<i?'done':n===i?'current':''}"><span class="dot">${labels[s][0]}</span><div><b>${labels[s][1]}</b></div></div>`).join('');
-  $('#items').innerHTML=(p.items||[]).map(x=>`<div class="item"><span>${x.quantity}x ${x.name}${x.reward?" · Resgate":""}</span><b>${Number(x.reward?0:(x.subtotal||0)).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</b></div>`).join('');
+  $('#items').innerHTML=(p.items||[]).map(x=>`<div class="item"><span>${escapeOrderText(x.quantity)}x ${escapeOrderText(x.name)}${x.reward?" · Resgate":""}</span><b>${Number(x.reward?0:(x.subtotal||0)).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</b></div>`).join('');
   $('#total').textContent=Number(p.total||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   $('#fulfillment').textContent=p.customer?.fulfillment?`📦 ${p.customer.fulfillment}`:'';
   $('#address').textContent=p.customer?.address?`📍 ${p.customer.address}`:'';

@@ -1,5 +1,5 @@
 // V105-BANNERS-HARDWIRED
-const CACHE = 'espetinho-perus-v122-benefits-reference';
+const CACHE = 'espetinho-perus-v148-security';
 const PRECACHE = [
   './', './index.html', './pedido.html','./cliente.html','./cliente.css?v=20260815-v95-fidelidade-resgate','./cliente.js?v=20260920-v119-register-direct', './pedido.css?v=20260724-v2', './pedido.js?v=20260724-v3', './admin.html', './admin.css?v=20260727-v79-admin-studio', './admin.js?v=20260727-v79-admin-studio', './admin-catalog.json?v=20260727-v79', './styles-v105.css?v=20260920-v122-benefits-reference', './app-misticpay-cpf-v102.js?v=20260920-v110-assets', './pagamento-sucesso.html', './pagamento-pendente.html', './pagamento-falhou.html',
   './manifest.webmanifest', './manifest-admin.webmanifest', './banner-v105-01-10-desconto.jpg', './banner-v105-02-karaoke-double.jpg', './banner-v105-03-instagram-musica.jpg', './alerta-pedido.wav?v=20260724-v4', './icon-192.png', './icon-512.png', './apple-touch-icon.png',
@@ -107,14 +107,19 @@ self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
+  // Never persist authenticated routes, tracking URLs, or document responses.
+  if (event.request.mode === 'navigate' || url.searchParams.has('token') ||
+      /(?:admin|cliente|pedido|pagamento|painel)/i.test(url.pathname) ||
+      event.request.headers.has('Authorization') ||
+      !/\.(?:css|js|png|jpe?g|webp|svg|ico|wav|woff2?)$/i.test(url.pathname)) return;
   event.respondWith(
     fetch(event.request, {cache:'no-store'}).then(response => {
-      if (response && response.ok) {
+      if (response && response.ok && !/no-store|private/i.test(response.headers.get('Cache-Control')||'')) {
         const copy = response.clone();
         caches.open(CACHE).then(cache => cache.put(event.request, copy));
       }
       return response;
-    }).catch(() => caches.match(event.request).then(r => r || caches.match('./index.html')))
+    }).catch(() => caches.match(event.request).then(r => r || Response.error()))
   );
 });
 

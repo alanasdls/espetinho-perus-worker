@@ -51,6 +51,7 @@ test('real Worker charges only freight for reward, paid items keep discount, QR 
    if(a==='response')entry.response=d.response;
    return Response.json(entry);
   }
+  if(url.endsWith('/rpc/creditar_pontos_pedido')){assert.equal(JSON.parse(options.body).p_subtotal,0);return Response.json({pontos_creditados:0});}
   if(url.endsWith('/api/transactions/create')){payments.push(JSON.parse(options.body));return Response.json({data:{transactionId:'payment-'+payments.length,copyPaste:'pix',qrCodeBase64:'cXI=',transactionState:'PENDENTE'}});}
   throw Error('Unexpected fetch '+url);
  };
@@ -62,5 +63,8 @@ test('real Worker charges only freight for reward, paid items keep discount, QR 
   body.order_id='EP-R-22222222-2222-4222-8222-222222222222';body.items.push({name:'Queijo coalho',quantity:1});
   r=await worker.fetch(request(body),env,{});d=await r.json();assert.equal(r.status,201,JSON.stringify(d));assert.equal(d.total,20.26);assert.equal(payments[1].amount,20.26);
   const stored=JSON.parse(orders.get('order:'+body.order_id));assert.equal(stored.loyalty_subtotal_eligible,10.26);assert.equal(stored.reward_checkout.points,228);assert.equal(stored.items[0].reward,true);
+  body.order_id='EP-R-33333333-3333-4333-8333-333333333333';body.items=body.items.slice(0,1);body.customer.fulfillment='Retirada';
+  r=await worker.fetch(request(body),env,{});d=await r.json();assert.equal(r.status,201,JSON.stringify(d));assert.equal(d.total,0);assert.equal(d.status,'approved');assert.equal(payments.length,2);
+
  }finally{globalThis.fetch=original;}
 });

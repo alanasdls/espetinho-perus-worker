@@ -69,7 +69,7 @@ async function avisarTempoReal(env, tipo, pedido) {
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,PATCH,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, X-Admin-Key, Authorization, X-Access-Token, X-Api-Token, Token"
+  "Access-Control-Allow-Headers": "Content-Type, X-Order-Token, X-Admin-Key, Authorization, X-Access-Token, X-Api-Token, Token"
 };
 
 const PRECOS = {
@@ -136,7 +136,7 @@ const fromB64url = s => Uint8Array.from(atob(String(s).replace(/-/g,"+").replace
 const concat = (...arrays) => { const n=arrays.reduce((s,a)=>s+a.length,0), out=new Uint8Array(n); let p=0; for(const a of arrays){out.set(a,p);p+=a.length} return out; };
 
 function responder(dados, status = 200) {
-  return new Response(JSON.stringify(dados), { status, headers: { ...CORS, "Content-Type": "application/json; charset=UTF-8", "Cache-Control": "no-store" } });
+  return new Response(JSON.stringify(dados), { status, headers: { ...CORS, "Content-Type": "application/json; charset=UTF-8", "Cache-Control": "no-store", "X-Content-Type-Options":"nosniff", "Referrer-Policy":"no-referrer" } });
 }
 function emailValido(email) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
 function texto(valor, limite = 500) { return String(valor ?? "").trim().slice(0, limite); }
@@ -579,6 +579,7 @@ async function sincronizarPagamentoMistic(env,d) {
   if(!orderId)orderId=texto(tx?.clientTransactionId||tx?.external_reference,100);
   if(!orderId)return null;
   const p=await buscarPedido(env,orderId); if(!p)return null;
+  if(!p.payment_id||String(p.payment_id)!==String(paymentId)||![undefined,"misticpay"].includes(p.payment_provider))return null;
   const novoStatus=statusMisticParaSite(tx?.transactionState||tx?.status);
   const before=p.payment_status;
   p.payment_id=String(paymentId);
@@ -615,13 +616,16 @@ async function vapidJwt(env, endpoint) {
   const sig=await crypto.subtle.sign({name:"ECDSA",hash:"SHA-256"},key,enc.encode(input)); return `${input}.${b64url(sig)}`;
 }
 async function push(env, sub, payload) {
+  const endpoint=new URL(sub.endpoint);
+  const host=endpoint.hostname;
+  if(endpoint.protocol!=="https:"||endpoint.username||endpoint.password||endpoint.port||!(host==="fcm.googleapis.com"||host==="updates.push.services.mozilla.com"||host==="web.push.apple.com"||host.endsWith(".notify.windows.com")))throw Error("Serviço de notificações inválido.");
   const ua=fromB64url(sub.keys.p256dh), auth=fromB64url(sub.keys.auth), eph=await crypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
   const uaKey=await crypto.subtle.importKey("raw",ua,{name:"ECDH",namedCurve:"P-256"},false,[]); const shared=new Uint8Array(await crypto.subtle.deriveBits({name:"ECDH",public:uaKey},eph.privateKey,256));
   const asPub=new Uint8Array(await crypto.subtle.exportKey("raw",eph.publicKey)); const prkKey=await hkdfExtract(auth,shared); const ikm=await hkdfExpand(prkKey,concat(enc.encode("WebPush: info"),new Uint8Array([0]),ua,asPub),32);
   const salt=crypto.getRandomValues(new Uint8Array(16)); const prk=await hkdfExtract(salt,ikm); const cek=await hkdfExpand(prk,concat(enc.encode("Content-Encoding: aes128gcm"),new Uint8Array([0])),16); const nonce=await hkdfExpand(prk,concat(enc.encode("Content-Encoding: nonce"),new Uint8Array([0])),12);
   const plain=concat(enc.encode(JSON.stringify(payload)),new Uint8Array([2])); const aes=await crypto.subtle.importKey("raw",cek,"AES-GCM",false,["encrypt"]); const cipher=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv:nonce,tagLength:128},aes,plain));
   const rs=new Uint8Array([0,0,16,0]); const body=concat(salt,rs,new Uint8Array([asPub.length]),asPub,cipher); const jwt=await vapidJwt(env,sub.endpoint);
-  return fetch(sub.endpoint,{method:"POST",headers:{"Content-Encoding":"aes128gcm","Content-Type":"application/octet-stream","TTL":"86400","Authorization":`vapid t=${jwt}, k=${env.VAPID_PUBLIC_KEY}`},body});
+  return fetch(sub.endpoint,{method:"POST",redirect:"error",headers:{"Content-Encoding":"aes128gcm","Content-Type":"application/octet-stream","TTL":"86400","Authorization":`vapid t=${jwt}, k=${env.VAPID_PUBLIC_KEY}`},body});
 }
 async function enviarNotificacoes(env,p,title,body,requireInteraction=false) {
   if(!env.VAPID_PUBLIC_KEY||!env.VAPID_PRIVATE_KEY) return {sent:0,failed:0,results:[],config_error:"VAPID nao configurado"};
@@ -689,7 +693,7 @@ function pagBankBase(env){ return env.PAGBANK_ENV === "production" ? "https://ap
 function pagBankToken(env){ return env.PAGBANK_ENV === "production" ? env.PAGBANK_TOKEN : env.PAGBANK_SANDBOX_TOKEN; }
 function normalizarStatusPagBank(status){
   const s=texto(status,50).toUpperCase();
-  if(s==="PAID"||s==="AUTHORIZED") return "approved";
+  if(s==="PAID") return "approved";
   if(s==="DECLINED"||s==="CANCELED"||s==="EXPIRED") return "rejected";
   return "pending";
 }
@@ -700,6 +704,7 @@ async function sincronizarPagBank(env, payload){
   if(!orderId&&checkoutId) orderId=await env.ORDERS_KV.get(`pagbank:${checkoutId}`);
   if(!orderId) return null;
   const p=await buscarPedido(env,orderId); if(!p) return null;
+  if(p.payment_provider!=="pagbank"||!p.checkout_id||p.checkout_id!==checkoutId)return null;
   const charges=payload?.charges||payload?.payments||payload?.data?.charges||[];
   const charge=Array.isArray(charges)?charges[0]:charges;
   const rawStatus=charge?.status||payload?.status||payload?.data?.status||"WAITING";
@@ -755,6 +760,7 @@ async function sincronizarMercadoPago(env,pagamento){
   if(!resolvedOrderId&&paymentId)resolvedOrderId=await env.ORDERS_KV.get(`mercadopago:payment:${paymentId}`);
   if(!resolvedOrderId)return null;
   const p=await buscarPedido(env,resolvedOrderId);if(!p)return null;
+  if(p.payment_provider!=="mercadopago"||pagamento?.currency_id!=="BRL"||Math.round(Number(pagamento?.transaction_amount)*100)!==Math.round(p.total*100))return null;
   const novoStatus=normalizarStatusMercadoPago(pagamento?.status),before=p.payment_status;
   p.payment_provider="mercadopago";
   p.payment_id=paymentId||p.payment_id;
@@ -1114,8 +1120,22 @@ async function marcarConsumer(env, p, patch = {}) {
 
 async function coreFetch(request,env,ctx) {
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:CORS}); const url=new URL(request.url);
+  // Payment identifiers are not credentials. Require the order's bearer token.
+  if(request.method==="GET"&&["/pagamento-status","/mercadopago-status","/pagbank-status"].includes(url.pathname)){
+    const token=request.headers.get("X-Order-Token")||url.searchParams.get("token")||"";
+    const p=token?await pedidoPorToken(env,texto(token,200)):null;
+    const id=url.searchParams.get("id");
+    const expected=url.pathname==="/pagbank-status"?p?.checkout_id:p?.payment_id;
+    if(!p||!id||!expected||String(expected)!==id)return responder({erro:"Acesso ao pagamento não autorizado."},403);
+  }
+  if(request.method==="POST"&&["/criar-pix","/criar-checkout-pagbank","/criar-checkout-mercadopago","/criar-pedido"].includes(url.pathname)){
+    const b=await request.clone().json().catch(()=>null);
+    if(!b||!Array.isArray(b.items)||!b.items.length||b.items.length>100||b.items.some(i=>!i||!Object.hasOwn(PRECOS,i.name||i.nome||i.title)))return responder({erro:"Carrinho ou produto inválido."},400);
+    const orderId=texto(b.order_id||b.numero_pedido,100);
+    if(orderId&&await buscarPedido(env,orderId))return responder({erro:"Pedido duplicado."},409);
+  }
   if(request.method==="POST"&&["/criar-pix","/criar-checkout-pagbank","/criar-checkout-mercadopago","/criar-pedido"].includes(url.pathname)){const delivery=await estadoDelivery(env);if(!delivery.aberto)return responder({erro:delivery.modo==="manual_closed"?"Delivery fechado manualmente no momento.":`Pedidos fechados no momento. Próxima abertura: ${proximaAbertura()}.`,delivery},403);}
-  if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",versao:"V45",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),pagbank_sandbox:Boolean(env.PAGBANK_SANDBOX_TOKEN),pagbank_producao:Boolean(env.PAGBANK_TOKEN),consumer_api:Boolean(env.CONSUMER_API_TOKEN),mercadopago:Boolean(env.MERCADOPAGO_ACCESS_TOKEN)});
+  if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",versao:"V148-security",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),pagbank_sandbox:Boolean(env.PAGBANK_SANDBOX_TOKEN),pagbank_producao:Boolean(env.PAGBANK_TOKEN),consumer_api:Boolean(env.CONSUMER_API_TOKEN),mercadopago:Boolean(env.MERCADOPAGO_ACCESS_TOKEN)});
   if(request.method==="GET"&&url.pathname==="/vapid-public-key")return responder({publicKey:env.VAPID_PUBLIC_KEY||""});
 
 
@@ -1134,12 +1154,10 @@ async function coreFetch(request,env,ctx) {
 
     if(request.method==="GET" && url.pathname==="/fidelidade/meus-pedidos"){
       const todos = await listarPedidos(env);
-      const emailAuth = normalizarTexto(clienteAuth.email || "");
       const pedidos = todos
         .filter(p => {
           const mesmoId = String(p?.customer?.loyalty_customer_id || "") === String(clienteAuth.id);
-          const mesmoEmail = emailAuth && normalizarTexto(p?.customer?.email || "") === emailAuth;
-          return mesmoId || mesmoEmail;
+          return mesmoId;
         })
         .slice(0,50)
         .map(pedidoFidelidadePublico);
@@ -1152,9 +1170,7 @@ async function coreFetch(request,env,ctx) {
       const p = await buscarPedido(env, numero);
       if(!p) return responder({erro:"Pedido não encontrado."},404);
       const mesmoId = String(p?.customer?.loyalty_customer_id || "") === String(clienteAuth.id);
-      const mesmoEmail = normalizarTexto(clienteAuth.email || "") &&
-        normalizarTexto(p?.customer?.email || "") === normalizarTexto(clienteAuth.email || "");
-      if(!mesmoId && !mesmoEmail) return responder({erro:"Pedido não pertence a esta conta."},403);
+      if(!mesmoId) return responder({erro:"Pedido não pertence a esta conta."},403);
       return responder({pedido:pedidoFidelidadePublico(p)});
     }
 
@@ -1414,10 +1430,11 @@ async function coreFetch(request,env,ctx) {
       subtotal=Math.round(subtotal*100)/100;
       const descontos=calcularDescontosPedido(env,entrada,subtotal,Boolean(clienteAuth?.id));
       const total=Math.round((subtotal-descontos.total_discount+entrega.fee)*100)/100;
+      if(total!==0||!env[REWARD_CONTEXT])return responder({erro:"Finalize o pagamento pelo Pix. Confirmação manual de dinheiro indisponível."},409);
       const orderId=texto(entrada.order_id||entrada.numero_pedido,100)||`EP-${Date.now()}`;
       if(await buscarPedido(env,orderId))return responder({erro:"Pedido duplicado.",order_id:orderId},409);
       const agora=new Date().toISOString(), tracking=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16);
-      const p={order_id:orderId,tracking_token:tracking,site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,
+      const p={order_id:orderId,tracking_token:tracking,site_url:"https://espetinhoperus.com.br",created_at:agora,updated_at:agora,
         customer:{name:texto(entrada.customer?.name||"Cliente",100),email:texto(entrada.customer?.email,150).toLowerCase(),phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},
         items:itens,subtotal,registered_discount_amount:descontos.registered_discount,coupon_discount_amount:descontos.coupon_discount,discount_amount:descontos.total_discount,discounted_subtotal:Math.round((subtotal-descontos.total_discount)*100)/100,loyalty_subtotal_eligible:Math.round((subtotal-descontos.total_discount)*100)/100,coupon_code:descontos.coupon?.code||null,coupon_description:descontos.coupon?.description||null,promotion_code:descontos.coupon?.code?"CUPOM":(descontos.registered_discount>0?"CADASTRADO10":null),delivery_fee:entrega.fee,total,payment_id:null,payment_provider:"dinheiro",payment_method:"Dinheiro",change_for:texto(entrada.change_for,50),payment_status:"approved",payment_status_detail:"Pagamento na entrega/retirada",order_status:"recebido",paid_at:agora,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"recebido",at:agora,origem:"site"}],consumer_sync:{status:"pending",created_at:agora}};
       await gravarPedido(env,p,{type:"order_created"});
@@ -1448,7 +1465,7 @@ async function coreFetch(request,env,ctx) {
       const cep=texto(entrada.customer?.cep,12).replace(/\D/g,"");const rua=texto(entrada.customer?.street,160),numeroEndereco=texto(entrada.customer?.number,30),complemento=texto(entrada.customer?.complement,100),bairro=texto(entrada.customer?.bairro||entrega.bairro,100),cidade=texto(entrada.customer?.city,100),estado=texto(entrada.customer?.state,2).toUpperCase();
       if(await buscarPedido(env,orderId))return responder({erro:"Pedido duplicado.",order_id:orderId},409);
       const tracking=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16);
-      let p={order_id:orderId,tracking_token:tracking,site_url:texto(entrada.site_url,300)||"https://espetinhoperus.com.br",created_at:agora,updated_at:agora,customer:{name:nome,first_name:primeiroNome,last_name:sobrenome,email,phone:texto(entrada.customer?.phone,30),cpf,birth_date:texto(entrada.customer?.birth_date,10),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep,street:rua,number:numeroEndereco,complement:complemento,bairro,city:cidade,state:estado,reference:texto(entrada.customer?.reference,150),notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},items:itens,subtotal,registered_discount_amount:descontos.registered_discount,coupon_discount_amount:descontos.coupon_discount,discount_amount:descontos.total_discount,discounted_subtotal:discountedSubtotal,loyalty_subtotal_eligible:discountedSubtotal,coupon_code:descontos.coupon?.code||null,coupon_description:descontos.coupon?.description||null,promotion_code:descontos.coupon?.code?"CUPOM":(descontos.registered_discount>0?"CADASTRADO10":null),delivery_fee:deliveryFee,total,payment_id:null,preference_id:null,payment_provider:"mercadopago",payment_method:"CREDIT_CARD",payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};await gravarPedido(env,p);
+      let p={order_id:orderId,tracking_token:tracking,site_url:"https://espetinhoperus.com.br",created_at:agora,updated_at:agora,customer:{name:nome,first_name:primeiroNome,last_name:sobrenome,email,phone:texto(entrada.customer?.phone,30),cpf,birth_date:texto(entrada.customer?.birth_date,10),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep,street:rua,number:numeroEndereco,complement:complemento,bairro,city:cidade,state:estado,reference:texto(entrada.customer?.reference,150),notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},items:itens,subtotal,registered_discount_amount:descontos.registered_discount,coupon_discount_amount:descontos.coupon_discount,discount_amount:descontos.total_discount,discounted_subtotal:discountedSubtotal,loyalty_subtotal_eligible:discountedSubtotal,coupon_code:descontos.coupon?.code||null,coupon_description:descontos.coupon?.description||null,promotion_code:descontos.coupon?.code?"CUPOM":(descontos.registered_discount>0?"CADASTRADO10":null),delivery_fee:deliveryFee,total,payment_id:null,preference_id:null,payment_provider:"mercadopago",payment_method:"CREDIT_CARD",payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};await gravarPedido(env,p);
       const site=p.site_url.replace(/\/$/,"");
       const mpItems=descontos.total_discount>0
         ? [...(discountedSubtotal>0?[{id:`${orderId}-produtos`,title:"Produtos Espetinho Perus com desconto",quantity:1,currency_id:"BRL",unit_price:Number(discountedSubtotal)}]:[]),...(deliveryFee>0?[{id:`${orderId}-frete`,title:"Taxa de entrega - Perus",quantity:1,currency_id:"BRL",unit_price:Number(deliveryFee)}]:[])]
@@ -1489,7 +1506,7 @@ async function coreFetch(request,env,ctx) {
       const orderId=texto(entrada.order_id||entrada.numero_pedido,64)||`EP-${Date.now()}`,nome=texto(entrada.customer?.name||"Cliente",100),agora=new Date().toISOString();
       const tracking=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16);
       const method=entrada.payment_method==="DEBIT_CARD"?"DEBIT_CARD":"CREDIT_CARD";
-      let p={order_id:orderId,tracking_token:tracking,site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},items:itens,subtotal,registered_discount_amount:descontos.registered_discount,coupon_discount_amount:descontos.coupon_discount,discount_amount:descontos.total_discount,discounted_subtotal:discountedSubtotal,loyalty_subtotal_eligible:discountedSubtotal,coupon_code:descontos.coupon?.code||null,coupon_description:descontos.coupon?.description||null,promotion_code:descontos.coupon?.code?"CUPOM":(descontos.registered_discount>0?"CADASTRADO10":null),delivery_fee:deliveryFee,total,payment_id:null,checkout_id:null,payment_provider:"pagbank",payment_method:method,payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]}; await gravarPedido(env,p);
+      let p={order_id:orderId,tracking_token:tracking,site_url:"https://espetinhoperus.com.br",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},items:itens,subtotal,registered_discount_amount:descontos.registered_discount,coupon_discount_amount:descontos.coupon_discount,discount_amount:descontos.total_discount,discounted_subtotal:discountedSubtotal,loyalty_subtotal_eligible:discountedSubtotal,coupon_code:descontos.coupon?.code||null,coupon_description:descontos.coupon?.description||null,promotion_code:descontos.coupon?.code?"CUPOM":(descontos.registered_discount>0?"CADASTRADO10":null),delivery_fee:deliveryFee,total,payment_id:null,checkout_id:null,payment_provider:"pagbank",payment_method:method,payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]}; await gravarPedido(env,p);
       const site=p.site_url.replace(/\/$/,""); const webhook=`${url.origin}/webhook-pagbank`;
       const checkoutItems=descontos.total_discount>0
         ? [...(discountedSubtotal>0?[{reference_id:`${orderId}-produtos`,name:"Produtos Espetinho Perus com desconto",quantity:1,unit_amount:Math.round(discountedSubtotal*100)}]:[]),...(deliveryFee>0?[{reference_id:`${orderId}-frete`,name:"Taxa de entrega - Perus",quantity:1,unit_amount:Math.round(deliveryFee*100)}]:[])]
@@ -1505,10 +1522,15 @@ async function coreFetch(request,env,ctx) {
   }
   if(request.method==="POST"&&url.pathname==="/webhook-pagbank"){
     try{
-      const b=await request.json().catch(()=>({})); let payload=b;
-      const checkoutId=texto(b?.id||b?.checkout_id||b?.data?.id,100);
-      if(checkoutId&&String(checkoutId).startsWith("CHEC_")){const c=await consultarCheckoutPagBank(env,checkoutId);if(c.ok)payload=c.data;}
-      await sincronizarPagBank(env,payload);
+      const b=await request.json().catch(()=>({}));
+      const incoming=texto(b?.id||b?.checkout_id||b?.data?.id,100);
+      const reference=texto(b?.reference_id||b?.data?.reference_id,100);
+      const orderId=incoming.startsWith("CHEC_")?await env.ORDERS_KV.get(`pagbank:${incoming}`):reference;
+      const p=orderId?await buscarPedido(env,orderId):null;
+      if(!p||p.payment_provider!=="pagbank"||!p.checkout_id)return responder({recebido:true});
+      const c=await consultarCheckoutPagBank(env,p.checkout_id);
+      if(!c.ok)return responder({erro:"Confirmação do provedor indisponível."},503);
+      await sincronizarPagBank(env,c.data);
     }catch(e){console.error("webhook-pagbank",e)}
     return responder({recebido:true});
   }
@@ -1534,7 +1556,7 @@ async function coreFetch(request,env,ctx) {
   if(request.method!=="POST"||url.pathname!=="/criar-pix")return responder({erro:"Rota nao encontrada."},404);
   try{if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);const entrada=await request.json();const clienteAuth=await clienteSupabaseAutenticado(request,env);if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);const email=texto(entrada.customer?.email||entrada.email,150).toLowerCase();if(!emailValido(email))return responder({erro:"Informe um e-mail valido para gerar o Pix."},400);
     let subtotal=0;const itens=entrada.items.map((item,index)=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!nome)throw new Error("Produto sem nome.");if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const precoSite=Number(item.unit_price??item.price??item.preco);const unit_price=Object.prototype.hasOwnProperty.call(PRECOS,nome)?PRECOS[nome]:precoSite;if(!Number.isFinite(unit_price)||unit_price<=0)throw new Error(`Preco invalido para ${nome}`);subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:codigoImpressaoProduto(nome,item),unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)}});subtotal=Math.round(subtotal*100)/100;const descontos=calcularDescontosPedido(env,entrada,subtotal,Boolean(clienteAuth?.id));const discountAmount=descontos.total_discount;const discountedSubtotal=Math.round((subtotal-discountAmount)*100)/100;const entrega=calcularEntrega(entrada);const deliveryFee=entrega.fee;const total=Math.round((discountedSubtotal+deliveryFee)*100)/100;
-    const orderId=texto(entrada.order_id||entrada.numero_pedido,100)||`EP-${Date.now()}`, nome=texto(entrada.customer?.name||entrada.nome||"Cliente",100), agora=new Date().toISOString();let p={order_id:orderId,tracking_token:crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16),site_url:texto(entrada.site_url,300)||"https://geradorlipejb.com",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},items:itens,subtotal,discount_rate:0.10,registered_discount_amount:descontos.registered_discount,coupon_discount_amount:descontos.coupon_discount,discount_amount:discountAmount,discounted_subtotal:discountedSubtotal,loyalty_subtotal_eligible:discountedSubtotal,coupon_code:descontos.coupon?.code||null,coupon_description:descontos.coupon?.description||null,promotion_code:descontos.coupon?.code?"CUPOM":"CADASTRADO10",delivery_fee:deliveryFee,total,payment_id:null,payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};await gravarPedido(env,p);
+    const orderId=texto(entrada.order_id||entrada.numero_pedido,100)||`EP-${Date.now()}`, nome=texto(entrada.customer?.name||entrada.nome||"Cliente",100), agora=new Date().toISOString();let p={order_id:orderId,tracking_token:crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16),site_url:"https://espetinhoperus.com.br",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},items:itens,subtotal,discount_rate:0.10,registered_discount_amount:descontos.registered_discount,coupon_discount_amount:descontos.coupon_discount,discount_amount:discountAmount,discounted_subtotal:discountedSubtotal,loyalty_subtotal_eligible:discountedSubtotal,coupon_code:descontos.coupon?.code||null,coupon_description:descontos.coupon?.description||null,promotion_code:descontos.coupon?.code?"CUPOM":"CADASTRADO10",delivery_fee:deliveryFee,total,payment_id:null,payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};await gravarPedido(env,p);
     const pay={amount:total,payerName:nome,transactionId:orderId,description:`Pedido ${orderId} - Espetinho Perus`,projectWebhook:`${url.origin}/webhook-misticpay`};
     const documento=texto(entrada.customer?.document||entrada.customer?.cpf||entrada.payerDocument||env.MISTICPAY_PAYER_DOCUMENT,30).replace(/\D/g,"");
     if(documento)pay.payerDocument=documento;
