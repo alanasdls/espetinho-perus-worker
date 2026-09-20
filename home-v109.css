@@ -1,0 +1,103 @@
+/* V109 — composição da home aprovada; sem alterações no checkout ou preços. */
+body.ep-home-v109{--ep-dark:#0c0a08;--ep-gold:#ffca56;--ep-red:#eb102d;background:var(--ep-dark)!important}
+.ep-home-v109>main{padding-top:0!important}
+.ep-hero{background:radial-gradient(ellipse at 79% 26%,#281b10 0,transparent 54%),#0c0a08;color:#fff;overflow:hidden}
+.ep-hero-content{width:min(100%,1040px);margin:0 auto;padding:26px 32px 0}
+.ep-brand-row{display:flex;justify-content:space-between;align-items:flex-start;gap:22px;position:relative;z-index:2}
+.ep-wordmark{display:block;color:#fff;font-family:Oswald,Impact,'Arial Narrow',sans-serif;font-weight:700;font-size:44px;line-height:1.07;letter-spacing:-1px}
+.ep-wordmark small{display:flex;justify-content:center;align-items:center;gap:12px;margin-top:6px;font-size:16px;letter-spacing:6px;color:var(--ep-gold)}
+.ep-wordmark i{width:23px;height:2px;background:var(--ep-gold);display:block;transform:rotate(-3deg)}
+.ep-tagline{font:700 34px/.92 Caveat,'Brush Script MT',cursive;color:var(--ep-gold);text-align:center;transform:rotate(-7deg);padding:1px 9px 9px}
+.ep-tagline:after{content:'';display:block;height:1px;background:var(--ep-gold);width:78%;margin:7px auto 0;transform:rotate(-5deg)}
+.ep-desktop-nav{display:flex;justify-content:flex-end;gap:24px;margin-top:18px;font-size:14px;color:#eee7df}
+.ep-desktop-nav a:focus-visible{outline:2px solid var(--ep-gold);outline-offset:4px}
+.ep-hero-stage{position:relative;isolation:isolate;margin-top:26px}
+.ep-hero-stage h1{position:relative;z-index:2;width:65%;margin:0;font:700 clamp(36px,5.5vw,65px)/1.02 Oswald,Impact,'Arial Narrow',sans-serif;letter-spacing:-.025em;text-transform:uppercase;color:#fff}
+.ep-hero-stage h1 em{font-style:normal;color:var(--ep-gold)}
+.ep-hero-photo{position:absolute;z-index:-1;right:-32px;top:-36px;width:54%;height:calc(100% + 52px);object-fit:cover;object-position:center;-webkit-mask-image:linear-gradient(90deg,transparent,black 23%),linear-gradient(0deg,transparent,black 18%,black 82%,transparent);mask-image:linear-gradient(90deg,transparent,black 23%),linear-gradient(0deg,transparent,black 18%,black 82%,transparent);-webkit-mask-composite:source-in;mask-composite:intersect}
+.ep-hero-description{position:relative;z-index:2;color:#eeece7;font-size:18px;line-height:1.4;margin:15px 0 0;max-width:65%;text-shadow:0 1px 10px #000}
+.ep-hero-actions{position:relative;z-index:2;display:grid;grid-template-columns:1.08fr 1fr;gap:12px;margin:23px 0 0}
+.ep-cta{display:flex;justify-content:center;align-items:center;gap:10px;min-height:57px;border-radius:16px;padding:12px 17px;color:white;font-size:18px;font-weight:700;line-height:1.15;border:1px solid transparent;text-align:center}
+.ep-cta-primary{background:linear-gradient(125deg,#f31333,#c8001c);box-shadow:0 8px 25px #b4001929}
+.ep-cta-secondary{border-color:#b8afa5;background:#0b0908a6}
+.ep-cta svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.ep-cta .ep-arrow{width:15px}
+.ep-cta:focus-visible,.ep-home-v109 .mobile-app-nav :focus-visible{outline:3px solid #ffca56;outline-offset:3px}
+.ep-benefits{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:21px;padding:17px 0;border-top:1px solid #ffffff24;border-bottom:1px solid #ffffff24;scroll-margin-top:16px}
+.ep-benefits article{display:flex;gap:12px;align-items:center;min-width:0;padding:0 16px}
+.ep-benefits article:first-child{padding-left:0}
+.ep-benefits article:last-child{padding-right:0}
+.ep-benefits article+article{border-left:1px solid #ffffff26}
+.ep-benefit-icon{font-size:31px;line-height:1;flex-shrink:0}
+.ep-benefits strong{display:block;font-size:15px;color:white;line-height:1.2;font-weight:700}
+.ep-benefits small{display:block;font-size:13px;line-height:1.3;color:#c8c4be;margin-top:5px}
+.ep-home-intro{max-width:1040px;margin:auto;padding:17px 32px 30px;background:var(--ep-dark)}
+.ep-home-v109 .store-schedule{width:100%;max-width:none;margin:0 0 16px!important;border-radius:16px!important;padding:14px 15px!important;gap:13px!important;align-items:center!important;box-shadow:none!important}
+.ep-home-v109 .store-schedule.open{background:#effff4;border-color:#b4d8c2}
+.ep-home-v109 .store-schedule-icon{display:grid;place-items:center;width:43px!important;height:43px!important;border-radius:13px!important;flex-shrink:0}
+.ep-home-v109 .store-schedule-icon svg{display:block;width:32px;height:32px}
+.ep-home-v109 .store-schedule strong{font-size:16px!important;line-height:1.25;margin:0 0 4px!important;color:#28342c}
+.ep-home-v109 .store-schedule.open strong{color:#155b30}
+.ep-home-v109 .store-schedule.closed strong{color:#94212d}
+.ep-home-v109 .store-schedule p{font-size:14px!important;line-height:1.35!important;color:#58655c;margin:0!important}
+.ep-home-v109 .promo-section{width:100%!important;max-width:none;margin:0!important;border:1px solid #ffffff29;border-radius:17px!important;box-shadow:0 10px 25px #0005!important;background:#070605}
+.ep-home-v109 .promo-image-mode .promo-card-image{aspect-ratio:1672/941!important;background-size:contain!important;background-color:#080604}
+.ep-home-v109 .promo-dots{bottom:8px!important;background:#0008;padding:4px 6px;border-radius:12px;gap:7px}
+.ep-home-v109 .promo-dots button{width:7px;height:7px}
+.ep-home-v109 .promo-dots button.active{width:20px}
+/* Cardápio mantém fundo claro, fotos e preços. A faixa escura só muda a home. */
+.ep-home-v109 .menu-section{background:#f7f2ec;max-width:none;margin:0;padding:36px max(16px,calc((100% - 976px)/2)) 44px!important;scroll-margin-top:10px}
+.ep-home-v109 .menu-section .menu-tools{background:#f7f2ecf7!important}
+.ep-home-v109 .contact{max-width:976px}
+@media(max-width:760px){
+  body.ep-home-v109{padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+  .ep-hero-content{padding:19px 18px 0}
+  .ep-brand-row{gap:10px;min-height:62px}
+  .ep-desktop-nav{display:none}
+  .ep-wordmark{font-size:32px;letter-spacing:-.8px;line-height:1.05}
+  .ep-wordmark small{font-size:12px;letter-spacing:4.4px;gap:8px;margin-top:5px}
+  .ep-wordmark i{width:18px}
+  .ep-tagline{font-size:23px;line-height:.94;padding:0 4px 4px;max-width:43%}
+  .ep-hero-stage{margin-top:14px}
+  .ep-hero-stage h1{width:68%;font-size:clamp(30px,8.8vw,40px);line-height:1.015;letter-spacing:-.024em}
+  .ep-hero-photo{right:-18px;top:-20px;width:54%;height:calc(100% + 28px);object-position:56% center}
+  .ep-hero-description{font-size:13.5px;line-height:1.35;margin-top:11px;max-width:80%}
+  .ep-hero-actions{gap:8px;margin-top:17px;grid-template-columns:1.08fr 1fr}
+  .ep-cta{font-size:14px;min-height:49px;padding:9px 9px;gap:7px;border-radius:14px;white-space:nowrap}
+  .ep-cta svg{width:21px;height:21px}
+  .ep-cta .ep-arrow{width:13px}
+  .ep-benefits{margin-top:15px;padding:13px 0}
+  .ep-benefits article{gap:7px;padding:0 7px;align-items:flex-start}
+  .ep-benefit-icon{font-size:24px;margin-top:5px}
+  .ep-benefits strong{font-size:10.5px;line-height:1.22}
+  .ep-benefits small{font-size:10px;line-height:1.28;margin-top:4px}
+  .ep-home-intro{padding:11px 12px 23px}
+  .ep-home-v109 .store-schedule{padding:12px 12px!important;gap:11px!important;margin:0 0 12px!important;border-radius:15px!important}
+  .ep-home-v109 .store-schedule strong{font-size:13px!important;line-height:1.2;margin-bottom:4px!important}
+  .ep-home-v109 .store-schedule p{font-size:12px!important;line-height:1.28!important}
+  .ep-home-v109 .store-schedule-icon{width:38px!important;height:38px!important;border-radius:12px!important}
+  .ep-home-v109 .store-schedule-icon svg{width:29px;height:29px}
+  .ep-home-v109 .menu-section .section-head h2{font-size:30px!important}
+  .ep-home-v109 .mobile-app-nav{min-height:70px!important;padding:8px 10px calc(8px + env(safe-area-inset-bottom))!important;background:#0c0a08fa!important;border-top:1px solid #ffffff29!important;box-shadow:0 -8px 24px #0003!important;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+  .ep-home-v109 .mobile-app-nav a,.ep-home-v109 .mobile-app-nav button{color:#eceae6!important;gap:4px!important;min-height:49px;padding:3px 0 9px}
+  .ep-home-v109 .mobile-app-nav .active{color:#ff173c!important}
+  .ep-home-v109 .mobile-app-nav .active:after{content:'';position:absolute;bottom:0;left:26%;right:26%;height:2px;border-radius:2px;background:currentColor}
+  .ep-home-v109 .mobile-app-nav small{font-size:11px!important;font-weight:700!important}
+  .ep-home-v109 .mobile-app-nav .nav-icon{width:24px;height:24px}
+  .ep-home-v109 .mobile-app-nav .nav-icon svg{width:24px;height:24px;fill:none;stroke-width:1.8}
+  .ep-home-v109 .mobile-app-nav .nav-icon svg path{fill:none!important}
+  .ep-home-v109 .mobile-app-nav a[href="#inicio"] .nav-icon svg path{fill:currentColor!important}
+  .ep-home-v109 .mobile-app-nav b{top:0!important;min-width:18px!important;height:18px!important;line-height:1;border:2px solid #0c0a08;box-sizing:content-box}
+}
+@media(max-width:359px){
+  .ep-hero-content{padding-left:14px;padding-right:14px}
+  .ep-wordmark{font-size:29px}
+  .ep-tagline{font-size:21px}
+  .ep-cta{font-size:12px;gap:5px}
+  .ep-cta svg{width:19px;height:19px}
+  .ep-benefits article{gap:4px;padding:0 5px}
+  .ep-benefit-icon{font-size:20px}
+  .ep-benefits strong{font-size:10px}
+  .ep-benefits small{font-size:9.5px}
+}
+@media(prefers-reduced-motion:reduce){.ep-home-v109{scroll-behavior:auto}}
