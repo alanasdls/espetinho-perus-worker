@@ -13,7 +13,7 @@
   <link rel="icon" href="icon-192.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="stylesheet" href="admin.css?v=20260727-v79-admin-studio">
-</head>
+<link rel="stylesheet" href="staff-ui.css?v=20260920-v149-staff"></head>
 <body><a href="gestao.html" style="position:fixed;right:12px;top:12px;z-index:99999;background:#f2a900;color:#111;padding:10px 14px;border-radius:10px;font-weight:800;text-decoration:none">Painel de gestão</a>
 <header class="top">
   <div class="brand-block">
@@ -31,13 +31,18 @@
     <div class="login-card">
       <img src="logo-premium.png" alt="Espetinho Perus">
       <div class="eyebrow login-title">DELIVERY</div>
-      <input id="keyInput" type="password" autocomplete="current-password" placeholder="Senha do painel">
+      <label for="staffMode">Acesso ao painel</label>
+      <select id="staffMode"><option value="login">Entrar</option><option value="bootstrap">Ativar primeiro administrador</option><option value="invite">Ativar acesso de funcionário</option></select>
+      <label for="staffEmail">E-mail da sua conta no site</label><input id="staffEmail" type="email" autocomplete="username" placeholder="Seu e-mail">
+      <label for="keyInput">Senha da sua conta</label><input id="keyInput" type="password" autocomplete="current-password" placeholder="Sua senha">
+      <div id="staffActivation" hidden><label id="staffActivationLabel" for="staffCode">Código de ativação</label><input id="staffCode" type="password" autocomplete="off"><p>A chave antiga é usada somente para ativar o primeiro administrador. Funcionários usam o convite gerado pela administração.</p></div>
+      <p>Use sua conta individual. <a href="cliente.html">Criar conta ou recuperar senha</a></p>
       <button id="loginBtn">Entrar no painel</button>
       <p id="loginError" class="error"></p>
     </div>
   </section>
 
-  <section id="panel" hidden>
+  <section id="panel" hidden><p id="staffIdentity" class="staff-identity"></p>
 
     <section class="enterprise-welcome">
       <div>
@@ -47,7 +52,7 @@
       </div>
       <div class="enterprise-live">
         <i></i>
-        <span>Tempo real • atualização a cada 2 segundos</span>
+        <span>Tempo real • atualização a cada 5 segundos</span>
       </div>
     </section>
 
@@ -77,11 +82,11 @@
       <div class="realtime-actions">
         <span id="newOrdersCounter" class="new-orders-counter">0 novos</span>
         <button id="acknowledgeOrdersBtn" type="button" class="ack-btn">✓ Visualizei os pedidos</button>
-        <a class="kitchen-link" href="cozinha.html" target="_blank" rel="noopener">Tela da cozinha</a>
+        <a class="kitchen-link" href="cozinha.html">Tela da cozinha</a>
       </div>
     </section>
 
-    <nav class="tabs" aria-label="Navegação do painel">
+    <nav class="tabs" aria-label="Navegação do painel"><button class="tab" data-tab="securityTab" data-admin-only>🔐 Acessos</button>
       <button class="tab active" data-tab="ordersTab"><span>📦</span> Pedidos</button>
       <button class="tab" data-tab="financeTab"><span>📊</span> Dashboard</button>
       <button class="tab" data-tab="performanceTab"><span>🏆</span> Desempenho</button>
@@ -92,6 +97,14 @@
       <button class="tab" data-tab="settingsTab"><span>⚙️</span> Configurações</button>
     </nav>
 
+    <section id="securityTab" class="tab-panel" data-admin-only>
+      <h2>Acessos e segurança</h2><p>Sem autenticação em duas etapas. Sessões válidas por até 8 horas.</p>
+      <form id="staffInviteForm" class="staff-form"><h3>Convidar funcionário</h3><label>E-mail da conta<input id="inviteEmail" type="email" required></label><label>Função<select id="inviteRole"><option value="atendimento">Atendimento</option><option value="cozinha">Cozinha</option><option value="admin">Administrador</option></select></label><button>Gerar convite</button></form>
+      <p>O funcionário precisa ter uma conta no site. Entregue o código diretamente a ele; o convite vale por 24 horas e só pode ser usado uma vez.</p>
+      <output id="inviteResult" class="staff-code"></output><p id="staffError" role="status"></p>
+      <button id="staffRefresh" type="button">Atualizar acessos</button>
+      <h3>Equipe</h3><div id="staffUsers"></div><h3>Sessões ativas</h3><div id="staffSessions"></div><h3>Últimas ações</h3><div id="staffAudit"></div>
+    </section>
     <section id="financeTab" class="tab-panel dashboard">
       <div class="dashboard-head">
         <div><small>RESUMO FINANCEIRO</small><h2>Visão geral das vendas</h2></div>
@@ -272,7 +285,8 @@
     </section>
   </section>
 </main>
-<script src="admin.js?v=20260727-v79-admin-studio"></script>
+<script src="admin.js?v=20260920-v149-staff"></script>
+<script src="staff-ui.js?v=20260920-v149-staff"></script>
 <script>if('serviceWorker'in navigator){navigator.serviceWorker.register('./sw.js?v=20260727-v79-admin-studio',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});}</script>
 </body>
 </html>

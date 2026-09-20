@@ -58,3 +58,10 @@
   Content-Security-Policy: object-src 'none'; base-uri 'self'; frame-ancestors 'none'; upgrade-insecure-requests
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   Strict-Transport-Security: max-age=31536000
+
+/staff-ui.js
+  Cache-Control: no-store
+/cozinha.js
+  Cache-Control: no-store
+/cozinha.html
+  Cache-Control: no-store

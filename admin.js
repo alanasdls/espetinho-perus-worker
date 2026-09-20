@@ -1,6 +1,8 @@
-const API = 'https://summer-field-09b7.alanasdls.workers.dev';
+const API = 'https://espetinho-perus-api.alanasdls.workers.dev';
 const $ = (s) => document.querySelector(s);
-let key = localStorage.getItem('ep-admin-key') || '';
+localStorage.removeItem('ep-admin-key');
+let key = sessionStorage.getItem('ep-staff-session') || '';
+let staffUser=null;
 let orders = [];
 let filter = 'ativos';
 let period = localStorage.getItem('ep-dashboard-period') || 'today';
@@ -85,7 +87,7 @@ function shortOrderCard(order) {
   const elapsed = elapsedInfo(order);
   const status = realtimeStatus(order);
   const unseen = realtimeUnseen.has(String(order.order_id));
-  const next = nextRealtimeStatus(status);
+  const next = staffUser?.role==='admin'?nextRealtimeStatus(status):(staffNextStatuses(order)[0]||'');
   const itemSummary = (order.items || []).slice(0, 4)
     .map(item => `${Number(item.quantity || 1)}x ${esc(item.name || 'Item')}`).join('<br>');
   const more = (order.items || []).length > 4 ? `<small>+ ${(order.items || []).length - 4} itens</small>` : '';
@@ -97,7 +99,7 @@ function shortOrderCard(order) {
     <div class="board-items">${itemSummary || 'Sem itens'}${more}</div>
     <div class="board-meta">
       <span>${esc(order.customer?.fulfillment || 'Não informado')}</span>
-      <b>${fmt(order.total)}</b>
+      ${staffUser?.role==='cozinha'?'':`<b>${fmt(order.total)}</b>`}
     </div>
     <div class="board-actions">
       ${next ? `<button class="board-next-status" data-order-id="${esc(order.order_id)}" data-status="${next}">${labels[next] || next}</button>` : ''}
@@ -155,7 +157,7 @@ const fmt = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', c
 const date = (v) => new Date(v).toLocaleString('pt-BR');
 
 function authHeaders() {
-  return { 'X-Admin-Key': key, 'Content-Type': 'application/json' };
+  return { 'Authorization': 'Bearer '+key, 'Content-Type': 'application/json' };
 }
 
 async function api(path, options = {}) {
@@ -165,57 +167,15 @@ async function api(path, options = {}) {
     cache: 'no-store'
   });
   const data = await response.json().catch(() => ({}));
-  if (response.status === 401) throw new Error('Senha inválida. Entre novamente.');
+  if (response.status === 401) {sessionStorage.removeItem('ep-staff-session');key='';location.reload();throw new Error('Sessão encerrada.');}
   if (!response.ok) throw new Error(data.erro || data.detalhes || `Falha HTTP ${response.status}.`);
   return data;
 }
 
 function connectOrdersSocket() {
-  clearTimeout(ordersSocketReconnect);
-  if (!key || document.visibilityState === 'hidden') return;
-  if (ordersSocket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(ordersSocket.readyState)) return;
-  ordersSocket = new WebSocket(API.replace(/^http/, 'ws') + '/admin/realtime?key=' + encodeURIComponent(key));
-  ordersSocket.onopen = () => {
-    const text = document.getElementById('realtimeText');
-    if (text) text.textContent = 'Online • WebSocket em tempo real';
-  };
-  ordersSocket.onmessage = async (event) => {
-    if (event.data === 'pong') return;
-    let payload = null;
-    try { payload = JSON.parse(event.data); } catch (_) {}
-    const incoming = payload?.order;
-    if (incoming?.order_id) {
-      const id = String(incoming.order_id);
-      const index = orders.findIndex(item => String(item.order_id) === id);
-      const wasKnown = index >= 0 || knownPaid.has(incoming.order_id);
-      if (index >= 0) orders[index] = { ...orders[index], ...incoming };
-      else orders.unshift(incoming);
-      if (incoming.payment_status === 'approved' && !wasKnown) {
-        realtimeUnseen.add(id);
-        knownPaid.add(incoming.order_id);
-        saveRealtimeUnseen();
-        startRealtimeAlarm();
-        await showImmediateOrderNotification(incoming);
-      }
-      realtimeLastSuccess = Date.now();
-      updateRealtimeHeader();
-      render();
-      renderRealtimeBoard();
-      setTimeout(() => loadOrders(false), 1500);
-      return;
-    }
-    loadOrders(false);
-  };
-  ordersSocket.onerror = () => { try { ordersSocket.close(); } catch (_) {} };
-  ordersSocket.onclose = () => {
-    ordersSocket = null;
-    const text = document.getElementById('realtimeText');
-    if (text) text.textContent = 'Reconectando • modo econômico';
-    ordersSocketReconnect = setTimeout(connectOrdersSocket, 5000);
-  };
+  // Authenticated polling avoids credentials in WebSocket URLs and stale permissions.
+  if(ordersSocket)ordersSocket.close();
 }
-
-
 
 async function showImmediateOrderNotification(order) {
   if (Notification.permission !== 'granted') return;
@@ -229,6 +189,7 @@ async function showImmediateOrderNotification(order) {
 }
 
 function showPanel() {
+  window.applyStaffAccess?.();
   document.body.classList.add('authenticated');
   $('#login').hidden = true;
   $('#login').style.display = 'none';
@@ -240,22 +201,19 @@ function showPanel() {
   timer = setInterval(() => { if (document.visibilityState === 'visible') loadOrders(false); }, 5000);
 }
 
-function logout() {
-  localStorage.removeItem('ep-admin-key');
-  key = '';
-  location.reload();
+async function logout() {
+  try {if(key)await api('/admin/auth/logout',{method:'POST'});} finally {sessionStorage.removeItem('ep-staff-session');key='';location.reload();}
 }
 
 $('#loginBtn').onclick = async () => {
-  key = $('#keyInput').value.trim();
-  if (!key) return;
+  const button=$('#loginBtn');button.disabled=true;$('#loginError').textContent='';
   try {
-    await api('/admin/orders');
-    localStorage.setItem('ep-admin-key', key);
-    showPanel();
-  } catch (error) {
-    $('#loginError').textContent = error.message;
-  }
+    const mode=$('#staffMode').value;
+    const r=await fetch(API+'/admin/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:$('#staffEmail').value,password:$('#keyInput').value,mode,bootstrap_key:mode==='bootstrap'?$('#staffCode').value:undefined,invite_code:mode==='invite'?$('#staffCode').value:undefined})});
+    const d=await r.json();if(!r.ok)throw Error(d.erro||'Não foi possível entrar.');
+    key=d.token;staffUser=d.user;sessionStorage.setItem('ep-staff-session',key);
+    $('#keyInput').value='';$('#staffCode').value='';showPanel();
+  } catch(error){$('#loginError').textContent=error.message;}finally{button.disabled=false;}
 };
 
 $('#keyInput').addEventListener('keydown', (event) => {
@@ -509,13 +467,13 @@ function phoneLink(phone) { return String(phone || '').replace(/\D/g,''); }
 
 function card(order) {
   const paid = order.payment_status === 'approved';
-  const items = (order.items || []).map((item) => `<li><b>${item.quantity}x</b> ${esc(item.name)} <span>— ${fmt(item.subtotal)}</span></li>`).join('');
+  const items = (order.items || []).map((item) => `<li><b>${item.quantity}x</b> ${esc(item.name)} ${staffUser?.role==='cozinha'?'':`<span>— ${fmt(item.subtotal)}</span>`}</li>`).join('');
   const phoneRaw = order.customer?.phone || '';
   const phone = phoneRaw ? `<p>📞 ${esc(phoneRaw)}</p>` : '';
   const address = order.customer?.address ? `<p>📍 ${esc(order.customer.address)}</p>` : '';
   const notes = order.customer?.notes ? `<div class="notes"><b>Observações</b><br>${esc(order.customer.notes)}</div>` : '';
   const elapsed = elapsedInfo(order);
-  const statuses = ['recebido','em_preparo','pronto_retirada','saiu_entrega','finalizado','cancelado'];
+  const statuses = staffUser?.role==='admin'?['recebido','em_preparo','pronto_retirada','saiu_entrega','finalizado','cancelado']:staffNextStatuses(order);
   const quick = statuses.map(status => `<button class="quick-status-btn ${order.order_status===status?'current':''}" data-order-id="${esc(order.order_id)}" data-status="${status}">${labels[status]}</button>`).join('');
   const vip = Number(order.customer?.order_count || 0) >= 5 ? '<span class="vip">CLIENTE VIP</span>' : '';
   const whatsapp = phoneRaw ? `<a class="mini-btn whatsapp" target="_blank" rel="noopener" href="https://wa.me/55${phoneLink(phoneRaw)}"><svg class="whatsapp-logo" viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M16 3a12.7 12.7 0 0 0-11 19.1L3.4 28.6l6.7-1.8A12.8 12.8 0 1 0 16 3Zm0 23.2c-2 0-3.9-.5-5.6-1.5l-.4-.2-4 1.1 1.1-3.9-.3-.4A10.4 10.4 0 1 1 16 26.2Zm5.8-7.8c-.3-.2-1.9-.9-2.2-1s-.5-.2-.7.2-.8 1-1 1.2-.4.2-.7.1a8.5 8.5 0 0 1-2.5-1.6 9.4 9.4 0 0 1-1.7-2.1c-.2-.3 0-.5.1-.7l.5-.6.3-.6c.1-.2 0-.5 0-.7s-.7-1.8-1-2.4c-.3-.6-.6-.5-.8-.5h-.7c-.2 0-.6.1-.9.4s-1.2 1.2-1.2 2.9 1.2 3.3 1.4 3.5c.2.2 2.4 3.6 5.8 5 2.2 1 3.4 1.1 4.6.9.7-.1 1.9-.8 2.2-1.5.3-.7.3-1.3.2-1.5-.2-.1-.4-.2-.7-.3Z"/></svg><span>Ver WhatsApp</span></a>` : '';
@@ -853,7 +811,7 @@ setInterval(() => {
 }, 30000);
 
 
-if (key) showPanel();
+if (key) api('/admin/auth/me').then(d=>{staffUser=d.user;showPanel();}).catch(()=>{sessionStorage.removeItem('ep-staff-session');key='';});
 
 
 document.addEventListener('visibilitychange', () => {

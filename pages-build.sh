@@ -22,6 +22,7 @@ fi
 for pattern in "*.html" "*.css" "*.js" "*.json" "*.webmanifest" "*.png" "*.jpg" "*.jpeg" "*.webp" "*.wav" "_headers"; do
   for file in $pattern; do
     [ -f "$file" ] || continue
+    case "$file" in worker.js|reward-checkout.js|admin-security.js) continue ;; esac
     cp "$file" "$DIST/"
   done
 done

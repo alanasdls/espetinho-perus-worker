@@ -1,3 +1,4 @@
+import { ADMIN_CONTEXT, handleStaff, staffStorage } from './admin-security.js';
 import { REWARD_CONTEXT, handleRewardCheckout, saveRewardOrder } from './reward-checkout.js';
 
 export class OrderRealtime {
@@ -8,19 +9,13 @@ export class OrderRealtime {
 
   async fetch(request) {
     const url = new URL(request.url);
-    if (request.headers.get("Upgrade") === "websocket") {
-      const pair = new WebSocketPair();
-      const [client, server] = Object.values(pair);
-      this.ctx.acceptWebSocket(server);
-      server.serializeAttachment({ connected_at: new Date().toISOString() });
-      server.send(JSON.stringify({ type: "connected", at: new Date().toISOString() }));
-      return new Response(null, { status: 101, webSocket: client });
-    }
+    if(url.pathname==="/staff-security"&&request.method==="POST")return Response.json(await staffStorage(this.ctx.storage,await request.json()));
+    if (request.headers.get("Upgrade") === "websocket") return new Response("Use individual login",{status:410});
     if (request.method === "POST" && url.pathname === "/broadcast") {
       const payload = await request.text();
       let enviados = 0;
       for (const ws of this.ctx.getWebSockets()) {
-        try { ws.send(payload); enviados++; } catch (_) {}
+        try { ws.close(1008,"Atualize o painel e entre novamente"); } catch (_) {}
       }
       return new Response(JSON.stringify({ ok: true, enviados }), {
         headers: { "Content-Type": "application/json" }
@@ -69,7 +64,7 @@ async function avisarTempoReal(env, tipo, pedido) {
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,PATCH,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, X-Order-Token, X-Admin-Key, Authorization, X-Access-Token, X-Api-Token, Token"
+  "Access-Control-Allow-Headers": "Content-Type, X-Order-Token, Authorization, X-Access-Token, X-Api-Token, Token"
 };
 
 const PRECOS = {
@@ -508,7 +503,7 @@ function pedidoFidelidadePublico(p) {
   };
 }
 
-function adminAutorizado(request, env) { return Boolean(env.ADMIN_KEY) && (request.headers.get("X-Admin-Key") || "") === env.ADMIN_KEY; }
+function adminAutorizado(request, env) { return Boolean(env[ADMIN_CONTEXT]?.id); }
 async function gravarPedido(env, pedido, options = {}) {
   await saveRewardOrder(env,pedido);
   pedido.updated_at = new Date().toISOString();
@@ -1135,7 +1130,7 @@ async function coreFetch(request,env,ctx) {
     if(orderId&&await buscarPedido(env,orderId))return responder({erro:"Pedido duplicado."},409);
   }
   if(request.method==="POST"&&["/criar-pix","/criar-checkout-pagbank","/criar-checkout-mercadopago","/criar-pedido"].includes(url.pathname)){const delivery=await estadoDelivery(env);if(!delivery.aberto)return responder({erro:delivery.modo==="manual_closed"?"Delivery fechado manualmente no momento.":`Pedidos fechados no momento. Próxima abertura: ${proximaAbertura()}.`,delivery},403);}
-  if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",versao:"V148-security",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),pagbank_sandbox:Boolean(env.PAGBANK_SANDBOX_TOKEN),pagbank_producao:Boolean(env.PAGBANK_TOKEN),consumer_api:Boolean(env.CONSUMER_API_TOKEN),mercadopago:Boolean(env.MERCADOPAGO_ACCESS_TOKEN)});
+  if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",versao:"V149-staff",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),pagbank_sandbox:Boolean(env.PAGBANK_SANDBOX_TOKEN),pagbank_producao:Boolean(env.PAGBANK_TOKEN),consumer_api:Boolean(env.CONSUMER_API_TOKEN),mercadopago:Boolean(env.MERCADOPAGO_ACCESS_TOKEN)});
   if(request.method==="GET"&&url.pathname==="/vapid-public-key")return responder({publicKey:env.VAPID_PUBLIC_KEY||""});
 
 
@@ -1320,14 +1315,6 @@ async function coreFetch(request,env,ctx) {
     return responder({statusCode:404,reasonPhrase:"Rota Consumer nao encontrada."},404);
   }
 
-  if(request.method==="GET"&&url.pathname==="/admin/realtime"){
-    const suppliedKey=url.searchParams.get("key")||(request.headers.get("X-Admin-Key")||"");
-    if(!env.ADMIN_KEY||suppliedKey!==env.ADMIN_KEY)return responder({erro:"Senha administrativa invalida."},401);
-    if(request.headers.get("Upgrade")!=="websocket")return responder({erro:"Esta rota exige WebSocket."},426);
-    if(!env.ORDER_REALTIME)return responder({erro:"Durable Object ORDER_REALTIME nao configurado."},500);
-    const id=env.ORDER_REALTIME.idFromName("espetinho-perus");
-    return env.ORDER_REALTIME.get(id).fetch(request);
-  }
   if(request.method==="GET"&&url.pathname==="/delivery-status"){if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);return responder(await estadoDelivery(env));}
   if(request.method==="GET"&&url.pathname==="/pedido-status"){const token=texto(url.searchParams.get("token"),200);const p=await pedidoPorToken(env,token);return p?responder({pedido:pedidoPublico(p)}):responder({erro:"Pedido nao encontrado."},404)}
   if(request.method==="POST"&&url.pathname==="/pedido-subscribe"){
@@ -1388,7 +1375,7 @@ async function coreFetch(request,env,ctx) {
       return responder({ok:test.sent>0,...test},test.sent>0?200:502);
     }
     if(request.method==="POST"&&url.pathname==="/admin/test-push"){const b=await request.json();const p=await pedidoPorToken(env,texto(b.token,200));if(!p)return responder({erro:"Pedido nao encontrado."},404);const test=await enviarNotificacoes(env,p,"Teste Espetinho Perus","A notificacao do cliente esta funcionando.");return responder({ok:test.sent>0,...test},test.sent>0?200:502)}
-    const m=url.pathname.match(/^\/admin\/orders\/([^/]+)$/);if(request.method==="PATCH"&&m){const p=await buscarPedido(env,decodeURIComponent(m[1]));if(!p)return responder({erro:"Pedido nao encontrado."},404);const b=await request.json();const ok=["recebido","em_preparo","pronto_retirada","saiu_entrega","finalizado","cancelado"];if(!ok.includes(b.order_status))return responder({erro:"Status invalido."},400);p.order_status=b.order_status;p.estimated_minutes=Number.isFinite(Number(b.estimated_minutes))?Math.max(0,Math.min(240,Number(b.estimated_minutes))):(p.estimated_minutes||25);p.status_history=p.status_history||[];p.status_history.push({status:b.order_status,at:new Date().toISOString()});await gravarPedido(env,p);await enviarNotificacoes(env,p,STATUS_LABELS[b.order_status]||"Atualizacao do pedido", b.order_status==="pronto_retirada"?"Seu pedido está pronto para retirada.":b.order_status==="saiu_entrega"?"Seu pedido está a caminho.":`Status atualizado: ${STATUS_LABELS[b.order_status]||b.order_status}.`);return responder({pedido:p})}
+    const m=url.pathname.match(/^\/admin\/orders\/([^/]+)$/);if(request.method==="PATCH"&&m){const p=await buscarPedido(env,decodeURIComponent(m[1]));if(!p)return responder({erro:"Pedido nao encontrado."},404);const b=await request.json();const role=env[ADMIN_CONTEXT]?.role; if(role!=="admin"){const next={recebido:"em_preparo",em_preparo:"pronto_retirada",pronto_retirada:p.customer?.fulfillment==="Entrega"?"saiu_entrega":"finalizado",saiu_entrega:"finalizado"};if(b.order_status!==next[p.order_status]||(role==="cozinha"&&!["em_preparo","pronto_retirada"].includes(b.order_status)))return responder({erro:"Transição não permitida para sua função."},403);}const ok=["recebido","em_preparo","pronto_retirada","saiu_entrega","finalizado","cancelado"];if(!ok.includes(b.order_status))return responder({erro:"Status invalido."},400);p.order_status=b.order_status;p.estimated_minutes=Number.isFinite(Number(b.estimated_minutes))?Math.max(0,Math.min(240,Number(b.estimated_minutes))):(p.estimated_minutes||25);p.status_history=p.status_history||[];p.status_history.push({status:b.order_status,at:new Date().toISOString()});await gravarPedido(env,p);await enviarNotificacoes(env,p,STATUS_LABELS[b.order_status]||"Atualizacao do pedido", b.order_status==="pronto_retirada"?"Seu pedido está pronto para retirada.":b.order_status==="saiu_entrega"?"Seu pedido está a caminho.":`Status atualizado: ${STATUS_LABELS[b.order_status]||b.order_status}.`);return responder({pedido:p})}
     return responder({erro:"Rota administrativa nao encontrada."},404);
   }
 
@@ -1602,4 +1589,4 @@ async function coreFetch(request,env,ctx) {
   }catch(e){console.error(e);if(e?.code==="CUPOM_INVALIDO")return responder({erro:e.message},400);return responder({erro:"Erro ao criar o Pix.",detalhes:e instanceof Error?e.message:String(e)},500)}
 }
 
-export default {fetch(request,env,ctx){return handleRewardCheckout(request,env,ctx,coreFetch,{headers:CORS,authenticate:clienteSupabaseAutenticado,store:estadoDelivery,prices:PRECOS,codes:CODIGOS_IMPRESSAO_POR_PRODUTO,delivery:calcularEntrega,discounts:calcularDescontosPedido});}};
+export default {fetch(request,env,ctx){return handleStaff(request,env,ctx,(request,env,ctx)=>handleRewardCheckout(request,env,ctx,coreFetch,{headers:CORS,authenticate:clienteSupabaseAutenticado,store:estadoDelivery,prices:PRECOS,codes:CODIGOS_IMPRESSAO_POR_PRODUTO,delivery:calcularEntrega,discounts:calcularDescontosPedido}),CORS);}};

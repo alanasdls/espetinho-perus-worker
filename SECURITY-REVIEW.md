@@ -13,7 +13,7 @@ Implemented V148:
 Validation: Node regression and security tests with isolated mocks. No real payments or customer point changes used for testing. No Supabase schema or production data changed in this release.
 
 Remaining work / limits:
-- Administrator authentication still uses a shared key, localStorage and WebSocket query parameter. Replace with individual staff login, short sessions, MFA and short-lived WebSocket tickets, then rotate the old key.
+- V149 replaces shared-key access with individual Supabase-verified accounts, server-side role enforcement, revocable 8-hour sessions, rate limits and audit. MFA omitted at the owner's request. See ADMIN-ACCESS.md. Old independently deployed Workers still require decommissioning in Cloudflare.
 - Configure and verify edge rate limits/WAF and bot protection; code changes alone do not provide abuse or DDoS protection.
 - Supabase audit reported leaked-password protection disabled and trigger-function privilege/search-path hardening opportunities; review/apply separately, preserving existing loyalty migrations.
 - Legacy normal-order checkout uses KV rather than atomic reservation. Concurrent duplicate order IDs remain a risk; migrate to transactional creation like reward checkout.
