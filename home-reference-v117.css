@@ -678,3 +678,29 @@
     padding-left:0!important;
   }
 }
+
+
+/* V138 — título e descrição encostados na lateral esquerda */
+@media(max-width:760px){
+  .hero.ep-reference-header .hero-copy{
+    width:calc(100% + 18px)!important;
+    margin-left:-18px!important;
+    padding-left:0!important;
+  }
+
+  .hero.ep-reference-header h1,
+  .hero.ep-reference-header .ep-reference-summary{
+    margin-left:0!important;
+    padding-left:0!important;
+  }
+
+  .hero.ep-reference-header .ep-reference-summary{
+    width:100%!important;
+    max-width:100%!important;
+  }
+
+  .hero.ep-reference-header .ep-reference-summary span{
+    margin-left:0!important;
+    padding-left:0!important;
+  }
+}
