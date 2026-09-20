@@ -25,7 +25,7 @@ test('four headline lines; original anchors and benefits retained', () => {
   assert.ok(result.includes(nav));
   assert.ok(result.includes('href="#cardapio"'));
   assert.ok(result.includes('href="cliente.html?mode=register"'));
-  assert.ok(result.includes('width="768" height="768"'));
+  assert.ok(result.includes('width="317" height="331"'));
 });
 test('build transforms only header and its versioned resources', () => {
   const dist=fixture();
@@ -38,7 +38,7 @@ test('build transforms only header and its versioned resources', () => {
     assert.ok(!html.includes('class="hero-art"'));
     assert.ok(fs.readFileSync(path.join(dist,'styles-v105.css'),'utf8').startsWith('/* original CSS */'));
     assert.ok(fs.readFileSync(path.join(dist,'sw.js'),'utf8').includes(VERSION));
-    assert.ok(fs.statSync(path.join(dist,'assets/hero-approved-v142.webp')).size>10000);
+    assert.ok(fs.statSync(path.join(dist,'assets/hero-reference-v117.webp')).size>10000);
     assert.throws(()=>prepare(dist,root),/exactly one original hero/,'Never duplicate the header on a second pass');
   } finally { fs.rmSync(dist,{recursive:true,force:true}); }
 });
