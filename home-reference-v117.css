@@ -295,3 +295,110 @@
     font-size:12px!important;
   }
 }
+
+
+/* V129 — refinamento aprovado da home mobile */
+@media(max-width:760px){
+  .hero.ep-reference-header .hero-actions{
+    margin-top:17px!important;
+    gap:10px!important;
+  }
+
+  .hero.ep-reference-header .hero-actions .btn{
+    height:56px!important;
+    min-height:56px!important;
+    max-height:56px!important;
+    border-radius:16px!important;
+  }
+
+  .hero.ep-reference-header .app-benefits{
+    width:100%!important;
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    margin:10px 0 0!important;
+    padding:0!important;
+    overflow:hidden!important;
+    background:rgba(7,5,4,.58)!important;
+    border:1px solid rgba(255,255,255,.15)!important;
+    border-radius:15px!important;
+    box-shadow:0 8px 22px rgba(0,0,0,.12)!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+  }
+
+  .hero.ep-reference-header .app-benefits article{
+    min-width:0!important;
+    min-height:72px!important;
+    padding:9px 8px!important;
+    display:grid!important;
+    grid-template-columns:24px minmax(0,1fr)!important;
+    align-items:center!important;
+    column-gap:6px!important;
+    text-align:left!important;
+    background:transparent!important;
+    border:0!important;
+  }
+
+  .hero.ep-reference-header .app-benefits article+article{
+    border-left:1px solid rgba(255,255,255,.15)!important;
+    border-top:0!important;
+  }
+
+  .hero.ep-reference-header .app-benefits article>span{
+    width:24px!important;
+    height:24px!important;
+    display:grid!important;
+    place-items:center!important;
+    margin:0!important;
+    font-size:22px!important;
+    line-height:1!important;
+    text-align:center!important;
+    filter:drop-shadow(0 2px 5px rgba(0,0,0,.24));
+  }
+
+  .hero.ep-reference-header .app-benefits article>div{
+    min-width:0!important;
+    width:auto!important;
+  }
+
+  .hero.ep-reference-header .app-benefits strong{
+    display:block!important;
+    margin:0 0 3px!important;
+    color:#fff!important;
+    font-size:clamp(9.6px,2.65vw,11px)!important;
+    line-height:1.08!important;
+    font-weight:900!important;
+    letter-spacing:-.015em!important;
+    white-space:nowrap!important;
+    text-align:left!important;
+  }
+
+  .hero.ep-reference-header .app-benefits small{
+    display:block!important;
+    margin:0!important;
+    color:rgba(255,255,255,.72)!important;
+    font-size:clamp(8.2px,2.25vw,9.3px)!important;
+    line-height:1.23!important;
+    font-weight:400!important;
+    text-align:left!important;
+  }
+}
+
+@media(max-width:390px){
+  .hero.ep-reference-header .app-benefits article{
+    grid-template-columns:21px minmax(0,1fr)!important;
+    column-gap:5px!important;
+    padding:8px 6px!important;
+  }
+  .hero.ep-reference-header .app-benefits article>span{
+    width:21px!important;
+    height:21px!important;
+    font-size:19px!important;
+  }
+  .hero.ep-reference-header .app-benefits strong{
+    font-size:9.3px!important;
+  }
+  .hero.ep-reference-header .app-benefits small{
+    font-size:7.9px!important;
+  }
+}
