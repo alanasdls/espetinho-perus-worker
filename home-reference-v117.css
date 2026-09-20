@@ -645,3 +645,36 @@
     margin-bottom:0!important;
   }
 }
+
+
+/* V138 — título e conteúdo encostados na lateral esquerda */
+@media(max-width:760px){
+  .hero.ep-reference-header .hero-inner{
+    padding-left:0!important;
+    padding-right:14px!important;
+  }
+
+  .hero.ep-reference-header .hero-copy{
+    padding-left:0!important;
+    margin-left:0!important;
+  }
+
+  .hero.ep-reference-header h1{
+    margin-left:0!important;
+    padding-left:0!important;
+    width:100%!important;
+    transform:translateX(-2px)!important;
+  }
+
+  .hero.ep-reference-header .ep-reference-summary{
+    margin-left:0!important;
+    padding-left:0!important;
+    width:100%!important;
+    transform:translateX(-2px)!important;
+  }
+
+  .hero.ep-reference-header .ep-reference-summary span{
+    margin-left:0!important;
+    padding-left:0!important;
+  }
+}
