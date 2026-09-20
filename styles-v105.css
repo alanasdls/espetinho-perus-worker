@@ -2589,3 +2589,72 @@ button[data-add].added-feedback::after{
     font-size:1.45em!important;
   }
 }
+
+
+/* V121 — benefícios iguais à referência: faixa limpa com divisórias */
+@media(max-width:760px){
+  .app-benefits{
+    width:100%!important;
+    margin:17px 0 0!important;
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    background:transparent!important;
+    border:0!important;
+    border-top:1px solid rgba(255,255,255,.18)!important;
+    border-bottom:1px solid rgba(255,255,255,.18)!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+    overflow:visible!important;
+  }
+
+  .app-benefits article{
+    min-height:108px!important;
+    padding:13px 9px 12px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    gap:8px!important;
+    text-align:center!important;
+    background:transparent!important;
+    color:#fff!important;
+  }
+
+  .app-benefits article+article{
+    border-top:0!important;
+    border-left:1px solid rgba(255,255,255,.18)!important;
+  }
+
+  .app-benefits span{
+    display:block!important;
+    font-size:31px!important;
+    line-height:1!important;
+    margin:0 0 2px!important;
+  }
+
+  .app-benefits article>div{
+    width:100%!important;
+  }
+
+  .app-benefits strong{
+    display:block!important;
+    margin:0!important;
+    font-size:13px!important;
+    line-height:1.15!important;
+    font-weight:900!important;
+    color:#fff!important;
+    white-space:normal!important;
+  }
+
+  .app-benefits small{
+    display:block!important;
+    max-width:128px!important;
+    margin:5px auto 0!important;
+    font-size:11.2px!important;
+    line-height:1.28!important;
+    font-weight:400!important;
+    color:rgba(255,255,255,.74)!important;
+  }
+}
