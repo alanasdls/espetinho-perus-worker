@@ -1590,7 +1590,7 @@ button[data-add].added-feedback::after{
     background:
       linear-gradient(90deg,#0d0805 0%,rgba(13,8,5,.70) 16%,rgba(13,8,5,.12) 54%,rgba(13,8,5,.03) 100%),
       linear-gradient(0deg,rgba(6,4,3,.12),rgba(6,4,3,.02)),
-      url('https://images.unsplash.com/photo-1529042410759-befb1204b468?auto=format&fit=crop&w=1000&q=88') 50% 50%/cover no-repeat;
+      url('https://images.unsplash.com/photo-1767974968707-db3d448d4ef3?auto=format&fit=crop&w=1100&q=88') 50% 50%/cover no-repeat;
     box-shadow:-28px 22px 50px rgba(0,0,0,.34);
   }
   .hero-art:after{
@@ -1763,5 +1763,140 @@ button[data-add].added-feedback::after{
     padding:0 13px!important;
     border-radius:10px!important;
     font-size:11px!important;
+  }
+}
+
+
+/* V111 — ajuste fino final da home aprovada */
+@media(max-width:760px){
+  .hero-inner{
+    padding:14px 18px 15px!important;
+  }
+  .hero-copy{
+    min-height:255px!important;
+    padding-top:12px!important;
+  }
+  .hero-art{
+    top:4px!important;
+    height:272px!important;
+    width:58%!important;
+    background-position:52% 50%!important;
+  }
+  .hero-script{
+    top:7px!important;
+    right:10px!important;
+    font-size:16px!important;
+  }
+  .hero h1{
+    font-size:clamp(32px,10.3vw,43px)!important;
+    line-height:.90!important;
+  }
+  .hero p{
+    margin-top:13px!important;
+    font-size:13px!important;
+    line-height:1.32!important;
+  }
+  .hero-actions{
+    margin-top:0!important;
+  }
+  .app-benefits{
+    margin-top:12px!important;
+  }
+  .app-benefits article{
+    min-height:76px!important;
+    padding:9px 5px!important;
+  }
+
+  .store-schedule{
+    margin:0 14px 12px!important;
+    padding:11px 13px!important;
+    min-height:0!important;
+    border-radius:18px!important;
+  }
+  .store-schedule-icon{
+    width:40px!important;
+    height:40px!important;
+    border-radius:13px!important;
+    font-size:19px!important;
+  }
+  .store-schedule strong{
+    font-size:13.5px!important;
+    line-height:1.18!important;
+    margin-bottom:2px!important;
+  }
+  .store-schedule p{
+    font-size:10.8px!important;
+    line-height:1.28!important;
+  }
+
+  .promo-combo-casal{
+    position:relative;
+    min-height:0!important;
+    aspect-ratio:1.72/1!important;
+    background-size:cover!important;
+    background-position:62% 50%!important;
+  }
+  .promo-combo-casal::before{
+    content:""!important;
+    display:block!important;
+    position:absolute;
+    inset:0;
+    z-index:-1;
+    background:
+      linear-gradient(90deg,rgba(6,4,2,.98) 0%,rgba(6,4,2,.93) 40%,rgba(6,4,2,.58) 62%,rgba(6,4,2,.14) 100%)!important;
+  }
+  .promo-combo-casal .combo-copy{
+    max-width:61%!important;
+    align-self:center!important;
+  }
+  .promo-combo-casal .combo-copy>span{
+    display:inline-flex!important;
+    padding:4px 7px!important;
+    border-radius:5px!important;
+    background:#d91d25!important;
+    color:#fff!important;
+    font-size:8px!important;
+    line-height:1!important;
+    text-transform:uppercase!important;
+    letter-spacing:.05em!important;
+  }
+  .promo-combo-casal h2{
+    margin:6px 0 5px!important;
+    font-size:31px!important;
+    line-height:.82!important;
+    color:#fff!important;
+  }
+  .promo-combo-casal h2 br+*{color:#f4b329}
+  .promo-combo-casal p{
+    margin:0!important;
+    font-size:9.5px!important;
+    line-height:1.25!important;
+    color:#fff2e8!important;
+  }
+  .promo-combo-casal p strong{
+    color:#ffd04d!important;
+  }
+  .combo-price{
+    margin-top:6px!important;
+    color:#ffc23d!important;
+    font:900 33px/.95 Oswald,sans-serif!important;
+    text-shadow:0 2px 12px rgba(0,0,0,.35);
+  }
+  .combo-price small{
+    margin-right:3px!important;
+    color:#fff!important;
+    font-size:12px!important;
+    vertical-align:middle!important;
+  }
+  .promo-combo-casal a{
+    min-height:31px!important;
+    margin-top:7px!important;
+    padding:0 11px!important;
+    border-radius:9px!important;
+    font-size:9.5px!important;
+  }
+
+  .promo-section{
+    margin-bottom:14px!important;
   }
 }
