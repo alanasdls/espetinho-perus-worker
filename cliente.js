@@ -90,7 +90,7 @@ $('#registerForm').addEventListener('submit',async e=>{
     const {data,error}=await db.auth.signUp({email,password,options:{data:{nome:name,first_name:names.first_name,last_name:names.last_name,telefone:phone,cpf,birth_date,address}}});
     if(error)throw error;
     if(!data.session){authMessage('Conta criada. Faça o login para continuar.','success');showTab('login');$('#loginEmail').value=email;return}
-    toast('Conta criada com sucesso.');await loadSession();
+    toast('Conta criada com sucesso.');await loadSession().catch(err=>{console.error('Falha ao abrir área do cliente',err);renderLoggedOut();authMessage(err?.message||'Não foi possível carregar sua conta. Tente entrar novamente.','error')});
   }catch(err){authMessage(translateError(err.message),'error')}
   finally{setBusy(form,false)}
 });
