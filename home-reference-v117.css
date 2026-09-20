@@ -220,3 +220,78 @@
     max-width:240px!important;
   }
 }
+
+
+/* V128 — corrige esquadro dos dois botões principais */
+.hero.ep-reference-header .ep-user-icon{
+  width:20px!important;
+  height:20px!important;
+  min-width:20px!important;
+  flex:0 0 20px!important;
+  display:block!important;
+  overflow:visible!important;
+}
+
+@media(max-width:760px){
+  .hero.ep-reference-header .hero-actions{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    align-items:stretch!important;
+    gap:10px!important;
+  }
+
+  .hero.ep-reference-header .hero-actions .btn{
+    display:grid!important;
+    grid-template-columns:22px minmax(0,1fr) 12px!important;
+    align-items:center!important;
+    justify-items:center!important;
+    column-gap:7px!important;
+    width:100%!important;
+    height:56px!important;
+    min-height:56px!important;
+    max-height:56px!important;
+    padding:0 13px!important;
+    border-radius:15px!important;
+    box-sizing:border-box!important;
+    overflow:hidden!important;
+    line-height:1!important;
+  }
+
+  .hero.ep-reference-header .hero-actions .btn>span{
+    min-width:0!important;
+    width:100%!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+    white-space:nowrap!important;
+    text-align:center!important;
+    font-size:clamp(12px,3.25vw,16px)!important;
+    line-height:1!important;
+  }
+
+  .hero.ep-reference-header .ep-cta-icon,
+  .hero.ep-reference-header .ep-user-icon{
+    width:20px!important;
+    height:20px!important;
+    min-width:20px!important;
+    max-width:20px!important;
+  }
+
+  .hero.ep-reference-header .ep-cta-arrow{
+    width:10px!important;
+    height:16px!important;
+    min-width:10px!important;
+  }
+}
+
+@media(max-width:390px){
+  .hero.ep-reference-header .hero-actions .btn{
+    grid-template-columns:20px minmax(0,1fr) 10px!important;
+    column-gap:5px!important;
+    height:54px!important;
+    min-height:54px!important;
+    max-height:54px!important;
+    padding:0 9px!important;
+  }
+  .hero.ep-reference-header .hero-actions .btn>span{
+    font-size:12px!important;
+  }
+}
