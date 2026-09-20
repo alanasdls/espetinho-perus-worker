@@ -2964,3 +2964,29 @@ button[data-add].added-feedback::after{
     line-height:1.28!important;
   }
 }
+
+
+/* V133 — aproximação e enquadramento padrão entre cards */
+@media(max-width:760px){
+  main{
+    padding-top:10px!important;
+  }
+
+  .store-schedule{
+    margin:10px 14px 10px!important;
+    padding:11px 13px!important;
+  }
+
+  .promo-section{
+    width:calc(100% - 28px)!important;
+    margin:0 auto 10px!important;
+    border-radius:22px!important;
+    overflow:hidden!important;
+  }
+
+  .menu-section{
+    margin-top:10px!important;
+    padding-top:26px!important;
+    border-radius:28px 28px 0 0!important;
+  }
+}
