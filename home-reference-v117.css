@@ -530,3 +530,14 @@
     font-size:8px!important;
   }
 }
+
+
+/* V132 — aproxima Feito na hora da descrição */
+@media(max-width:760px){
+  .hero.ep-reference-header .app-benefits article:first-child strong{
+    margin-bottom:0!important;
+  }
+  .hero.ep-reference-header .app-benefits article:first-child small{
+    margin-top:0!important;
+  }
+}
