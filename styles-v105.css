@@ -1545,3 +1545,180 @@ button[data-add].added-feedback::after{
     font-size:10px!important;
   }
 }
+
+
+/* V109 — aproximação fiel do mockup aprovado */
+.hero-art{display:none}
+.hero-copy{position:relative;z-index:2}
+
+@media(max-width:760px){
+  body{background:#0b0806!important}
+
+  .hero{
+    position:relative;
+    overflow:hidden;
+    min-height:0!important;
+    background:
+      radial-gradient(circle at 76% 18%,rgba(241,158,45,.10),transparent 26%),
+      linear-gradient(180deg,#0a0705 0%,#100a06 100%)!important;
+    color:#fff;
+  }
+  .hero nav{
+    height:64px!important;
+    padding:0 18px!important;
+    border-bottom:1px solid rgba(255,255,255,.06);
+    background:#090705!important;
+  }
+  .brand{font-size:22px!important;letter-spacing:.7px}
+  .brand small{font-size:9px!important;letter-spacing:4px!important;margin-top:5px!important}
+
+  .hero-inner{
+    position:relative;
+    padding:18px 18px 18px!important;
+    min-height:0;
+  }
+  .hero-art{
+    display:block;
+    position:absolute;
+    z-index:0;
+    top:8px;
+    right:-16px;
+    width:56%;
+    height:310px;
+    border-radius:0 0 0 48px;
+    overflow:hidden;
+    background:
+      linear-gradient(90deg,#0d0805 0%,rgba(13,8,5,.70) 16%,rgba(13,8,5,.12) 54%,rgba(13,8,5,.03) 100%),
+      linear-gradient(0deg,rgba(6,4,3,.12),rgba(6,4,3,.02)),
+      url('assets/products/carne-e-bacon-20260723.webp') 50% 50%/cover no-repeat;
+    box-shadow:-28px 22px 50px rgba(0,0,0,.34);
+  }
+  .hero-art:after{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.18) 70%,#0d0805 100%);
+  }
+  .hero-script{
+    position:absolute;
+    z-index:2;
+    top:8px;
+    right:12px;
+    color:#f4b73c;
+    font:700 18px/1.05 "Brush Script MT","Segoe Script",cursive;
+    text-align:right;
+    transform:rotate(-4deg);
+    text-shadow:0 2px 8px rgba(0,0,0,.45);
+  }
+
+  .hero-copy{
+    width:67%;
+    min-height:292px;
+    padding-top:16px;
+  }
+  .eyebrow{display:none!important}
+  .hero h1{
+    max-width:250px!important;
+    margin:0!important;
+    font-size:clamp(34px,10.8vw,45px)!important;
+    line-height:.91!important;
+    letter-spacing:-.025em!important;
+    text-shadow:0 3px 16px rgba(0,0,0,.28);
+  }
+  .hero h1 em{color:#f5b53b!important}
+  .hero p{
+    width:225px;
+    max-width:100%!important;
+    margin:16px 0 0!important;
+    font-size:13.5px!important;
+    line-height:1.35!important;
+    color:rgba(255,255,255,.88)!important;
+  }
+
+  .hero-actions{
+    position:relative;
+    z-index:3;
+    display:grid!important;
+    grid-template-columns:1.08fr .92fr!important;
+    gap:9px!important;
+    margin-top:4px!important;
+  }
+  .hero-actions .btn{
+    min-height:52px!important;
+    padding:0 12px!important;
+    border-radius:17px!important;
+    font-size:14px!important;
+  }
+  .hero-actions .primary{
+    background:linear-gradient(135deg,#f21b31,#ca0d20)!important;
+    box-shadow:0 12px 26px rgba(226,18,42,.28)!important;
+  }
+  .hero-actions .ghost{
+    background:rgba(9,7,5,.62)!important;
+    border:1px solid rgba(255,255,255,.67)!important;
+  }
+
+  .app-benefits{
+    position:relative;
+    z-index:3;
+    margin:15px 0 0!important;
+    border-radius:0!important;
+    background:rgba(8,6,5,.82)!important;
+    border:1px solid rgba(255,255,255,.15)!important;
+  }
+  .app-benefits article{
+    min-height:82px!important;
+    padding:10px 6px!important;
+  }
+  .app-benefits span{font-size:22px!important}
+  .app-benefits strong{font-size:10.8px!important}
+  .app-benefits small{font-size:9px!important}
+
+  main{
+    padding-top:12px!important;
+    background:#0b0806!important;
+  }
+  .store-schedule{
+    margin:0 14px 14px!important;
+    background:#eefcf3!important;
+    border-color:#a7ddba!important;
+    box-shadow:0 12px 28px rgba(0,0,0,.16)!important;
+  }
+  .store-schedule strong{font-size:14.5px!important}
+  .store-schedule p{font-size:11.7px!important}
+
+  .promo-section{
+    margin-bottom:18px!important;
+    border:1px solid rgba(255,255,255,.10);
+    background:#080604!important;
+    box-shadow:0 16px 38px rgba(0,0,0,.28)!important;
+  }
+
+  .menu-section{
+    position:relative;
+    margin-top:22px!important;
+    padding:38px 14px 44px!important;
+    border-radius:28px 28px 0 0;
+    background:#f7f2ec!important;
+  }
+  .menu-section:before{
+    content:"";
+    position:absolute;
+    left:50%;
+    top:12px;
+    width:42px;
+    height:4px;
+    border-radius:999px;
+    transform:translateX(-50%);
+    background:#d8c8bb;
+  }
+
+  .mobile-app-nav{
+    background:rgba(10,8,6,.985)!important;
+    border-top:1px solid rgba(255,255,255,.10)!important;
+    box-shadow:0 -10px 28px rgba(0,0,0,.32)!important;
+  }
+  .mobile-app-nav a,.mobile-app-nav button{color:#f3eee9!important}
+  .mobile-app-nav .active{color:#f11b31!important}
+  .mobile-app-nav small{color:inherit!important}
+}
