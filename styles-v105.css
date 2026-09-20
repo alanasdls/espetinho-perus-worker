@@ -2076,3 +2076,30 @@ button[data-add].added-feedback::after{
     border-top:1px solid rgba(255,255,255,.10)!important;
   }
 }
+
+
+/* V113 — corrige enquadramento do hero para mostrar melhor a cerveja */
+@media(max-width:760px){
+  .hero-art{
+    top:-8px!important;
+    right:0!important;
+    width:54%!important;
+    height:300px!important;
+    border-radius:0 0 0 54px!important;
+    background:
+      linear-gradient(90deg,#090705 0%,rgba(9,7,5,.86) 16%,rgba(9,7,5,.28) 48%,rgba(9,7,5,.02) 100%),
+      linear-gradient(180deg,rgba(0,0,0,.04),rgba(0,0,0,.02) 70%,#090705 100%),
+      url('assets/hero-v112.webp') 92% center/contain no-repeat!important;
+  }
+  .hero-script{
+    top:34px!important;
+    right:10px!important;
+    font-size:16px!important;
+    line-height:1.05!important;
+  }
+  .hero-copy{
+    width:62%!important;
+    min-height:270px!important;
+    padding-top:12px!important;
+  }
+}
