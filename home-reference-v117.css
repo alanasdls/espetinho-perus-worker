@@ -188,7 +188,7 @@
 }
 
 
-/* V125 — logo oficial maior no cabeçalho */
+/* V126 — logo oficial ampliada no cabeçalho */
 .hero.ep-reference-header .brand-logo{
   display:flex!important;
   align-items:center!important;
@@ -203,20 +203,20 @@
 .hero.ep-reference-header .brand-logo img{
   display:block!important;
   width:auto!important;
-  height:104px!important;
-  max-width:310px!important;
+  height:124px!important;
+  max-width:360px!important;
   object-fit:contain!important;
   object-position:left center!important;
 }
 @media(max-width:760px){
   .hero.ep-reference-header .brand-logo img{
-    height:78px!important;
-    max-width:225px!important;
+    height:94px!important;
+    max-width:270px!important;
   }
 }
 @media(max-width:390px){
   .hero.ep-reference-header .brand-logo img{
-    height:70px!important;
-    max-width:205px!important;
+    height:84px!important;
+    max-width:240px!important;
   }
 }
