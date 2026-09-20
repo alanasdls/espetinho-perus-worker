@@ -8,6 +8,16 @@ SOURCE_ORIGIN="${STATIC_ASSET_SOURCE_ORIGIN:-https://espetinho-perus-site.pages.
 
 rm -rf "$DIST"
 mkdir -p "$DIST"
+mkdir -p "$DIST/assets"
+
+# Assets V112 aprovados: armazenados em base64 no GitHub para manter o Pages
+# completamente versionado, sem depender de origem externa.
+if [ -s "assets-src/hero-v112.b64" ]; then
+  base64 -d "assets-src/hero-v112.b64" > "$DIST/assets/hero-v112.webp"
+fi
+if [ -s "assets-src/promo-combo-casal.b64" ]; then
+  base64 -d "assets-src/promo-combo-casal.b64" > "$DIST/assets/promo-combo-casal.webp"
+fi
 
 # Copia os arquivos públicos versionados na raiz.
 for pattern in "*.html" "*.css" "*.js" "*.json" "*.webmanifest" "*.png" "*.jpg" "*.jpeg" "*.webp" "*.wav" "_headers"; do
@@ -45,6 +55,12 @@ while IFS= read -r asset; do
   esac
 
   mkdir -p "$DIST/$(dirname "$asset")"
+
+  # Se o asset já foi gerado no dist (ex.: V112 base64), preserva-o.
+  if [ -s "$DIST/$asset" ]; then
+    copied=$((copied+1))
+    continue
+  fi
 
   if [ -f "$asset" ]; then
     cp "$asset" "$DIST/$asset"
