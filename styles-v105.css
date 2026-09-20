@@ -2194,3 +2194,207 @@ button[data-add].added-feedback::after{
     backdrop-filter:blur(1px);
   }
 }
+
+
+/* V116 — hero conforme referência aprovada */
+@media(max-width:760px){
+  .hero{
+    position:relative!important;
+    overflow:hidden!important;
+    background:#080604!important;
+    isolation:isolate!important;
+  }
+
+  /* Foto passa a pertencer ao próprio hero, sem bloco/recorte aparente. */
+  .hero::before{
+    content:""!important;
+    position:absolute!important;
+    inset:0!important;
+    z-index:0!important;
+    background:
+      url('assets/hero-v112.webp') right -54px top 96px / 69% auto no-repeat!important;
+    opacity:1!important;
+    pointer-events:none!important;
+    -webkit-mask-image:none!important;
+    mask-image:none!important;
+  }
+
+  /* Fades laterais, superior e inferior integram totalmente a fotografia ao preto. */
+  .hero::after{
+    content:""!important;
+    position:absolute!important;
+    inset:0!important;
+    z-index:1!important;
+    pointer-events:none!important;
+    background:
+      linear-gradient(90deg,
+        #080604 0%,
+        #080604 29%,
+        rgba(8,6,4,.96) 38%,
+        rgba(8,6,4,.74) 49%,
+        rgba(8,6,4,.32) 61%,
+        rgba(8,6,4,.06) 78%,
+        rgba(8,6,4,0) 100%),
+      linear-gradient(180deg,
+        #080604 0%,
+        rgba(8,6,4,.94) 7%,
+        rgba(8,6,4,.28) 18%,
+        rgba(8,6,4,0) 31%,
+        rgba(8,6,4,0) 67%,
+        rgba(8,6,4,.32) 78%,
+        rgba(8,6,4,.86) 90%,
+        #080604 100%)!important;
+  }
+
+  .hero nav{
+    position:relative!important;
+    z-index:5!important;
+    height:96px!important;
+    padding:20px 20px 0!important;
+    align-items:flex-start!important;
+    background:transparent!important;
+    border:0!important;
+  }
+
+  .brand{
+    font-size:31px!important;
+    line-height:.94!important;
+    letter-spacing:.6px!important;
+    text-shadow:0 2px 12px rgba(0,0,0,.45)!important;
+  }
+  .brand small{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:8px!important;
+    margin-top:8px!important;
+    font-size:11px!important;
+    letter-spacing:5px!important;
+    color:#f4b638!important;
+  }
+  .brand small::before,
+  .brand small::after{
+    content:""!important;
+    display:block!important;
+    width:28px!important;
+    height:2px!important;
+    border-radius:99px!important;
+    background:#d99b27!important;
+    opacity:.95!important;
+  }
+
+  .hero-inner{
+    position:relative!important;
+    z-index:2!important;
+    padding:22px 18px 17px!important;
+  }
+
+  /* Mantém o contêiner apenas para o slogan; a foto vem do ::before do hero. */
+  .hero-art{
+    position:absolute!important;
+    inset:0!important;
+    width:auto!important;
+    height:auto!important;
+    background:none!important;
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+    overflow:visible!important;
+    z-index:4!important;
+    pointer-events:none!important;
+  }
+  .hero-art::after{display:none!important}
+
+  .hero-script{
+    position:absolute!important;
+    top:-78px!important;
+    right:14px!important;
+    z-index:5!important;
+    color:#eeb443!important;
+    font:700 20px/1.08 "Brush Script MT","Segoe Script",cursive!important;
+    text-align:right!important;
+    transform:rotate(-4deg)!important;
+    text-shadow:0 3px 12px rgba(0,0,0,.72)!important;
+  }
+
+  .hero-copy{
+    position:relative!important;
+    z-index:4!important;
+    width:84%!important;
+    min-height:350px!important;
+    padding-top:6px!important;
+  }
+
+  .eyebrow{display:none!important}
+
+  .hero h1{
+    width:max-content!important;
+    max-width:none!important;
+    margin:0!important;
+    font-size:clamp(41px,11.8vw,52px)!important;
+    line-height:.88!important;
+    letter-spacing:-.025em!important;
+    white-space:nowrap!important;
+    text-shadow:0 3px 18px rgba(0,0,0,.50)!important;
+  }
+  .hero h1 em{
+    color:#f4b53d!important;
+    font-style:normal!important;
+  }
+
+  .hero p{
+    width:78%!important;
+    max-width:305px!important;
+    margin:22px 0 0!important;
+    font-size:15px!important;
+    line-height:1.42!important;
+    color:rgba(255,255,255,.94)!important;
+    text-shadow:0 2px 10px rgba(0,0,0,.55)!important;
+  }
+
+  .hero-actions{
+    position:relative!important;
+    z-index:5!important;
+    margin-top:7px!important;
+    display:grid!important;
+    grid-template-columns:1.08fr .92fr!important;
+    gap:10px!important;
+  }
+  .hero-actions .btn{
+    min-height:58px!important;
+    border-radius:18px!important;
+    font-size:15.5px!important;
+  }
+  .hero-actions .primary{
+    background:linear-gradient(135deg,#f31a32,#cb0e21)!important;
+    box-shadow:0 13px 30px rgba(227,18,42,.30)!important;
+  }
+  .hero-actions .ghost{
+    background:rgba(7,5,4,.67)!important;
+    border:1px solid rgba(255,255,255,.72)!important;
+    backdrop-filter:blur(2px)!important;
+  }
+
+  .app-benefits{
+    position:relative!important;
+    z-index:5!important;
+    margin-top:17px!important;
+    min-height:0!important;
+    background:rgba(6,4,3,.76)!important;
+    border:1px solid rgba(255,255,255,.15)!important;
+    backdrop-filter:blur(2px)!important;
+  }
+  .app-benefits article{
+    min-height:84px!important;
+    padding:11px 6px!important;
+  }
+  .app-benefits span{font-size:24px!important}
+  .app-benefits strong{font-size:11px!important}
+  .app-benefits small{font-size:9.2px!important}
+
+  /* Continuidade visual com o restante da home. */
+  main{
+    background:#080604!important;
+    padding-top:12px!important;
+  }
+}
