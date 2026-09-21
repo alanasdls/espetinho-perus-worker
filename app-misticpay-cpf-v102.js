@@ -669,7 +669,7 @@ function getOrderPayload(requireCpf=true){
     delivery_fee:isDelivery()?DELIVERY_FEE:0,
     items:ids.map(id=>({name:products[id].name,quantity:cart[id],...(products[id].reward?{reward:true}:{})})),
     reward_customer_id:EPCart.read().owner,
-    order_id:`EP-${Date.now()}`,
+    order_id:`EP-${crypto.randomUUID()}`,
     site_url:window.location.origin,
     promotion:epRegisteredCustomer?{code:'CADASTRADO10',discount_rate:0.10}:null,
     coupon_code:epCouponState.valid?epCouponState.code:null
@@ -685,9 +685,12 @@ function getOrderPayload(requireCpf=true){
   return payload;
 }
 
+let epCheckoutInFlight=false;
 async function iniciarCheckoutMercadoPago(){
+  if(epCheckoutInFlight)return;
   const payload=getOrderPayload(true);
   if(!payload) return;
+  epCheckoutInFlight=true;
   const original=pagBankButton.textContent;
   pagBankButton.disabled=true;
   pagBankButton.textContent='Abrindo Mercado Pago...';
@@ -703,7 +706,7 @@ async function iniciarCheckoutMercadoPago(){
     epRememberRewardPayment(payload,data);
     window.location.href=data.checkout_url;
   }catch(e){alert(e.message);}
-  finally{pagBankButton.disabled=false;pagBankButton.textContent=original;}
+  finally{epCheckoutInFlight=false;pagBankButton.disabled=false;pagBankButton.textContent=original;}
 }
 if(pagBankButton) pagBankButton.onclick=iniciarCheckoutMercadoPago;
 
@@ -757,8 +760,10 @@ async function consultarPix(paymentId){
 const mpButton=document.querySelector('#mercadoPagoCheckout');
 if(mpButton){
   mpButton.onclick=async()=>{
+    if(epCheckoutInFlight)return;
     const payload=getOrderPayload();
     if(!payload) return;
+    epCheckoutInFlight=true;
     const original=mpButton.textContent;
     mpButton.disabled=true;
     mpButton.textContent='Gerando Pix...';
@@ -792,6 +797,7 @@ if(mpButton){
     }catch(error){
       alert(error.message||'Não foi possível gerar o Pix.');
     }finally{
+      epCheckoutInFlight=false;
       mpButton.disabled=false;
       mpButton.textContent=original;
     }
@@ -987,15 +993,17 @@ function epHandleRewardResponse(payload,data,response){
 // Cash checkout must also validate and settle points on the server.
 const epOriginalWhatsAppCheckout=document.querySelector('#checkout').onclick;
 document.querySelector('#checkout').onclick=async function(){
+  if(epCheckoutInFlight)return;
   if(!Object.keys(cart).some(id=>products[id]?.reward))return epOriginalWhatsAppCheckout();
   const payload=getOrderPayload(false);if(!payload)return;
+  epCheckoutInFlight=true;
   this.disabled=true;
   try{
     const response=await fetch('https://api.espetinhoperus.com.br/criar-pedido',{method:'POST',headers:await epCheckoutHeaders(payload),body:JSON.stringify(payload)});
     const data=await response.json();
     if(epHandleRewardResponse(payload,data,response))return;
     throw Error(data.erro||'Não foi possível confirmar o pedido.');
-  }catch(error){alert(error.message);}finally{this.disabled=false;}
+  }catch(error){alert(error.message);}finally{epCheckoutInFlight=false;this.disabled=false;}
 };
 epRestoreCart();
 // Keep address and checkout fields on refresh, in this browser only.
