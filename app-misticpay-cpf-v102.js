@@ -476,14 +476,24 @@ async function buscarCep(){
   if(cep.length!==8){cepStatus.textContent='Informe um CEP com 8 números.';cepStatus.className='cep-status error';return;}
   cepStatus.textContent='Consultando endereço e frete...';
   try{
-    const [addressResponse,quoteResponse]=await Promise.all([
-      fetch(`https://viacep.com.br/ws/${cep}/json/`),
-      fetch(`https://api.espetinhoperus.com.br/delivery/quote?cep=${cep}`,{cache:'no-store'})
+    const [addressResult,quoteResult]=await Promise.allSettled([
+      fetch(`https://viacep.com.br/ws/${cep}/json/`).then(async r=>{const d=await r.json();if(!r.ok||d.erro)throw Error('CEP não encontrado.');return d;}),
+      fetch(`https://api.espetinhoperus.com.br/delivery/quote?cep=${cep}`,{cache:'no-store'}).then(async r=>{
+        const q=await r.json().catch(()=>null);
+        if(!r.ok||!q||q.cep!==cep)throw Error(q?.erro||`Consulta de frete indisponível (HTTP ${r.status}).`);
+        return q;
+      })
     ]);
-    const [d,quote]=await Promise.all([addressResponse.json(),quoteResponse.json()]);
     if(version!==deliveryLookupVersion||deliveryCepDigits()!==cep)return;
-    if(!addressResponse.ok||d.erro)throw Error('CEP não encontrado.');
-    if(!quoteResponse.ok||quote.cep!==cep)throw Error(quote.erro||'Não foi possível consultar o frete.');
+    const quote=quoteResult.status==='fulfilled'?quoteResult.value:null;
+    const d=addressResult.status==='fulfilled'?addressResult.value:quote?.address?.logradouro?quote.address:null;
+    if(!d)throw Error('Não foi possível consultar o endereço deste CEP. Tente novamente.');
+    streetInput.value=d.logradouro||'';neighborhoodInput.value=d.bairro||'';cityInput.value=d.localidade||'';stateInput.value=d.uf||'';
+    composeAddress();
+    if(!quote){
+      cepStatus.textContent='Endereço encontrado. '+(quoteResult.reason?.message||'Não foi possível consultar o frete.')+' Toque em buscar CEP para tentar novamente.';
+      cepStatus.className='cep-status error';updateOrderSummary();return;
+    }
     deliveryQuote=quote;
     streetInput.value=d.logradouro||'';neighborhoodInput.value=d.bairro||'';cityInput.value=d.localidade||'';stateInput.value=d.uf||'';
     cepLookupComplete=true;lastLookupCep=cep;cepStatus.textContent='Endereço encontrado. Informe o número.';cepStatus.className='cep-status success';

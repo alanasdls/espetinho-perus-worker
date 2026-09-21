@@ -32,3 +32,9 @@ test('admin editor persists prices, pauses and CEP additions through authenticat
  await dom.window.document.getElementById('deliveryZonesForm').onsubmit({preventDefault(){}});
  assert.equal(payload.zones[0].fee,18);assert.equal(payload.zones[0].active,false);assert.deepEqual(payload.zones[0].ceps,['05186','05187000']);
 });
+test('05205080 address remains visible when freight endpoint rejects with HTML 403; checkout stays blocked',async()=>{
+ const c={deliveryCepDigits:()=> '05205080',updateOrderSummary(){},composeAddress(){},localStorage:{setItem(){}},fetch:async url=>url.includes('viacep')?{ok:true,json:async()=>({logradouro:'Rua Joaquim da Costa Penha',bairro:'Jardim Russo',localidade:'São Paulo',uf:'SP'})}:{ok:false,status:403,json:async()=>{throw Error('HTML');}}};
+ for(const name of ['streetInput','neighborhoodInput','cityInput','stateInput','numberInput','cepStatus','deliveryWhatsapp','cepInput'])c[name]={value:'',style:{},focus(){}};
+ vm.createContext(c);vm.runInContext("let deliveryQuote=null,cepLookupComplete=false,lastLookupCep='',deliveryLookupVersion=0;"+source.slice(source.indexOf('async function buscarCep(){'),source.indexOf("cepInput?.addEventListener('input'")),c);
+ await c.buscarCep();assert.equal(c.streetInput.value,'Rua Joaquim da Costa Penha');assert.match(c.cepStatus.textContent,/frete.*403/);assert.equal(vm.runInContext('cepLookupComplete',c),false);assert.equal(vm.runInContext('deliveryQuote',c),null);
+});
