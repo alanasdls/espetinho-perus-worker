@@ -26,6 +26,23 @@
     <div class="client-avatar" id="clientAvatar">EP</div>
   </section>
 
+  <section id="passwordAccess" class="access-card" hidden>
+    <div class="access-copy"><h2>Definir senha de acesso</h2><p>Crie uma senha para sua conta no Espetinho Perus. Seu acesso pelo Google continua disponível.</p><p id="passwordAccount"></p></div>
+    <div class="auth-box">
+      <form id="passwordRequestForm" class="access-form" hidden>
+        <label>E-mail da sua conta<input id="passwordEmail" type="email" autocomplete="email" required></label>
+        <button type="submit">Enviar link de recuperação</button>
+      </form>
+      <form id="passwordUpdateForm" class="access-form" hidden>
+        <label>Nova senha<input id="newAccountPassword" type="password" autocomplete="new-password" minlength="8" required></label>
+        <label>Confirme a nova senha<input id="confirmAccountPassword" type="password" autocomplete="new-password" minlength="8" required></label>
+        <button type="submit">Salvar nova senha</button>
+      </form>
+      <p id="passwordMessage" role="status" aria-live="polite"></p>
+      <p><a href="admin.html">Voltar ao painel administrativo</a> · <a href="cliente.html">Minha conta</a></p>
+    </div>
+  </section>
+
   <section id="clientAccess" class="access-card" hidden>
     <div class="access-copy"><small>ACESSO OPCIONAL</small><h2>Entre ou crie sua conta</h2><p>Você também pode continuar comprando sem cadastro. Ao entrar, seus dados ficam disponíveis e os pedidos identificados poderão gerar pontos após a confirmação do pagamento.</p>
       <a class="guest-link" href="index.html#cardapio">Continuar sem cadastro</a>
@@ -106,6 +123,6 @@
 <div id="clientToast" class="client-toast" aria-live="polite"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="cart-state.js?v=20260920-reward-cart"></script>
-<script src="cliente.js?v=20260920-reward-cart"></script>
+<script src="cliente.js?v=20260921-password-recovery"></script>
 </body>
 </html>

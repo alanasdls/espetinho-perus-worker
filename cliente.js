@@ -1,6 +1,7 @@
 const SUPABASE_URL='https://xikhljdlmeinihpeuwlj.supabase.co';
 const SUPABASE_KEY='sb_publishable_SUPqs1Kjmmz_GIwVTDMFrA_WXDnNAM-';
 const SUPABASE_AUTH_OPTIONS={auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:window.localStorage,storageKey:'espetinho-perus-auth'}};
+let passwordMode=new URLSearchParams(location.search).get('mode')==='password'||new URLSearchParams(location.hash.slice(1)).get('type')==='recovery';
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,SUPABASE_AUTH_OPTIONS);
 const API_FIDELIDADE='https://api.espetinhoperus.com.br';
 const $=s=>document.querySelector(s);
@@ -105,7 +106,47 @@ $('#loginForm').addEventListener('submit',async e=>{
   finally{setBusy(form,false)}
 });
 
-$('#forgotPassword').addEventListener('click',async()=>{const email=$('#loginEmail').value.trim();if(!email)return authMessage('Digite seu e-mail primeiro.','error');const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo:`${location.origin}/cliente.html`});authMessage(error?translateError(error.message):'Enviamos as instruções de recuperação para o seu e-mail.',error?'error':'success')});
+function passwordMessage(message){$('#passwordMessage').textContent=message}
+async function showPasswordAccess(){
+  passwordMode=true;
+  $('#clientAccess').hidden=true;$('#clientDashboard').hidden=true;$('#passwordAccess').hidden=false;
+  $('#clientGreeting').textContent='Sua senha de acesso';
+  $('#clientIntro').textContent='Use a mesma conta no site e no painel.';
+  $('#passwordRequestForm').hidden=true;$('#passwordUpdateForm').hidden=true;
+  try{
+    const {data:{user},error}=await db.auth.getUser();
+    const valid=!!user&&!error;
+    $('#passwordAccount').textContent=valid?`Conta: ${user.email}`:'Informe seu e-mail para recuperar o acesso.';
+    $('#passwordUpdateForm').hidden=!valid;$('#passwordRequestForm').hidden=valid;
+  }catch{ $('#passwordRequestForm').hidden=false;passwordMessage('Entre pelo link enviado ao seu e-mail para definir a senha.'); }
+}
+$('#forgotPassword').addEventListener('click',()=>{ $('#passwordEmail').value=$('#loginEmail').value.trim();showPasswordAccess(); });
+$('#passwordRequestForm').addEventListener('submit',async e=>{
+  e.preventDefault();setBusy(e.target,true,'Enviando...');
+  try{
+    const {error}=await db.auth.resetPasswordForEmail($('#passwordEmail').value.trim(),{redirectTo:`${location.origin}/cliente.html`});
+    if(error)throw error;
+    passwordMessage('Se este e-mail possui uma conta, você receberá um link para definir a senha. Confira também o spam.');
+  }catch{passwordMessage('Não foi possível enviar o link. Aguarde um pouco e tente novamente.');}
+  finally{setBusy(e.target,false);}
+});
+$('#passwordUpdateForm').addEventListener('submit',async e=>{
+  e.preventDefault();const password=$('#newAccountPassword').value;
+  if(password.length<8)return passwordMessage('Use pelo menos 8 caracteres.');
+  if(password!==$('#confirmAccountPassword').value)return passwordMessage('As senhas não coincidem.');
+  setBusy(e.target,true,'Salvando...');
+  try{
+    const {data:{user},error:sessionError}=await db.auth.getUser();
+    if(sessionError||!user)throw Error('Sua sessão expirou. Solicite um novo link de recuperação.');
+    const {error}=await db.auth.updateUser({password});
+    if(error)throw error;
+    e.target.reset();e.target.hidden=true;
+    passwordMessage('Senha salva. Volte ao painel e entre com seu e-mail e a nova senha.');
+    history.replaceState(null,'','cliente.html?mode=password');
+  }catch(err){passwordMessage(err.message||'Não foi possível salvar a senha. Solicite um novo link.');}
+  finally{setBusy(e.target,false);}
+});
+
 $('#clientLogout').addEventListener('click',async()=>{await db.auth.signOut();localStorage.removeItem(AUTH_BACKUP_KEY);currentUser=null;currentProfile=null;renderLoggedOut();toast('Você saiu da conta.')});
 
 $('#clientProfileForm').addEventListener('submit',async e=>{
@@ -201,6 +242,7 @@ async function loadRewards(){
 }
 
 async function loadDashboard(){
+  if(passwordMode)return;
   const access=$('#clientAccess'),dashboard=$('#clientDashboard');access.hidden=true;access.setAttribute('aria-hidden','true');dashboard.hidden=false;dashboard.setAttribute('aria-hidden','false');renderHeader();
   const meta=currentUser.user_metadata||{},saved=(()=>{try{return JSON.parse(localStorage.getItem('ep-customer-profile')||'{}')}catch{return {}}})();
   const addr=currentProfile?.address||meta.address||saved.address||{};
@@ -249,7 +291,7 @@ $('#rewardsGrid')?.addEventListener('click',async e=>{
 
 });
 
-async function loadSession(){const session=await getPersistentSession();if(!session){renderLoggedOut();return}currentUser=session.user;let {data:profile}=await db.from('clientes').select('id,nome,telefone,email,pontos,ativo').eq('id',currentUser.id).maybeSingle();if(!profile){await new Promise(r=>setTimeout(r,500));({data:profile}=await db.from('clientes').select('id,nome,telefone,email,pontos,ativo').eq('id',currentUser.id).maybeSingle())}const meta=currentUser.user_metadata||{};currentProfile={...(profile||{id:currentUser.id,nome:meta.nome||meta.full_name||meta.name||'Cliente',telefone:meta.telefone||'',email:currentUser.email,pontos:0}),cpf:meta.cpf||'',birth_date:meta.birth_date||'',address:meta.address||{}};localStorage.setItem('ep-customer-profile',JSON.stringify({name:currentProfile.nome,phone:currentProfile.telefone,email:currentUser.email,cpf:currentProfile.cpf,birth_date:currentProfile.birth_date,address:currentProfile.address}));localStorage.setItem('ep-loyalty-user-id',currentUser.id);await loadDashboard()}
+async function loadSession(){const session=await getPersistentSession();if(passwordMode){await showPasswordAccess();return}if(!session){renderLoggedOut();return}currentUser=session.user;let {data:profile}=await db.from('clientes').select('id,nome,telefone,email,pontos,ativo').eq('id',currentUser.id).maybeSingle();if(!profile){await new Promise(r=>setTimeout(r,500));({data:profile}=await db.from('clientes').select('id,nome,telefone,email,pontos,ativo').eq('id',currentUser.id).maybeSingle())}const meta=currentUser.user_metadata||{};currentProfile={...(profile||{id:currentUser.id,nome:meta.nome||meta.full_name||meta.name||'Cliente',telefone:meta.telefone||'',email:currentUser.email,pontos:0}),cpf:meta.cpf||'',birth_date:meta.birth_date||'',address:meta.address||{}};localStorage.setItem('ep-customer-profile',JSON.stringify({name:currentProfile.nome,phone:currentProfile.telefone,email:currentUser.email,cpf:currentProfile.cpf,birth_date:currentProfile.birth_date,address:currentProfile.address}));localStorage.setItem('ep-loyalty-user-id',currentUser.id);await loadDashboard()}
 
-db.auth.onAuthStateChange((_event,session)=>{if(session)saveSessionBackup(session);else localStorage.removeItem('ep-loyalty-user-id')});
+db.auth.onAuthStateChange((_event,session)=>{if(_event==='PASSWORD_RECOVERY'){passwordMode=true;setTimeout(()=>showPasswordAccess(),0)}if(session)saveSessionBackup(session);else localStorage.removeItem('ep-loyalty-user-id')});
 loadSession().catch(err=>{console.error('Falha ao abrir área do cliente',err);renderLoggedOut();authMessage(err?.message||'Não foi possível carregar sua conta. Tente entrar novamente.','error')});
