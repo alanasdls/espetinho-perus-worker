@@ -1,3 +1,4 @@
+import { DELIVERY_CONTEXT, handleDelivery } from './delivery-rates.js';
 import { ADMIN_CONTEXT, handleStaff, staffStorage } from './admin-security.js';
 import { REWARD_CONTEXT, handleRewardCheckout, saveRewardOrder } from './reward-checkout.js';
 
@@ -298,20 +299,13 @@ function codigoImpressaoProduto(nome, item = {}) {
 }
 
 function normalizarTexto(valor) { return String(valor ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase(); }
-const PERUS_CEP_PREFIXES = new Set(["05201","05202","05203","05204","05205","05206","05207","05208","05209","05210","05211","05212","05215","05230"]);
-function cepAtendidoPerus(valor) {
-  const cep = String(valor ?? "").replace(/\D/g, "");
-  return cep.length === 8 && PERUS_CEP_PREFIXES.has(cep.slice(0, 5));
-}
-function calcularEntrega(entrada) {
-  const fulfillment = texto(entrada.customer?.fulfillment, 50);
-  const bairro = texto(entrada.customer?.bairro, 100);
-  const cep = texto(entrada.customer?.cep, 12);
-  if (fulfillment !== "Entrega") return { fee: 0, bairro, cep };
-  if (!cepAtendidoPerus(cep)) throw new Error("CEP fora da área de entrega automática de Perus. Consulte o frete pelo WhatsApp.");
-  const feeInformada = Number(entrada.delivery_fee ?? 10);
-  if (feeInformada !== 10) throw new Error("Taxa de entrega inválida.");
-  return { fee: 10, bairro, cep };
+function calcularEntrega(entrada,env) {
+  const bairro=texto(entrada.customer?.bairro,100),cep=texto(entrada.customer?.cep,12);
+  if(texto(entrada.customer?.fulfillment,50)!=="Entrega")return {fee:0,bairro,cep};
+  const quote=env?.[DELIVERY_CONTEXT];
+  if(!quote?.allowed||quote.cep!==cep.replace(/\D/g,''))throw Error("Consulte o CEP antes de finalizar a entrega.");
+  if(Number(entrada.delivery_fee)!==quote.fee)throw Error("Taxa de entrega inválida. Consulte seu CEP novamente.");
+  return {fee:quote.fee,bairro:quote.address.bairro||bairro,cep,region:quote.region};
 }
 
 function normalizarCodigoCupom(valor){
@@ -1434,7 +1428,7 @@ async function coreFetch(request,env,ctx) {
       const entrada=await request.json();
       const clienteAuth=await clienteSupabaseAutenticado(request,env);
       if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);
-      const entrega=calcularEntrega(entrada);
+      const entrega=calcularEntrega(entrada,env);
       let subtotal=0;
       const itens=entrada.items.map(item=>{
         const nome=texto(item.name||item.nome||item.title,150), q=Number(item.quantity||item.quantidade);
@@ -1477,7 +1471,7 @@ async function coreFetch(request,env,ctx) {
       if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);
       const email=texto(entrada.customer?.email||entrada.email,150).toLowerCase();if(!emailValido(email))return responder({erro:"Informe um e-mail valido."},400);
       let subtotal=0;const itens=entrada.items.map(item=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!nome)throw new Error("Produto sem nome.");if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const precoSite=Number(item.unit_price??item.price??item.preco);const unit_price=Object.prototype.hasOwnProperty.call(PRECOS,nome)?PRECOS[nome]:precoSite;if(!Number.isFinite(unit_price)||unit_price<=0)throw new Error(`Preco invalido para ${nome}`);subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:codigoImpressaoProduto(nome,item),unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)}});subtotal=Math.round(subtotal*100)/100;
-      const entrega=calcularEntrega(entrada),deliveryFee=entrega.fee,descontos=calcularDescontosPedido(env,entrada,subtotal,Boolean(clienteAuth?.id)),discountedSubtotal=Math.round((subtotal-descontos.total_discount)*100)/100,total=Math.round((discountedSubtotal+deliveryFee)*100)/100;
+      const entrega=calcularEntrega(entrada,env),deliveryFee=entrega.fee,descontos=calcularDescontosPedido(env,entrada,subtotal,Boolean(clienteAuth?.id)),discountedSubtotal=Math.round((subtotal-descontos.total_discount)*100)/100,total=Math.round((discountedSubtotal+deliveryFee)*100)/100;
       const orderId=checkoutOrderId(entrada),nome=texto(entrada.customer?.name||"Cliente",100),agora=new Date().toISOString();
       const partesNome=nome.trim().split(/\s+/).filter(Boolean),primeiroNome=texto(entrada.customer?.first_name||partesNome[0]||nome,60),sobrenome=texto(entrada.customer?.last_name||partesNome.slice(1).join(" "),60);
       const cpf=texto(entrada.customer?.cpf||entrada.customer?.document,20).replace(/\D/g,"");if(cpf.length!==11)return responder({erro:"Informe um CPF valido para o pagamento com cartao."},400);
@@ -1522,7 +1516,7 @@ async function coreFetch(request,env,ctx) {
       const entrada=await request.json(); const clienteAuth=await clienteSupabaseAutenticado(request,env); if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);
       const email=texto(entrada.customer?.email||entrada.email,150).toLowerCase(); if(!emailValido(email))return responder({erro:"Informe um e-mail valido."},400);
       let subtotal=0; const itens=entrada.items.map(item=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!nome)throw new Error("Produto sem nome.");if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const precoSite=Number(item.unit_price??item.price??item.preco);const unit_price=Object.prototype.hasOwnProperty.call(PRECOS,nome)?PRECOS[nome]:precoSite;if(!Number.isFinite(unit_price)||unit_price<=0)throw new Error(`Preco invalido para ${nome}`);subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:codigoImpressaoProduto(nome,item),unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)}}); subtotal=Math.round(subtotal*100)/100;
-      const entrega=calcularEntrega(entrada); const deliveryFee=entrega.fee; const descontos=calcularDescontosPedido(env,entrada,subtotal,Boolean(clienteAuth?.id)); const discountedSubtotal=Math.round((subtotal-descontos.total_discount)*100)/100; const total=Math.round((discountedSubtotal+deliveryFee)*100)/100;
+      const entrega=calcularEntrega(entrada,env); const deliveryFee=entrega.fee; const descontos=calcularDescontosPedido(env,entrada,subtotal,Boolean(clienteAuth?.id)); const discountedSubtotal=Math.round((subtotal-descontos.total_discount)*100)/100; const total=Math.round((discountedSubtotal+deliveryFee)*100)/100;
       const orderId=checkoutOrderId(entrada),nome=texto(entrada.customer?.name||"Cliente",100),agora=new Date().toISOString();
       const tracking=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16);
       const method=entrada.payment_method==="DEBIT_CARD"?"DEBIT_CARD":"CREDIT_CARD";
@@ -1575,7 +1569,7 @@ async function coreFetch(request,env,ctx) {
   }
   if(request.method!=="POST"||url.pathname!=="/criar-pix")return responder({erro:"Rota nao encontrada."},404);
   try{if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);const entrada=await request.json();const clienteAuth=await clienteSupabaseAutenticado(request,env);if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);const email=texto(entrada.customer?.email||entrada.email,150).toLowerCase();if(!emailValido(email))return responder({erro:"Informe um e-mail valido para gerar o Pix."},400);
-    let subtotal=0;const itens=entrada.items.map((item,index)=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!nome)throw new Error("Produto sem nome.");if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const precoSite=Number(item.unit_price??item.price??item.preco);const unit_price=Object.prototype.hasOwnProperty.call(PRECOS,nome)?PRECOS[nome]:precoSite;if(!Number.isFinite(unit_price)||unit_price<=0)throw new Error(`Preco invalido para ${nome}`);subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:codigoImpressaoProduto(nome,item),unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)}});subtotal=Math.round(subtotal*100)/100;const descontos=calcularDescontosPedido(env,entrada,subtotal,Boolean(clienteAuth?.id));const discountAmount=descontos.total_discount;const discountedSubtotal=Math.round((subtotal-discountAmount)*100)/100;const entrega=calcularEntrega(entrada);const deliveryFee=entrega.fee;const total=Math.round((discountedSubtotal+deliveryFee)*100)/100;
+    let subtotal=0;const itens=entrada.items.map((item,index)=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!nome)throw new Error("Produto sem nome.");if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const precoSite=Number(item.unit_price??item.price??item.preco);const unit_price=Object.prototype.hasOwnProperty.call(PRECOS,nome)?PRECOS[nome]:precoSite;if(!Number.isFinite(unit_price)||unit_price<=0)throw new Error(`Preco invalido para ${nome}`);subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:codigoImpressaoProduto(nome,item),unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)}});subtotal=Math.round(subtotal*100)/100;const descontos=calcularDescontosPedido(env,entrada,subtotal,Boolean(clienteAuth?.id));const discountAmount=descontos.total_discount;const discountedSubtotal=Math.round((subtotal-discountAmount)*100)/100;const entrega=calcularEntrega(entrada,env);const deliveryFee=entrega.fee;const total=Math.round((discountedSubtotal+deliveryFee)*100)/100;
     const orderId=checkoutOrderId(entrada), nome=texto(entrada.customer?.name||entrada.nome||"Cliente",100), agora=new Date().toISOString();let p={order_id:orderId,tracking_token:crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16),site_url:"https://espetinhoperus.com.br",created_at:agora,updated_at:agora,customer:{name:nome,email,phone:texto(entrada.customer?.phone,30),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep:texto(entrada.customer?.cep,12),bairro:entrega.bairro,notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},items:itens,subtotal,discount_rate:0.10,registered_discount_amount:descontos.registered_discount,coupon_discount_amount:descontos.coupon_discount,discount_amount:discountAmount,discounted_subtotal:discountedSubtotal,loyalty_subtotal_eligible:discountedSubtotal,coupon_code:descontos.coupon?.code||null,coupon_description:descontos.coupon?.description||null,promotion_code:descontos.coupon?.code?"CUPOM":"CADASTRADO10",delivery_fee:deliveryFee,total,payment_id:null,payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};const blocked=await reservarNovoPedido(env,orderId);if(blocked)return blocked;await gravarPedido(env,p);
     const pay={amount:total,payerName:nome,transactionId:orderId,description:`Pedido ${orderId} - Espetinho Perus`,projectWebhook:`${url.origin}/webhook-misticpay`};
     const documento=texto(entrada.customer?.document||entrada.customer?.cpf||entrada.payerDocument||env.MISTICPAY_PAYER_DOCUMENT,30).replace(/\D/g,"");
@@ -1622,4 +1616,7 @@ async function coreFetch(request,env,ctx) {
   }catch(e){console.error(e);if(e?.code==="CUPOM_INVALIDO")return responder({erro:e.message},400);return responder({erro:"Erro ao criar o Pix.",detalhes:e instanceof Error?e.message:String(e)},500)}
 }
 
-export default {fetch(request,env,ctx){return handleStaff(request,env,ctx,(request,env,ctx)=>handleRewardCheckout(request,env,ctx,coreFetch,{headers:CORS,authenticate:clienteSupabaseAutenticado,store:estadoDelivery,prices:PRECOS,codes:CODIGOS_IMPRESSAO_POR_PRODUTO,delivery:calcularEntrega,discounts:calcularDescontosPedido}),CORS);}};
+export default {fetch(request,env,ctx){
+ return handleStaff(request,env,ctx,(request,env,ctx)=>handleDelivery(request,env,ctx,
+  (request,env,ctx)=>handleRewardCheckout(request,env,ctx,coreFetch,{headers:CORS,authenticate:clienteSupabaseAutenticado,store:estadoDelivery,prices:PRECOS,codes:CODIGOS_IMPRESSAO_POR_PRODUTO,delivery:body=>calcularEntrega(body,env),discounts:calcularDescontosPedido}),CORS),CORS);
+}};

@@ -247,8 +247,15 @@
     </section>
 
     <section id="settingsTab" class="tab-panel admin-studio-panel">
+      <div class="studio-card" data-admin-only>
+        <h3>Áreas de entrega</h3>
+        <p>Frete por região. Edite os valores, pause uma área ou acrescente CEPs à cobertura.</p>
+        <button id="loadDeliveryZones" type="button">Carregar tabela de fretes</button>
+        <form id="deliveryZonesForm" hidden><div id="deliveryZonesRows"></div><button type="submit">Salvar tabela de fretes</button></form>
+        <p id="deliveryZonesMessage" role="status"></p>
+      </div>
       <div class="studio-head"><div><small>CONFIGURAÇÕES GERAIS</small><h2>Operação e backup</h2><p>Centralize informações importantes do delivery e preserve uma cópia das configurações.</p></div></div>
-      <div class="settings-grid settings-main"><label>WhatsApp do estabelecimento<input id="settingWhatsapp" type="tel" placeholder="5511981341569"></label><label>Taxa de entrega (R$)<input id="settingDeliveryFee" type="number" min="0" step="0.01"></label><label>Pedido mínimo (R$)<input id="settingMinimumOrder" type="number" min="0" step="0.01"></label><label>Tempo médio de preparo (min)<input id="settingPrepTime" type="number" min="5" step="5"></label><label class="wide">Mensagem do delivery fechado<textarea id="settingClosedMessage" rows="3"></textarea></label></div>
+      <div class="settings-grid settings-main"><label>WhatsApp do estabelecimento<input id="settingWhatsapp" type="tel" placeholder="5511981341569"></label><label hidden>Taxa antiga<input id="settingDeliveryFee" type="number" min="0" step="0.01" disabled></label><label>Pedido mínimo (R$)<input id="settingMinimumOrder" type="number" min="0" step="0.01"></label><label>Tempo médio de preparo (min)<input id="settingPrepTime" type="number" min="5" step="5"></label><label class="wide">Mensagem do delivery fechado<textarea id="settingClosedMessage" rows="3"></textarea></label></div>
       <div class="form-actions"><button id="saveGeneralSettingsBtn" type="button">Salvar configurações</button><button id="downloadBackupBtn" type="button" class="secondary">Baixar backup JSON</button><label class="file-button">Importar backup<input id="importBackupInput" type="file" accept="application/json"></label></div>
       <div class="studio-card audit-card"><div class="enterprise-section-head compact"><div><small>HISTÓRICO LOCAL</small><h3>Últimas alterações</h3></div><button id="clearAuditBtn" type="button" class="secondary">Limpar histórico</button></div><div id="auditLog" class="audit-log"></div></div>
     </section>
@@ -286,6 +293,7 @@
   </section>
 </main>
 <script src="admin.js?v=20260920-v149-staff"></script>
+<script src="delivery-admin.js?v=20260921-zones"></script>
 <script src="staff-ui.js?v=20260920-v149-staff"></script>
 <script>if('serviceWorker'in navigator){navigator.serviceWorker.register('./sw.js?v=20260727-v79-admin-studio',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});}</script>
 </body>

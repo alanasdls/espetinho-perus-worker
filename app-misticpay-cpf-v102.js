@@ -308,8 +308,7 @@ function change(id,d){if(!epCartEditable())return;cart[id]=(cart[id]||0)+d;if(ca
   }).join(''):'<div class="empty">Seu carrinho está vazio.</div>';
   updateOrderSummary();
 }
-const overlay=document.querySelector('#cartOverlay');const floatingCart=document.querySelector('#floatingCart');document.documentElement.appendChild(floatingCart);const openCartPanel=()=>{overlay.style.display='';overlay.removeAttribute('aria-hidden');overlay.classList.add('open');document.body.classList.add('cart-open')};const closeCartPanel=()=>{overlay.classList.remove('open');overlay.setAttribute('aria-hidden','true');overlay.style.display='none';document.body.classList.remove('cart-open')};const topCartButton=document.querySelector('#openCart');if(topCartButton)topCartButton.onclick=openCartPanel;floatingCart.onclick=openCartPanel;document.querySelector('#closeCart').onclick=closeCartPanel;const itemAddedToast=document.querySelector('#itemAddedToast');if(itemAddedToast)itemAddedToast.onclick=()=>{itemAddedToast.classList.remove('show');openCartPanel()};overlay.onclick=e=>{if(e.target===overlay)closeCartPanel()};let DELIVERY_FEE=Number(epGeneralConfig.deliveryFee??10);
-const PERUS_CEP_PREFIXES=new Set(['05201','05202','05203','05204','05205','05206','05207','05208','05209','05210','05211','05212','05215','05230']);
+const overlay=document.querySelector('#cartOverlay');const floatingCart=document.querySelector('#floatingCart');document.documentElement.appendChild(floatingCart);const openCartPanel=()=>{overlay.style.display='';overlay.removeAttribute('aria-hidden');overlay.classList.add('open');document.body.classList.add('cart-open')};const closeCartPanel=()=>{overlay.classList.remove('open');overlay.setAttribute('aria-hidden','true');overlay.style.display='none';document.body.classList.remove('cart-open')};const topCartButton=document.querySelector('#openCart');if(topCartButton)topCartButton.onclick=openCartPanel;floatingCart.onclick=openCartPanel;document.querySelector('#closeCart').onclick=closeCartPanel;const itemAddedToast=document.querySelector('#itemAddedToast');if(itemAddedToast)itemAddedToast.onclick=()=>{itemAddedToast.classList.remove('show');openCartPanel()};overlay.onclick=e=>{if(e.target===overlay)closeCartPanel()};let DELIVERY_FEE=0;
 const fulfillmentSelect=document.querySelector('#fulfillment');
 const cepInput=document.querySelector('#deliveryCep');
 const streetInput=document.querySelector('#deliveryStreet');
@@ -327,15 +326,12 @@ let cepLookupComplete=false;
 let lastLookupCep='';
 const normalizeText=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
 const deliveryCepDigits=()=>String(cepInput?.value||'').replace(/\D/g,'');
+let deliveryQuote=null;
+let deliveryLookupVersion=0;
 const deliveryAreaDecision=()=>{
   const cep=deliveryCepDigits();
-  const bairro=normalizeText(neighborhoodInput?.value);
-  const city=normalizeText(cityInput?.value);
-  const state=normalizeText(stateInput?.value).toUpperCase();
-  const lookupReady=cepLookupComplete&&lastLookupCep===cep&&cep.length===8;
-  if(!lookupReady)return {status:'pending',allowed:false};
-  const allowed=city==='sao paulo'&&(state==='SP'||state==='')&&(PERUS_CEP_PREFIXES.has(cep.slice(0,5))||bairro.includes('perus'));
-  return {status:allowed?'allowed':'outside',allowed};
+  if(!cepLookupComplete||lastLookupCep!==cep||deliveryQuote?.cep!==cep)return {status:'pending',allowed:false};
+  return {...deliveryQuote,status:deliveryQuote.allowed?'allowed':'outside'};
 };
 const isPerusCep=()=>deliveryAreaDecision().allowed;
 const isDelivery=()=>fulfillmentSelect.value==='Entrega';
@@ -431,10 +427,12 @@ function updateCheckoutAvailability(){
   const cep=deliveryCepDigits();
   if(cep.length!==8){areaMessage.hidden=false;areaMessage.className='delivery-area-message pending';areaMessage.textContent='Digite o CEP para verificar a área de entrega.';setFreightButtonVisible(false);return}
   if(decision.status==='pending'){areaMessage.hidden=false;areaMessage.className='delivery-area-message pending';areaMessage.textContent='Aguardando consulta do CEP...';setFreightButtonVisible(false);return}
-  if(decision.allowed){areaMessage.hidden=false;areaMessage.className='delivery-area-message success';areaMessage.textContent='✓ Endereço atendido pela entrega automática de Perus. Taxa fixa de R$ 10,00.';setFreightButtonVisible(false)}
+  if(decision.allowed){areaMessage.hidden=false;areaMessage.className='delivery-area-message success';areaMessage.textContent=`✓ ${decision.region} • Frete ${fmt(decision.fee)}`;setFreightButtonVisible(false)}
   else{areaMessage.hidden=false;areaMessage.className='delivery-area-message blocked';areaMessage.textContent='Este endereço está fora da área de entrega automática. Consulte a disponibilidade e o valor do frete.';setFreightButtonVisible(true);deliveryWhatsapp.href=`https://wa.me/5511981341569?text=${encodeURIComponent(`Olá! Gostaria de consultar o valor do frete. CEP: ${cepInput?.value||''}. Bairro: ${bairro||'não informado'}.`)}`}
 }
 function updateOrderSummary(){
+  const deliveryDecision=deliveryAreaDecision();
+  DELIVERY_FEE=deliveryDecision.allowed?deliveryDecision.fee:0;
   const subtotal=getSubtotal();
   if(epCouponState.valid&&(Math.abs(Number(epCouponState.validated_subtotal||0)-subtotal)>0.009 || Boolean(epCouponState.has_rewards)!==hasRewardItems())){
     epCouponState={code:"",valid:false,coupon_discount:0,total_discount:0,registered_discount:getRegisteredDiscount(subtotal),validated_subtotal:0,message:""};
@@ -457,14 +455,14 @@ function updateOrderSummary(){
   if(couponEl){couponEl.textContent=`- ${fmt(couponExtra)}`;couponEl.classList.toggle('muted-fee',!epCouponState.valid||couponExtra<=0);}
   if(couponLabel)couponLabel.classList.toggle('muted-fee',!epCouponState.valid||couponExtra<=0);
   if(promoInfo)promoInfo.textContent=hasRewardItems()?'Resgate por pontos aplicado. Pedidos com resgate não acumulam os 10% automáticos.':epRegisteredCustomer?'✓ Desconto de 10% de cliente cadastrado considerado automaticamente.':'🎁 Entre ou cadastre-se para receber 10% de desconto em todos os produtos.';
-  document.querySelector('#deliveryFee').textContent=isDelivery()?fmt(fee):'Grátis';
+  document.querySelector('#deliveryFee').textContent=isDelivery()?(deliveryDecision.allowed?fmt(fee):'Consultar CEP'):'Grátis';
   document.querySelector('#deliveryFeeLabel').textContent=isDelivery()?'Taxa de entrega':'Retirada';
   if(couponEl)couponEl.hidden=!epCouponState.valid||couponExtra<=0;
   if(couponLabel)couponLabel.hidden=!epCouponState.valid||couponExtra<=0;
   if(discountEl)discountEl.hidden=registeredDiscount<=0;
   if(discountLabel)discountLabel.hidden=registeredDiscount<=0;
   document.querySelector('#deliveryFeeLabel').classList.toggle('muted-fee',!isDelivery());
-  document.querySelector('#deliveryFeeInfo').textContent=isDelivery()?'CEP atendido em Perus: taxa fixa de R$ 10,00.':'Retirada no local: sem taxa de entrega.';
+  document.querySelector('#deliveryFeeInfo').textContent=isDelivery()?(deliveryDecision.allowed?`${deliveryDecision.region}: frete ${fmt(fee)}.`:'Consulte o CEP para calcular o frete.'):'Retirada no local: sem taxa de entrega.';
   document.querySelector('#cartTotal').textContent=fmt(total);
   updateCheckoutAvailability();
   window.epUpdateCartDesign?.(total);
@@ -473,10 +471,29 @@ const atualizarRecebimento=()=>{document.querySelector('#addressWrap').classList
 fulfillmentSelect.onchange=atualizarRecebimento;
 ['input','change'].forEach(ev=>[numberInput,complementInput,referenceInput].forEach(el=>el?.addEventListener(ev,()=>{composeAddress();updateCheckoutAvailability()})));
 async function buscarCep(){
-  const cep=(cepInput?.value||'').replace(/\D/g,'');
-  if(cep.length!==8){cepLookupComplete=false;lastLookupCep='';cepStatus.textContent='Informe um CEP com 8 números.';cepStatus.className='cep-status error';updateCheckoutAvailability();return}
-  cepLookupComplete=false;lastLookupCep='';deliveryWhatsapp.hidden=true;deliveryWhatsapp.style.display='none';cepStatus.textContent='Buscando endereço...';cepStatus.className='cep-status loading';updateCheckoutAvailability();
-  try{const r=await fetch(`https://viacep.com.br/ws/${cep}/json/`);if(!r.ok)throw new Error('Falha na consulta');const d=await r.json();if(d.erro)throw new Error('CEP não encontrado');streetInput.value=d.logradouro||'';neighborhoodInput.value=d.bairro||'';cityInput.value=d.localidade||'';stateInput.value=d.uf||'';cepLookupComplete=true;lastLookupCep=cep;cepStatus.textContent='Endereço encontrado. Informe o número.';cepStatus.className='cep-status success';numberInput.focus();composeAddress();updateOrderSummary();localStorage.setItem('ep-delivery-address',JSON.stringify({cep:cepInput.value,street:streetInput.value,bairro:neighborhoodInput.value,city:cityInput.value,state:stateInput.value}))}catch(e){cepLookupComplete=false;lastLookupCep='';streetInput.value='';neighborhoodInput.value='';cityInput.value='';stateInput.value='';deliveryWhatsapp.hidden=true;deliveryWhatsapp.style.display='none';cepStatus.textContent='CEP não encontrado. Confira os números e tente novamente.';cepStatus.className='cep-status error';updateOrderSummary()}
+  const cep=deliveryCepDigits(),version=++deliveryLookupVersion;
+  deliveryQuote=null;cepLookupComplete=false;lastLookupCep='';updateOrderSummary();
+  if(cep.length!==8){cepStatus.textContent='Informe um CEP com 8 números.';cepStatus.className='cep-status error';return;}
+  cepStatus.textContent='Consultando endereço e frete...';
+  try{
+    const [addressResponse,quoteResponse]=await Promise.all([
+      fetch(`https://viacep.com.br/ws/${cep}/json/`),
+      fetch(`https://api.espetinhoperus.com.br/delivery/quote?cep=${cep}`,{cache:'no-store'})
+    ]);
+    const [d,quote]=await Promise.all([addressResponse.json(),quoteResponse.json()]);
+    if(version!==deliveryLookupVersion||deliveryCepDigits()!==cep)return;
+    if(!addressResponse.ok||d.erro)throw Error('CEP não encontrado.');
+    if(!quoteResponse.ok||quote.cep!==cep)throw Error(quote.erro||'Não foi possível consultar o frete.');
+    deliveryQuote=quote;
+    streetInput.value=d.logradouro||'';neighborhoodInput.value=d.bairro||'';cityInput.value=d.localidade||'';stateInput.value=d.uf||'';
+    cepLookupComplete=true;lastLookupCep=cep;cepStatus.textContent='Endereço encontrado. Informe o número.';cepStatus.className='cep-status success';
+    numberInput.focus();composeAddress();updateOrderSummary();
+    localStorage.setItem('ep-delivery-address',JSON.stringify({cep:cepInput.value,street:streetInput.value,bairro:neighborhoodInput.value,city:cityInput.value,state:stateInput.value}));
+  }catch(e){
+    if(version!==deliveryLookupVersion||deliveryCepDigits()!==cep)return;
+    deliveryQuote=null;cepLookupComplete=false;lastLookupCep='';streetInput.value='';neighborhoodInput.value='';cityInput.value='';stateInput.value='';
+    deliveryWhatsapp.hidden=true;deliveryWhatsapp.style.display='none';cepStatus.textContent=e.message||'Não foi possível consultar o CEP. Tente novamente.';cepStatus.className='cep-status error';updateOrderSummary();
+  }
 }
 cepInput?.addEventListener('input',()=>{const d=cepInput.value.replace(/\D/g,'').slice(0,8);cepInput.value=d.replace(/(\d{5})(\d)/,'$1-$2');cepLookupComplete=false;lastLookupCep='';deliveryWhatsapp.hidden=true;deliveryWhatsapp.style.display='none';if(d.length===8)buscarCep();else{neighborhoodInput.value='';updateOrderSummary()}});
 document.querySelector('#searchCep')?.addEventListener('click',buscarCep);
@@ -661,7 +678,7 @@ function getOrderPayload(requireCpf=true){
   if(isDelivery()){
     if(!cepInput.value||!streetInput.value){ alert('Informe um CEP válido.'); return null; }
     if(!numberInput.value.trim()){ alert('Informe o número do endereço.'); return null; }
-    if(!isPerusCep()){ alert('Este CEP está fora da entrega automática de Perus. Consulte o frete pelo WhatsApp.'); deliveryWhatsapp.click(); return null; }
+    if(!isPerusCep()){ alert('Este CEP está fora da área de entrega automática. Consulte o frete pelo WhatsApp.'); deliveryWhatsapp.click(); return null; }
   }
   const notes=document.querySelector('#notes').value.trim();
   const payload={

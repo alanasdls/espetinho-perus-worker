@@ -21,7 +21,8 @@
   window.epUpdateCartDesign=function(total){
     syncCustomer();
     const delivery=value('fulfillment')==='Entrega';
-    note.textContent=delivery?'Entrega em Perus • Frete de R$ 10,00':'Retirada no Espetinho Perus • Sem frete';
+    const quote=typeof deliveryAreaDecision==='function'?deliveryAreaDecision():null;
+    note.textContent=delivery?(quote?.allowed?`${quote.region} • Frete ${fmt(quote.fee)}`:'Informe o CEP para consultar o frete'):'Retirada no Espetinho Perus • Sem frete';
     if(pix&&!/Gerando|Abrindo|Confirmando/.test(pix.textContent)){
       const hasRewards=typeof cart!=='undefined'&&Object.keys(cart).some(id=>products[id]?.reward);
       const security=document.getElementById('pixSecurity');if(security)security.textContent=Number(total)===0&&hasRewards?'Resgate com pontos • Sem cobrança':'Pagamento seguro via Pix.';
