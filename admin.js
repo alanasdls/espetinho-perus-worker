@@ -226,9 +226,9 @@ $('#refreshBtn').onclick = () => loadOrders(false);
 
 $('#filters').onclick = (event) => {
   const button = event.target.closest('button');
-  if (!button) return;
+  if (!button?.dataset.filter) return;
   filter = button.dataset.filter;
-  document.querySelectorAll('#filters button').forEach((item) => item.classList.toggle('active', item === button));
+  document.querySelectorAll('#filters [data-filter]').forEach((item) => item.classList.toggle('active', item === button));
   render();
 };
 
@@ -255,7 +255,7 @@ async function enableAlerts() {
       icon: './icon-192.png', badge: './icon-192.png', tag: 'admin-alertas-teste',
       data: { url: './admin.html' }, requireInteraction: false
     });
-    $('#alertsBtn').textContent = '🔔 Alertas ativos';
+    $('#alertsBtn').innerHTML=adminIcon('bell')+'<span>Notificações ativadas</span>';$('#alertsBtn').classList.add('enabled');
   } catch (error) {
     alert(error.message || 'Não foi possível ativar os alertas neste navegador.');
   }
@@ -477,35 +477,40 @@ function elapsedInfo(order) {
 
 function phoneLink(phone) { return String(phone || '').replace(/\D/g,''); }
 
+function adminIcon(name){
+ const paths={clock:'M12 8v5l3 2 M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0',play:'M7 3l14 9-14 9z',external:'M14 3h7v7 M21 3l-11 11 M10 3H3v18h18v-7',check:'M5 12l4 4 10-10',pix:'M12 2l10 10-10 10L2 12z M6 8l6 6 6-6 M6 16l6-6 6 6',pin:'M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0z M15 10a3 3 0 1 1-6 0 3 3 0 0 1 6 0',print:'M6 8V2h12v6 M6 17H2V8h20v9h-4 M6 14h12v8H6z M18 11h1',refresh:'M20 7a9 9 0 0 0-15-2L2 8 M2 2v6h6 M4 17a9 9 0 0 0 15 2l3-3 M22 22v-6h-6',search:'M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0 M15 15l7 7',filter:'M3 3h18v3l-7 8v6l-4 2v-8L3 6z',chevron:'M9 5l7 7-7 7',bell:'M5 17h14l-2-4V8a5 5 0 0 0-10 0v5z M10 21h4',exit:'M10 3H3v18h7 M8 12h14 M17 7l5 5-5 5'};
+ return `<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[name]||paths.check}"/></svg>`;
+}
+
 function card(order) {
   const paid = order.payment_status === 'approved';
   const items = (order.items || []).map((item) => `<li><b>${item.quantity}x</b> ${esc(item.name)} ${staffUser?.role==='cozinha'?'':`<span>— ${fmt(item.subtotal)}</span>`}</li>`).join('');
   const phoneRaw = order.customer?.phone || '';
   const phone = phoneRaw ? `<p>📞 ${esc(phoneRaw)}</p>` : '';
-  const address = order.customer?.address ? `<p>📍 ${esc(order.customer.address)}</p>` : '';
+  const address = order.customer?.address ? `<p class="order-address">${adminIcon("pin")}<span>${esc(order.customer.address)}</span></p>` : '';
   const notes = order.customer?.notes ? `<div class="notes"><b>Observações</b><br>${esc(order.customer.notes)}</div>` : '';
   const elapsed = elapsedInfo(order);
   const statuses = paid ? staffNextStatuses(order) : [];
   const actionLabels={em_preparo:'Iniciar preparo',pronto_retirada:'Marcar pronto',saiu_entrega:'Saiu para entrega',finalizado:'Finalizar pedido'};
-  const quick = statuses.map(status => `<button class="quick-status-btn" data-order-id="${esc(order.order_id)}" data-status="${status}">${actionLabels[status]||labels[status]}</button>`).join('');
+  const quick = statuses.map(status => `<button class="quick-status-btn" data-order-id="${esc(order.order_id)}" data-status="${status}">${adminIcon("play")}${actionLabels[status]||labels[status]}</button>`).join('');
   const vip = Number(order.customer?.order_count || 0) >= 5 ? '<span class="vip">CLIENTE VIP</span>' : '';
-  const whatsapp = phoneRaw ? `<a class="mini-btn whatsapp" target="_blank" rel="noopener" href="https://wa.me/55${phoneLink(phoneRaw)}"><svg class="whatsapp-logo" viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M16 3a12.7 12.7 0 0 0-11 19.1L3.4 28.6l6.7-1.8A12.8 12.8 0 1 0 16 3Zm0 23.2c-2 0-3.9-.5-5.6-1.5l-.4-.2-4 1.1 1.1-3.9-.3-.4A10.4 10.4 0 1 1 16 26.2Zm5.8-7.8c-.3-.2-1.9-.9-2.2-1s-.5-.2-.7.2-.8 1-1 1.2-.4.2-.7.1a8.5 8.5 0 0 1-2.5-1.6 9.4 9.4 0 0 1-1.7-2.1c-.2-.3 0-.5.1-.7l.5-.6.3-.6c.1-.2 0-.5 0-.7s-.7-1.8-1-2.4c-.3-.6-.6-.5-.8-.5h-.7c-.2 0-.6.1-.9.4s-1.2 1.2-1.2 2.9 1.2 3.3 1.4 3.5c.2.2 2.4 3.6 5.8 5 2.2 1 3.4 1.1 4.6.9.7-.1 1.9-.8 2.2-1.5.3-.7.3-1.3.2-1.5-.2-.1-.4-.2-.7-.3Z"/></svg><span>Ver WhatsApp</span></a>` : '';
+  const whatsapp = phoneRaw ? `<a class="mini-btn whatsapp" target="_blank" rel="noopener" href="https://wa.me/55${phoneLink(phoneRaw)}"><svg class="whatsapp-logo" viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M16 3a12.7 12.7 0 0 0-11 19.1L3.4 28.6l6.7-1.8A12.8 12.8 0 1 0 16 3Zm0 23.2c-2 0-3.9-.5-5.6-1.5l-.4-.2-4 1.1 1.1-3.9-.3-.4A10.4 10.4 0 1 1 16 26.2Zm5.8-7.8c-.3-.2-1.9-.9-2.2-1s-.5-.2-.7.2-.8 1-1 1.2-.4.2-.7.1a8.5 8.5 0 0 1-2.5-1.6 9.4 9.4 0 0 1-1.7-2.1c-.2-.3 0-.5.1-.7l.5-.6.3-.6c.1-.2 0-.5 0-.7s-.7-1.8-1-2.4c-.3-.6-.6-.5-.8-.5h-.7c-.2 0-.6.1-.9.4s-1.2 1.2-1.2 2.9 1.2 3.3 1.4 3.5c.2.2 2.4 3.6 5.8 5 2.2 1 3.4 1.1 4.6.9.7-.1 1.9-.8 2.2-1.5.3-.7.3-1.3.2-1.5-.2-.1-.4-.2-.7-.3Z"/></svg><span>WhatsApp</span></a>` : '';
   const delivery=order.customer?.fulfillment==='Entrega';
   const shortId=String(order.order_id).slice(-8).toUpperCase();
   const financial=staffUser?.role!=='cozinha';
-  const uber=staffUser?.role==='admin'&&paid&&delivery&&!['finalizado','cancelado'].includes(order.order_status)?`<button type="button" class="order-uber secondary" data-order-id="${esc(order.order_id)}">Consultar Uber</button>`:'';
+  const uber=staffUser?.role==='admin'&&paid&&delivery&&!['finalizado','cancelado'].includes(order.order_status)?`<button type="button" class="order-uber secondary" data-order-id="${esc(order.order_id)}">${adminIcon("external")}Consultar Uber</button>`:'';
   const cancel=staffUser?.role==='admin'&&!['finalizado','cancelado'].includes(order.order_status)?`<button class="quick-status-btn secondary" data-order-id="${esc(order.order_id)}" data-status="cancelado">Cancelar pedido</button>`:'';
   return `<article class="order ${paid?'approved':'awaiting'}">
-   <div class="order-head"><div><small>#${esc(shortId)} · ${date(order.created_at)}</small><h2>${esc(order.customer?.name||'Cliente')}</h2></div><span class="elapsed ${elapsed.cls}">${elapsed.mins} min</span></div>
-   <div class="compact-order-meta"><span>${delivery?'Entrega':'Retirada'} · ${labels[order.order_status]||esc(order.order_status)}</span>${financial?`<strong>${fmt(order.total)}</strong>`:''}</div>
-   <div class="badges"><span class="badge ${paid?'paid':'wait'}">${paid?'Pago':esc(order.payment_status||'Pendente')}</span><span class="badge">${esc(paymentLabel(order))}</span></div>
+   <div class="order-head"><small title="${date(order.created_at)}">#${esc(shortId)}</small><span class="elapsed ${elapsed.cls}">${adminIcon('clock')}${elapsed.mins} min</span><h2>${esc(order.customer?.name||'Cliente')}</h2>${financial?`<strong class="card-total">${fmt(order.total)}</strong>`:''}<span class="order-modality">${delivery?'Entrega':'Retirada'} • <b>${labels[order.order_status]||esc(order.order_status)}</b></span></div>
+   <div class="badges"><span class="badge ${paid?'paid':'wait'}">${paid?adminIcon('check'):''}${paid?'Pago':esc(order.payment_status||'Pendente')}</span><span class="badge payment-type">${paymentKind(order)==='pix'?adminIcon('pix'):''}${esc(paymentLabel(order))}</span></div>
    <p class="order-items-preview">${esc((order.items||[]).map(item=>`${item.quantity}× ${item.name}`).join(" • "))}</p><div class="compact-order-actions">${quick}${uber}</div>
-   <details data-details="${esc(order.order_id)}"><summary>Ver detalhes do pedido</summary>
-    <div class="order-body"><p class="full-order-id"><span>${esc(order.order_id)}</span> <button type="button" class="copy-order secondary" data-order-id="${esc(order.order_id)}">Copiar código</button></p><ul class="items">${items}</ul>
-    ${financial?`<div class="price-breakdown"><p>Produtos <b>${fmt(order.subtotal)}</b></p><p>Descontos <b>− ${fmt(order.discount_amount||0)}</b></p><p>Frete <b>${fmt(order.delivery_fee||0)}</b></p><p>Total <b>${fmt(order.total)}</b></p></div>`:''}
-    <div class="customer-box">${phone}${delivery?address:''}${notes}<div class="customer-actions">${whatsapp}<button class="mini-btn print-btn" data-order-id="${esc(order.order_id)}">Reimprimir</button></div></div>
-    <div class="estimate-row">Previsão <input aria-label="Tempo estimado em minutos" class="estimate-input" type="number" min="0" max="240" value="${Number(order.estimated_minutes??25)}"> min <button type="button" class="save-estimate" data-order-id="${esc(order.order_id)}" ${["finalizado","cancelado"].includes(order.order_status)?"disabled":""}>Salvar</button><span class="estimate-feedback" role="status"></span></div>
-    <details data-details="more-${esc(order.order_id)}"><summary>Histórico e outras opções</summary><ul>${(order.status_history||[]).map(h=>`<li>${esc(labels[h.status]||h.status)} · ${date(h.at)}</li>`).join('')}</ul>${cancel}</details></div>
+   <details class="order-details" data-details="${esc(order.order_id)}"><summary>Detalhes do pedido</summary>
+    <div class="order-body">
+    ${financial?`<div class="price-breakdown"><p>Produtos <b>${fmt(order.subtotal)}</b></p><p>Desconto <b>− ${fmt(order.discount_amount||0)}</b></p><p>Frete <b>${fmt(order.delivery_fee||0)}</b></p><p>Total <b>${fmt(order.total)}</b></p></div>`:''}
+    ${delivery?address:''}${notes}
+    <div class="order-footer"><div class="customer-actions">${whatsapp}<button class="mini-btn print-btn" data-order-id="${esc(order.order_id)}">${adminIcon('print')}<span>Reimprimir</span></button></div>
+    <div class="estimate-row"><label>Previsão <span><input aria-label="Tempo estimado em minutos" class="estimate-input" type="number" min="0" max="240" value="${Number(order.estimated_minutes??25)}"> min</span></label><button type="button" class="save-estimate" data-order-id="${esc(order.order_id)}" ${["finalizado","cancelado"].includes(order.order_status)?"disabled":""}>Salvar</button><span class="estimate-feedback" role="status"></span></div></div>
+    <details class="order-history" data-details="more-${esc(order.order_id)}"><summary>Histórico e outras opções</summary><p class="full-order-id"><span>${esc(order.order_id)}</span><button type="button" class="copy-order secondary" data-order-id="${esc(order.order_id)}">Copiar código</button></p><p>${date(order.created_at)}</p>${phone}<ul class="items">${items}</ul><ul>${(order.status_history||[]).map(h=>`<li>${esc(labels[h.status]||h.status)} · ${date(h.at)}</li>`).join('')}</ul>${cancel}</details></div>
    </details></article>`;
 
 }
@@ -883,26 +888,27 @@ function renderDeliveryControl(state) {
 
   badge.className = 'delivery-control-badge';
   if (state.modo === 'manual_open') {
-    badge.textContent = 'ABERTO MANUALMENTE';
+    badge.textContent = 'Aberto manualmente';
     badge.classList.add('open','manual');
     description.textContent = 'O delivery ficará aberto por até 30 minutos e depois voltará automaticamente aos dias e horários programados.';
     timerEl.textContent = `Fecha em ${deliveryTimeLeft(state.remaining_seconds)}`;
   } else if (state.modo === 'manual_closed') {
-    badge.textContent = 'FECHADO MANUALMENTE';
+    badge.textContent = 'Fechado manualmente';
     badge.classList.add('closed','manual');
     description.textContent = 'Novos pedidos estão bloqueados. Os pedidos já recebidos não foram alterados.';
     timerEl.textContent = 'Sem fechamento automático';
   } else if (state.aberto) {
-    badge.textContent = 'ABERTO NO HORÁRIO';
+    badge.textContent = 'Aberto no horário';
     badge.classList.add('open');
     description.textContent = 'O delivery está seguindo normalmente os dias e horários já configurados.';
     timerEl.textContent = 'Modo automático';
   } else {
-    badge.textContent = 'FECHADO PELO HORÁRIO';
+    badge.textContent = 'Fechado pelo horário';
     badge.classList.add('closed');
     description.textContent = 'O delivery está fechado conforme os dias e horários já configurados.';
     timerEl.textContent = 'Modo automático';
   }
+  badge.innerHTML=adminIcon('clock')+esc(badge.textContent);
 }
 
 async function loadDeliveryControl() {

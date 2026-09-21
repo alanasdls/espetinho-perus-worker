@@ -5,7 +5,7 @@ function staffNextStatuses(order){
 window.applyStaffAccess=()=>{
  if(!staffUser)return;
  document.body.dataset.staffRole=staffUser.role;
- $('#staffIdentity').textContent=`${staffUser.email} • ${staffUser.role} • sessão de até 8 horas`;
+ $('#staffIdentity').innerHTML=`<b>${esc(staffUser.name||staffUser.email)}</b> • ${{admin:'Administrador',atendimento:'Atendimento',cozinha:'Cozinha'}[staffUser.role]||esc(staffUser.role)}<small>Sessão de até 8 horas</small>`;
  document.querySelectorAll('.tab').forEach(el=>{if(el.dataset.tab!=='ordersTab')el.hidden=staffUser.role!=='admin';});
  document.querySelectorAll('[data-admin-only], #alertsBtn').forEach(el=>el.hidden=staffUser.role!=='admin');
  if(staffUser.role==='cozinha')document.querySelector('.delivery-control-actions').hidden=true;

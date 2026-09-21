@@ -13,14 +13,14 @@
   <link rel="icon" href="icon-192.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="stylesheet" href="admin.css?v=20260727-v79-admin-studio">
-<link rel="stylesheet" href="staff-ui.css?v=20260920-v149-staff"><link rel="stylesheet" href="admin-mobile.css?v=157"></head>
-<body>
+<link rel="stylesheet" href="staff-ui.css?v=20260920-v149-staff"><link rel="stylesheet" href="admin-mobile.css?v=158"></head>
+<body class="admin-reference">
 <header class="top">
   <div class="brand-block">
-    <img class="top-logo" src="logo-premium.png" alt="Espetinho Perus">
-    <div><small>ESPETINHO PERUS</small><h1>Painel Administrativo</h1></div>
+    <svg class="top-logo" viewBox="0 0 48 60" fill="none" stroke="currentColor" stroke-width="2.5" aria-label="Espetinho Perus"><path d="M5 56 44 4 M13 41l-6-5 7-9 9 7-7 9z M24 29l-8-6 7-9 10 7-7 9z M34 18l-8-6 6-8 10 7-6 9z"/></svg>
+    <div><small>ESPETINHO PERUS</small><h1>Painel administrativo</h1></div>
   </div>
-  <details class="panel-menu"><summary>Menu</summary><div class="top-actions"><nav hidden class="tabs" aria-label="Navegação do painel">
+  <details class="panel-menu"><summary><span class="menu-open-label">☰ Menu</span><span class="menu-close-label">× Fechar</span></summary><div class="top-actions"><h2 class="menu-title">Menu</h2><nav hidden class="tabs" aria-label="Navegação do painel">
       <button class="tab active" data-tab="ordersTab"><span>📦</span> Pedidos</button>
       <button class="tab" data-tab="financeTab"><span>📊</span> Dashboard</button>
       <button class="tab" data-tab="performanceTab"><span>🏆</span> Desempenho</button>
@@ -31,8 +31,8 @@
       <button class="tab" data-tab="settingsTab"><span>⚙️</span> Configurações</button>
     <button class="tab" data-tab="securityTab" data-admin-only>Acessos</button></nav><a class="panel-switch-link" href="gestao.html">Painel de gestão</a><a class="panel-switch-link" href="painel/">📦 Painel do delivery</a>
     <span id="connection" class="connection"><i></i> Conectando…</span>
-    <button id="alertsBtn" class="icon-btn">🔔 <span>Notificações</span></button>
-    <p id="staffIdentity" class="staff-identity" hidden></p><button id="logoutBtn" class="secondary">Sair da conta</button>
+    <button id="alertsBtn" class="icon-btn"><span data-ui-icon="bell"></span><span>Ativar notificações</span></button>
+    <p id="staffIdentity" class="staff-identity" hidden></p><button id="logoutBtn" class="secondary"><span data-ui-icon="exit"></span>Sair da conta</button>
   </div></details>
 </header>
 <main>
@@ -66,37 +66,18 @@
     </section>
 
     
-    <div class="operations-bar"><section class="delivery-control-card" aria-labelledby="deliveryControlTitle">
-            <div class="delivery-control-status">
-        <span id="deliveryControlBadge" class="delivery-control-badge checking">VERIFICANDO</span>
-        <strong id="deliveryControlTimer">—</strong>
-      </div>
-<details class="delivery-manage"><summary>Gerenciar</summary><div class="delivery-control-copy">
-        <small>CONTROLE DO DELIVERY</small>
-        <h2 id="deliveryControlTitle">Abertura e fechamento</h2>
-        <p id="deliveryControlDescription">Consultando situação do delivery…</p>
-      </div>
-      <div class="delivery-control-actions">
-        <button id="openDelivery30Btn" type="button" class="delivery-open-btn">Abrir por 30 minutos</button>
-        <button id="closeDeliveryBtn" type="button" class="delivery-close-btn">Fechar agora</button>
-        <button id="automaticDeliveryBtn" type="button" class="delivery-auto-btn">Voltar ao automático</button>
-      </div>
-      </details>
-    </section>
-
-    <section class="realtime-command">
-      <div class="realtime-status">
-        <span class="live-pulse"></span>
-        <div><small>PAINEL EM TEMPO REAL</small><strong id="realtimeText">Conectando ao servidor…</strong></div>
-      </div>
-      <div class="realtime-actions">
-        <span id="newOrdersCounter" class="new-orders-counter">0 novos</span>
-        <button id="acknowledgeOrdersBtn" type="button" class="ack-btn">✓ Visualizei os pedidos</button>
-        <a class="kitchen-link" href="cozinha.html">Tela da cozinha</a>
-      </div>
-    </section>
-
+    <div class="operations-bar">
+      <div class="realtime-status"><span class="live-pulse"></span><strong id="realtimeText">Conectando…</strong></div>
+      <span id="deliveryControlBadge" class="delivery-control-badge checking">Verificando</span>
+      <button type="button" id="manageDelivery" aria-expanded="false" aria-controls="deliveryManager">Gerenciar <span data-ui-icon="chevron"></span></button>
     </div>
+    <section id="deliveryManager" class="delivery-control-card" hidden>
+      <strong id="deliveryControlTimer">—</strong>
+      <div class="delivery-control-copy"><h2 id="deliveryControlTitle">Abertura e fechamento</h2><p id="deliveryControlDescription">Consultando situação do delivery…</p></div>
+      <div class="delivery-control-actions"><button id="openDelivery30Btn" type="button" class="delivery-open-btn">Abrir por 30 minutos</button><button id="closeDeliveryBtn" type="button" class="delivery-close-btn">Fechar agora</button><button id="automaticDeliveryBtn" type="button" class="delivery-auto-btn">Voltar ao automático</button></div>
+    </section>
+    <div class="realtime-actions" hidden><span id="newOrdersCounter" class="new-orders-counter">0 novos</span><button id="acknowledgeOrdersBtn" type="button" class="ack-btn">Visualizei os pedidos</button><a class="kitchen-link" href="cozinha.html">Tela da cozinha</a></div>
+
     <section id="securityTab" class="tab-panel" data-admin-only>
       <h2>Acessos e segurança</h2><p>Sem autenticação em duas etapas. Sessões válidas por até 8 horas.</p>
       <form id="staffInviteForm" class="staff-form"><h3>Convidar funcionário</h3><label>E-mail da conta<input id="inviteEmail" type="email" required></label><label>Função<select id="inviteRole"><option value="atendimento">Atendimento</option><option value="cozinha">Cozinha</option><option value="admin">Administrador</option></select></label><button>Gerar convite</button></form>
@@ -272,7 +253,7 @@
       </section>
 
       </dialog>
-      <div class="order-view"><h2>Pedidos</h2><button id="toggleOrderView" type="button" class="secondary">Ver quadro</button></div>
+      <div class="order-view"><h2>Pedidos</h2><div class="order-view-actions"><button id="toggleOrderView" type="button" class="secondary">Ver quadro</button><button id="refreshBtn" class="secondary"><span data-ui-icon="refresh"></span>Atualizar</button></div></div>
       <div id="orderSummary" class="order-summary" aria-label="Resumo dos pedidos"></div><section class="realtime-board-section">
         <div class="board-heading">
           <div><small>FLUXO OPERACIONAL</small><h2>Pedidos em tempo real</h2></div>
@@ -286,8 +267,7 @@
       </section>
 
       <div class="orders-toolbar">
-        <div class="search-wrap"><span>⌕</span><input id="searchInput" type="search" placeholder="Buscar cliente, telefone ou pedido"></div>
-        <button id="refreshBtn" class="secondary">Atualizar</button>
+        <div class="search-wrap"><span data-ui-icon="search"></span><input id="searchInput" type="search" aria-label="Buscar cliente, telefone ou pedido" placeholder="Buscar cliente ou pedido"></div>
       </div>
       <div class="filters" id="filters">
         <button data-filter="ativos" class="active">Ativos</button>
@@ -295,18 +275,21 @@
         <button data-filter="em_preparo">Em preparo</button>
         <button data-filter="pronto_retirada">Prontos</button>
         <button data-filter="saiu_entrega">Em entrega</button>
+        <button id="moreFilters" type="button" aria-expanded="false" aria-controls="extraFilters"><span data-ui-icon="filter"></span>Mais filtros</button>
+        <div id="extraFilters" hidden>
         <button data-filter="aguardando_pagamento">Aguardando Pix</button>
         <button data-filter="finalizado">Finalizados</button>
         <button data-filter="todos">Todos</button>
+        </div>
       </div>
       <div id="orders" class="orders"></div>
     </section>
   </section>
 </main>
-<script src="admin.js?v=20260921-v157"></script>
-<script src="uber-admin.js?v=20260921-v157"></script>
+<script src="admin.js?v=20260921-v158"></script>
+<script src="uber-admin.js?v=20260921-v158"></script>
 <script src="delivery-admin.js?v=20260921-zones"></script>
-<script src="staff-ui.js?v=20260920-v149-staff"></script>
+<script src="staff-ui.js?v=20260921-v158"></script>
 <script>if('serviceWorker'in navigator){navigator.serviceWorker.register('./sw.js?v=20260727-v79-admin-studio',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});}</script>
-<script src="admin-mobile.js?v=157"></script></body>
+<script src="admin-mobile.js?v=158"></script></body>
 </html>
