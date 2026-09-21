@@ -13,16 +13,25 @@
   <link rel="icon" href="icon-192.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="stylesheet" href="admin.css?v=20260727-v79-admin-studio">
-<link rel="stylesheet" href="staff-ui.css?v=20260920-v149-staff"><link rel="stylesheet" href="admin-mobile.css?v=155"></head>
+<link rel="stylesheet" href="staff-ui.css?v=20260920-v149-staff"><link rel="stylesheet" href="admin-mobile.css?v=156"></head>
 <body>
 <header class="top">
   <div class="brand-block">
     <img class="top-logo" src="logo-premium.png" alt="Espetinho Perus">
     <div><small>ESPETINHO PERUS</small><h1>Painel Administrativo</h1></div>
   </div>
-  <details class="panel-menu"><summary>Menu</summary><div class="top-actions"><a class="panel-switch-link" href="gestao.html">Painel de gestão</a><a class="panel-switch-link" href="painel/">📦 Painel do delivery</a>
+  <details class="panel-menu"><summary>Menu</summary><div class="top-actions"><nav hidden class="tabs" aria-label="Navegação do painel">
+      <button class="tab active" data-tab="ordersTab"><span>📦</span> Pedidos</button>
+      <button class="tab" data-tab="financeTab"><span>📊</span> Dashboard</button>
+      <button class="tab" data-tab="performanceTab"><span>🏆</span> Desempenho</button>
+      <button class="tab" data-tab="catalogTab"><span>🍢</span> Produtos</button>
+      <button class="tab" data-tab="mediaTab"><span>🖼️</span> Imagens</button>
+      <button class="tab" data-tab="appearanceTab"><span>🎨</span> Aparência</button>
+      <button class="tab" data-tab="paymentsTab"><span>💳</span> Pagamentos</button>
+      <button class="tab" data-tab="settingsTab"><span>⚙️</span> Configurações</button>
+    <button class="tab" data-tab="securityTab" data-admin-only>Acessos</button></nav><a class="panel-switch-link" href="gestao.html">Painel de gestão</a><a class="panel-switch-link" href="painel/">📦 Painel do delivery</a>
     <span id="connection" class="connection"><i></i> Conectando…</span>
-    <button id="alertsBtn" class="icon-btn">🔔 <span>Alertas</span></button>
+    <button id="alertsBtn" class="icon-btn">🔔 <span>Notificações</span></button>
     <button id="logoutBtn" class="secondary">Sair</button>
   </div></details>
 </header>
@@ -87,16 +96,7 @@
       </div>
     </section>
 
-    <details class="section-menu"><summary>Seções do painel</summary><nav class="tabs" aria-label="Navegação do painel">
-      <button class="tab active" data-tab="ordersTab"><span>📦</span> Pedidos</button>
-      <button class="tab" data-tab="financeTab"><span>📊</span> Dashboard</button>
-      <button class="tab" data-tab="performanceTab"><span>🏆</span> Desempenho</button>
-      <button class="tab" data-tab="catalogTab"><span>🍢</span> Produtos</button>
-      <button class="tab" data-tab="mediaTab"><span>🖼️</span> Imagens</button>
-      <button class="tab" data-tab="appearanceTab"><span>🎨</span> Aparência</button>
-      <button class="tab" data-tab="paymentsTab"><span>💳</span> Pagamentos</button>
-      <button class="tab" data-tab="settingsTab"><span>⚙️</span> Configurações</button>
-    <button class="tab" data-tab="securityTab" data-admin-only>Acessos</button></nav></details>
+
 
     <section id="securityTab" class="tab-panel" data-admin-only>
       <h2>Acessos e segurança</h2><p>Sem autenticação em duas etapas. Sessões válidas por até 8 horas.</p>
@@ -309,5 +309,5 @@
 <script src="delivery-admin.js?v=20260921-zones"></script>
 <script src="staff-ui.js?v=20260920-v149-staff"></script>
 <script>if('serviceWorker'in navigator){navigator.serviceWorker.register('./sw.js?v=20260727-v79-admin-studio',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});}</script>
-<script src="admin-mobile.js?v=155"></script></body>
+<script src="admin-mobile.js?v=156"></script></body>
 </html>

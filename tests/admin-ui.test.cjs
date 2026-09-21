@@ -34,7 +34,7 @@ for(const role of ['admin','atendimento','cozinha'])test('panel login and contro
   assert.equal(w.document.querySelector('#orders [data-status="saiu_entrega"]'),null);
   const detail=w.document.querySelector('#orders details');assert.equal(detail.open,false);
   detail.open=true;w.document.querySelector('#searchInput').dispatchEvent(new w.Event('input'));assert.equal(w.document.querySelector('#orders details').open,true);
-  const menu=w.document.querySelector('.section-menu');menu.open=true;w.document.querySelector('[data-tab="ordersTab"]').click();assert.equal(menu.open,false);
+  const menu=w.document.querySelector('.panel-menu');assert.equal(w.document.querySelector('.section-menu'),null);assert.equal(menu.querySelector('.tabs').hidden,false);menu.open=true;w.document.querySelector('[data-tab="ordersTab"]').click();assert.equal(menu.open,false);menu.open=true;w.document.querySelector('.order-view').click();assert.equal(menu.open,false);menu.open=true;w.document.dispatchEvent(new w.KeyboardEvent('keydown',{key:'Escape'}));assert.equal(menu.open,false);
   if(role==='admin'){w.confirm=()=>false;w.document.querySelector('#orders [data-status="cancelado"]').click();assert.equal(w.document.querySelector('#orders [data-status="em_preparo"]').disabled,false);}
   let opened=false;w.document.querySelector('#uberDialog').showModal=()=>{opened=true;};w.openOrderUber('EP-delivery');assert.equal(opened,true);assert.equal(w.document.querySelector('#uberOrderId').value,'EP-delivery');
 
