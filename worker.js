@@ -329,7 +329,7 @@ function calcularDescontosPedido(env,entrada,subtotal,clienteRegistrado){
   const reward=env[REWARD_CONTEXT];
   if(reward){
     const clean={...env};delete clean[REWARD_CONTEXT];
-    const result=calcularDescontosPedido(clean,entrada,Math.max(0,subtotal-reward.discount),clienteRegistrado);
+    const result=calcularDescontosPedido(clean,entrada,Math.max(0,subtotal-reward.discount),false);
     return {...result,total_discount:Math.round((result.total_discount+reward.discount)*100)/100};
   }
   const base=Math.max(0,Number(subtotal||0));
@@ -973,7 +973,7 @@ function detalheConsumer(p, env) {
   const registeredDiscount = Math.max(0, Number(p.registered_discount_amount || 0));
   const couponDiscount = Math.max(0, Number(p.coupon_discount_amount || 0));
 
-  if(p.reward_discount_amount>0)benefits.push({target:"CART",targetId:"CART",value:p.reward_discount_amount,sponsorshipValues:[{name:"MERCHANT",value:p.reward_discount_amount,description:"Resgate de pontos"}]});
+  if(p.reward_discount_amount>0 && p.promotion_code !== "FIDELIDADE_RESGATE")benefits.push({target:"CART",targetId:"CART",value:p.reward_discount_amount,sponsorshipValues:[{name:"MERCHANT",value:p.reward_discount_amount,description:"Resgate de pontos"}]});
   if (p.promotion_code === "FIDELIDADE_RESGATE" && discountAmount > 0) {
     benefits.push({
       target: "CART",
@@ -1011,7 +1011,7 @@ function detalheConsumer(p, env) {
       });
     }
     // Compatibilidade para pedidos antigos que possuam apenas discount_amount.
-    const covered = Math.round((registeredDiscount + couponDiscount) * 100) / 100;
+    const covered = Math.round(benefits.reduce((sum, benefit) => sum + benefit.value, 0) * 100) / 100;
     const remainder = Math.round((discountAmount - covered) * 100) / 100;
     if (remainder > 0) {
       benefits.push({
@@ -1388,8 +1388,8 @@ async function coreFetch(request,env,ctx) {
       const code=normalizarCodigoCupom(body.code||body.coupon_code);
       const cupom=validarCupomServidor(env,code,subtotal);
       if(!cupom.valid)return responder({valid:false,code,erro:cupom.error},400);
-      const descontos=calcularDescontosPedido(env,{coupon_code:code},subtotal,Boolean(clienteAuth?.id));
-      const message=cupom.stack
+      const descontos=calcularDescontosPedido(env,{coupon_code:code},subtotal,Boolean(clienteAuth?.id) && body.has_rewards !== true);
+      const message=cupom.stack && descontos.registered_discount > 0
         ? `${cupom.description}: desconto aplicado junto ao benefício de cliente cadastrado.`
         : (descontos.coupon_discount>0 ? `${cupom.description}: cupom aplicado.` : `${cupom.description}: seu desconto de cliente cadastrado já é igual ou maior.`);
       return responder({valid:true,code,description:cupom.description,registered_discount:descontos.registered_discount,coupon_discount:descontos.coupon_discount,total_discount:descontos.total_discount,stack:cupom.stack,message});

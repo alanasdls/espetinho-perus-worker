@@ -1,0 +1,31 @@
+const {readFileSync}=require('node:fs');
+const {runInNewContext}=require('node:vm');
+const assert=require('node:assert/strict');
+const worker=readFileSync(new URL('../worker.js', 'file://'+__filename),'utf8');
+const app=readFileSync(new URL('../app-misticpay-cpf-v102.js','file://'+__filename),'utf8');
+const context={REWARD_CONTEXT:Symbol(), normalizarCodigoCupom:v=>v, normalizarTexto:v=>String(v||'').toLowerCase(),codigoImpressaoProduto:()=>null,numeroPedidoExibicao:()=>1,somenteDigitos:v=>String(v||'').replace(/\D/g,''),metodoPagamentoConsumer:()=>'PIX'};
+runInNewContext(worker.slice(worker.indexOf('function calcularDescontosPedido('),worker.indexOf('async function clienteSupabaseAutenticado')),context);
+runInNewContext(worker.slice(worker.indexOf('function detalheConsumer('),worker.indexOf('async function pedidosPendentesConsumer')),context);
+const env={[context.REWARD_CONTEXT]:{discount:5}};
+const discounts=context.calcularDescontosPedido(env,{},16.4,true);
+assert.equal(discounts.total_discount,5);
+assert.equal(discounts.registered_discount,0);
+assert.equal(context.calcularDescontosPedido({}, {},11.4,true).total_discount,1.14);
+const base={order_id:'EP-test',customer:{fulfillment:'Retirada'},items:[{name:'Queijo coalho',unit_price:11.4,quantity:1},{name:'Agua S/ Gás',unit_price:5,quantity:1}],subtotal:16.4,reward_discount_amount:5,payment_status:'approved'};
+function check(order,total,discount){
+ const d=context.detalheConsumer(order,{}).item;
+ assert.equal(d.total.orderAmount,total);
+ assert.equal(Math.round(d.benefits.reduce((s,b)=>s+b.value,0)*100)/100,discount);
+ assert.equal(d.total.benefits,discount);
+ assert.equal(d.payments.prepaid,total);
+}
+check({...base,total:11.4,discount_amount:5},11.4,5);
+check({...base,total:10.26,discount_amount:6.14,registered_discount_amount:1.14},10.26,6.14);
+check({...base,total:0,subtotal:5,items:[base.items[1]],discount_amount:5,promotion_code:'FIDELIDADE_RESGATE'},0,5);
+check({...base,total:10.4,discount_amount:6,coupon_discount_amount:1},10.4,6);
+const ui={cart:{1:1,2:1},products:{1:{},2:{reward:true}},epRegisteredCustomer:true,REGISTERED_DISCOUNT_RATE:0.1};
+runInNewContext(app.slice(app.indexOf('function hasRewardItems('),app.indexOf('function deliveryValid(')),ui);
+assert.equal(ui.getRegisteredDiscount(11.4),0);
+ui.products[2].reward=false;
+assert.equal(ui.getRegisteredDiscount(11.4),1.14);
+console.log('PASS: mixed reward, historical paid order, legacy redemption, coupon, regular discount, browser parity');

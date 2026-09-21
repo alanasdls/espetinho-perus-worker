@@ -371,7 +371,7 @@ async function epApplyCoupon(){
   couponBox?.classList.remove('applied','invalid');
   try{
     const response=await fetch('https://api.espetinhoperus.com.br/cupons/validar',{
-      method:'POST',headers:await epApiHeaders(),body:JSON.stringify({code,subtotal:getSubtotal()})
+      method:'POST',headers:await epApiHeaders(),body:JSON.stringify({code,subtotal:getSubtotal(),has_rewards:hasRewardItems()})
     });
     const data=await response.json().catch(()=>({}));
     if(!response.ok||!data.valid)throw new Error(data.erro||data.message||'Cupom inválido.');
@@ -380,7 +380,7 @@ async function epApplyCoupon(){
       coupon_discount:Number(data.coupon_discount||0),
       total_discount:Number(data.total_discount||0),
       registered_discount:Number(data.registered_discount||0),
-      validated_subtotal:getSubtotal(),
+      validated_subtotal:getSubtotal(),has_rewards:hasRewardItems(),
       message:data.message||'Cupom aplicado.'
     };
     if(couponInput)couponInput.value=epCouponState.code;
@@ -414,7 +414,9 @@ async function epRefreshRegisteredDiscount(){
   updateOrderSummary();
   return epRegisteredCustomer;
 }
+function hasRewardItems(){return Object.keys(cart).some(id=>products[id]?.reward===true);}
 function getRegisteredDiscount(subtotal=getSubtotal()){
+  if(hasRewardItems())return 0;
   return epRegisteredCustomer?Math.round(subtotal*REGISTERED_DISCOUNT_RATE*100)/100:0;
 }
 function deliveryValid(){return !isDelivery()||deliveryAreaDecision().allowed}
@@ -434,7 +436,7 @@ function updateCheckoutAvailability(){
 }
 function updateOrderSummary(){
   const subtotal=getSubtotal();
-  if(epCouponState.valid&&Math.abs(Number(epCouponState.validated_subtotal||0)-subtotal)>0.009){
+  if(epCouponState.valid&&(Math.abs(Number(epCouponState.validated_subtotal||0)-subtotal)>0.009 || Boolean(epCouponState.has_rewards)!==hasRewardItems())){
     epCouponState={code:"",valid:false,coupon_discount:0,total_discount:0,registered_discount:getRegisteredDiscount(subtotal),validated_subtotal:0,message:""};
     if(couponStatus){couponStatus.textContent='O carrinho mudou. Aplique o cupom novamente para recalcular o desconto.';couponStatus.className='';}
     couponBox?.classList.remove('applied','invalid');
@@ -454,7 +456,7 @@ function updateOrderSummary(){
   if(discountLabel)discountLabel.classList.toggle('muted-fee',!epRegisteredCustomer);
   if(couponEl){couponEl.textContent=`- ${fmt(couponExtra)}`;couponEl.classList.toggle('muted-fee',!epCouponState.valid||couponExtra<=0);}
   if(couponLabel)couponLabel.classList.toggle('muted-fee',!epCouponState.valid||couponExtra<=0);
-  if(promoInfo)promoInfo.textContent=epRegisteredCustomer?'✓ Desconto de 10% de cliente cadastrado considerado automaticamente.':'🎁 Entre ou cadastre-se para receber 10% de desconto em todos os produtos.';
+  if(promoInfo)promoInfo.textContent=hasRewardItems()?'Resgate por pontos aplicado. Pedidos com resgate não acumulam os 10% automáticos.':epRegisteredCustomer?'✓ Desconto de 10% de cliente cadastrado considerado automaticamente.':'🎁 Entre ou cadastre-se para receber 10% de desconto em todos os produtos.';
   document.querySelector('#deliveryFee').textContent=isDelivery()?fmt(fee):'Grátis';
   document.querySelector('#deliveryFeeLabel').textContent=isDelivery()?'Taxa de entrega':'Retirada';
   if(couponEl)couponEl.hidden=!epCouponState.valid||couponExtra<=0;
