@@ -261,6 +261,15 @@
     </section>
 
     <section id="ordersTab" class="tab-panel active-panel">
+      <section class="studio-card" data-admin-only>
+        <h3>Entrega Uber Direct</h3>
+        <p>Consulte o custo e confirme o entregador quando o pedido estiver pronto. O frete do cliente permanece o da tabela.</p>
+        <label>Número completo do pedido<input id="uberOrderId" placeholder="EP-..."></label>
+        <button id="uberQuote" type="button">Consultar Uber</button>
+        <button id="uberDispatch" type="button" hidden>Confirmar entregador</button>
+        <button id="uberStatus" type="button">Atualizar entrega</button>
+        <p id="uberMessage" role="status"></p><a id="uberTracking" hidden target="_blank" rel="noopener noreferrer">Acompanhar entrega</a>
+      </section>
 
       <section class="realtime-board-section">
         <div class="board-heading">
@@ -293,6 +302,7 @@
   </section>
 </main>
 <script src="admin.js?v=20260920-v149-staff"></script>
+<script src="uber-admin.js?v=20260921-uber"></script>
 <script src="delivery-admin.js?v=20260921-zones"></script>
 <script src="staff-ui.js?v=20260920-v149-staff"></script>
 <script>if('serviceWorker'in navigator){navigator.serviceWorker.register('./sw.js?v=20260727-v79-admin-studio',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});}</script>

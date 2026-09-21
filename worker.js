@@ -1,3 +1,4 @@
+import { handleUber, uberOperation } from './uber-direct.js';
 import { DELIVERY_CONTEXT, handleDelivery } from './delivery-rates.js';
 import { ADMIN_CONTEXT, handleStaff, staffStorage } from './admin-security.js';
 import { REWARD_CONTEXT, handleRewardCheckout, saveRewardOrder } from './reward-checkout.js';
@@ -10,6 +11,12 @@ export class OrderRealtime {
 
   async fetch(request) {
     const url = new URL(request.url);
+    if (url.pathname === '/uber' && request.method === 'POST') {
+      const body = await request.json();
+      const run = (this.uberQueue || Promise.resolve()).then(() => uberOperation(this.ctx.storage, this.env, body));
+      this.uberQueue = run.catch(() => {});
+      return run;
+    }
     // Internal binding only: this route is never forwarded by the public Worker.
     if (url.pathname === "/checkout-claim" && request.method === "POST") {
       const claimed = await this.ctx.storage.transaction(async txn => {
@@ -1617,6 +1624,6 @@ async function coreFetch(request,env,ctx) {
 }
 
 export default {fetch(request,env,ctx){
- return handleStaff(request,env,ctx,(request,env,ctx)=>handleDelivery(request,env,ctx,
-  (request,env,ctx)=>handleRewardCheckout(request,env,ctx,coreFetch,{headers:CORS,authenticate:clienteSupabaseAutenticado,store:estadoDelivery,prices:PRECOS,codes:CODIGOS_IMPRESSAO_POR_PRODUTO,delivery:body=>calcularEntrega(body,env),discounts:calcularDescontosPedido}),CORS),CORS);
+ return handleStaff(request,env,ctx,(request,env,ctx)=>handleUber(request,env,ctx,(request,env,ctx)=>handleDelivery(request,env,ctx,
+  (request,env,ctx)=>handleRewardCheckout(request,env,ctx,coreFetch,{headers:CORS,authenticate:clienteSupabaseAutenticado,store:estadoDelivery,prices:PRECOS,codes:CODIGOS_IMPRESSAO_POR_PRODUTO,delivery:body=>calcularEntrega(body,env),discounts:calcularDescontosPedido}),CORS),CORS),CORS);
 }};
