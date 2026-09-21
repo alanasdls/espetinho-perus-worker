@@ -16,7 +16,7 @@ async function setup(role){
   if(url.endsWith('/admin/delivery-control'))return {modo:'automatic',aberto:true};
   return {};
  }});
- for(const filename of ['admin.js','staff-ui.js']){const script=w.document.createElement('script');script.textContent=fs.readFileSync(path.join(root,filename),'utf8');w.document.body.append(script);}
+ for(const filename of ['admin.js','staff-ui.js','uber-admin.js','admin-mobile.js']){const script=w.document.createElement('script');script.textContent=fs.readFileSync(path.join(root,filename),'utf8');w.document.body.append(script);}
  w.document.querySelector('#staffEmail').value='staff@test.com';w.document.querySelector('#keyInput').value='password';await w.document.querySelector('#loginBtn').onclick();
  await new Promise(r=>setTimeout(r,20));return {dom,w,errors};
 }
@@ -30,5 +30,13 @@ for(const role of ['admin','atendimento','cozinha'])test('panel login and contro
   if(role==='cozinha')assert.equal(w.document.querySelector('.delivery-control-actions').hidden,true);
   if(role!=='admin')assert.equal(w.document.querySelector('[data-status="cancelado"]'),null);
   assert.ok(w.document.querySelector('#orders').textContent.includes('Espeto'));
+  assert.equal(w.document.querySelector('#orders .order-uber'),null);
+  assert.equal(w.document.querySelector('#orders [data-status="saiu_entrega"]'),null);
+  const detail=w.document.querySelector('#orders details');assert.equal(detail.open,false);
+  detail.open=true;w.document.querySelector('#searchInput').dispatchEvent(new w.Event('input'));assert.equal(w.document.querySelector('#orders details').open,true);
+  const menu=w.document.querySelector('.section-menu');menu.open=true;w.document.querySelector('[data-tab="ordersTab"]').click();assert.equal(menu.open,false);
+  if(role==='admin'){w.confirm=()=>false;w.document.querySelector('#orders [data-status="cancelado"]').click();assert.equal(w.document.querySelector('#orders [data-status="em_preparo"]').disabled,false);}
+  let opened=false;w.document.querySelector('#uberDialog').showModal=()=>{opened=true;};w.openOrderUber('EP-delivery');assert.equal(opened,true);assert.equal(w.document.querySelector('#uberOrderId').value,'EP-delivery');
+
  }finally{dom.window.close();}
 });

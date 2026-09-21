@@ -9,10 +9,11 @@
   busy=true;[input,quoteButton,dispatch,status].forEach(e=>e.disabled=true);message.textContent='Consultando Uber...';tracking.hidden=true;
   try{
    const d=await api(`/admin/uber/orders/${encodeURIComponent(id)}/${action}`,{method:'POST',body:JSON.stringify(action==='dispatch'?{quote_id:current.id,confirm_fee:current.fee}:{})});
-   if(d.quote){current=d.quote;dispatch.hidden=false;message.textContent=`${d.mode==='test'?'TESTE — use credenciais de teste. ':''}Uber: ${money(current.fee/100)}. Frete do cliente: ${money(current.customer_fee)}. Retirada: ${current.pickup_address}. Destino: ${current.dropoff_address}. Validade: ${new Date(current.expires).toLocaleTimeString('pt-BR')}. Confira os endereços antes de confirmar.`;}
+   if(d.quote){current=d.quote;dispatch.hidden=false;message.textContent=`${d.mode==='test'?'TESTE — use credenciais de teste. ':''}Uber: ${money(current.fee/100)}. Frete do cliente: ${money(current.customer_fee)}. Diferença para a loja: ${money(current.fee/100-current.customer_fee)}. Retirada: ${current.pickup_address}. Destino: ${current.dropoff_address}. Validade: ${new Date(current.expires).toLocaleTimeString('pt-BR')}. Confira os endereços antes de confirmar.`;}
    else if(d.delivery){dispatch.hidden=true;message.textContent=`Entrega ${d.delivery.id}: ${d.delivery.status}${d.delivery.live_mode===false?' (teste)':''}.`;if(d.delivery.tracking_url?.startsWith('https://')){tracking.href=d.delivery.tracking_url;tracking.hidden=false;}}
    else message.textContent=d.pending?'Solicitação pendente. Confira o painel Uber antes de outra ação.':'Nenhuma entrega Uber solicitada para este pedido.';
   }catch(e){message.textContent=e.message;}finally{busy=false;[input,quoteButton,dispatch,status].forEach(e=>e.disabled=false);}
  }
+ window.openOrderUber=id=>{if(busy)return;input.value=id;input.oninput();document.getElementById('uberDialog').showModal();};
  quoteButton.onclick=()=>run('quote');dispatch.onclick=()=>run('dispatch');status.onclick=()=>run('status');
 })();

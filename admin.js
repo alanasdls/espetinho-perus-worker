@@ -87,7 +87,7 @@ function shortOrderCard(order) {
   const elapsed = elapsedInfo(order);
   const status = realtimeStatus(order);
   const unseen = realtimeUnseen.has(String(order.order_id));
-  const next = staffUser?.role==='admin'?nextRealtimeStatus(status):(staffNextStatuses(order)[0]||'');
+  const next = staffNextStatuses(order)[0]||'';
   const itemSummary = (order.items || []).slice(0, 4)
     .map(item => `${Number(item.quantity || 1)}x ${esc(item.name || 'Item')}`).join('<br>');
   const more = (order.items || []).length > 4 ? `<small>+ ${(order.items || []).length - 4} itens</small>` : '';
@@ -450,7 +450,9 @@ function render() {
   });
   renderPaymentChart(summary);
   const list = orders.filter(visible);
+  const expanded=new Set([...document.querySelectorAll('#orders details[open]')].map(d=>d.dataset.details));
   $('#orders').innerHTML = list.length ? list.map(card).join('') : '<div class="empty">Nenhum pedido neste filtro.</div>';
+  document.querySelectorAll('#orders details').forEach(d=>{d.open=expanded.has(d.dataset.details);});
   renderEnterprise();
   renderRealtimeBoard();
   updateRealtimeHeader();
@@ -473,18 +475,29 @@ function card(order) {
   const address = order.customer?.address ? `<p>📍 ${esc(order.customer.address)}</p>` : '';
   const notes = order.customer?.notes ? `<div class="notes"><b>Observações</b><br>${esc(order.customer.notes)}</div>` : '';
   const elapsed = elapsedInfo(order);
-  const statuses = staffUser?.role==='admin'?['recebido','em_preparo','pronto_retirada','saiu_entrega','finalizado','cancelado']:staffNextStatuses(order);
-  const quick = statuses.map(status => `<button class="quick-status-btn ${order.order_status===status?'current':''}" data-order-id="${esc(order.order_id)}" data-status="${status}">${labels[status]}</button>`).join('');
+  const statuses = paid ? staffNextStatuses(order) : [];
+  const actionLabels={em_preparo:'Iniciar preparo',pronto_retirada:'Marcar pronto',saiu_entrega:'Saiu para entrega',finalizado:'Finalizar pedido'};
+  const quick = statuses.map(status => `<button class="quick-status-btn" data-order-id="${esc(order.order_id)}" data-status="${status}">${actionLabels[status]||labels[status]}</button>`).join('');
   const vip = Number(order.customer?.order_count || 0) >= 5 ? '<span class="vip">CLIENTE VIP</span>' : '';
   const whatsapp = phoneRaw ? `<a class="mini-btn whatsapp" target="_blank" rel="noopener" href="https://wa.me/55${phoneLink(phoneRaw)}"><svg class="whatsapp-logo" viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M16 3a12.7 12.7 0 0 0-11 19.1L3.4 28.6l6.7-1.8A12.8 12.8 0 1 0 16 3Zm0 23.2c-2 0-3.9-.5-5.6-1.5l-.4-.2-4 1.1 1.1-3.9-.3-.4A10.4 10.4 0 1 1 16 26.2Zm5.8-7.8c-.3-.2-1.9-.9-2.2-1s-.5-.2-.7.2-.8 1-1 1.2-.4.2-.7.1a8.5 8.5 0 0 1-2.5-1.6 9.4 9.4 0 0 1-1.7-2.1c-.2-.3 0-.5.1-.7l.5-.6.3-.6c.1-.2 0-.5 0-.7s-.7-1.8-1-2.4c-.3-.6-.6-.5-.8-.5h-.7c-.2 0-.6.1-.9.4s-1.2 1.2-1.2 2.9 1.2 3.3 1.4 3.5c.2.2 2.4 3.6 5.8 5 2.2 1 3.4 1.1 4.6.9.7-.1 1.9-.8 2.2-1.5.3-.7.3-1.3.2-1.5-.2-.1-.4-.2-.7-.3Z"/></svg><span>Ver WhatsApp</span></a>` : '';
-  return `<article class="order ${paid ? 'approved' : 'awaiting'}">
-    <div class="order-head"><div><h2>Pedido ${esc(order.order_id)}</h2><small>${date(order.created_at)}</small></div>
-    <div class="badges"><span class="badge payment ${paymentKind(order)}">${esc(paymentLabel(order))}</span><span class="badge ${paid ? 'paid' : 'wait'}">${paid ? 'PAGO' : esc(order.payment_status || 'pendente').toUpperCase()}</span></div></div>
-    <div class="order-body"><ul class="items">${items}</ul><div class="order-total"><span>Total</span><strong>${fmt(order.total)}</strong></div>
-    <div class="customer-box"><p><b>👤 ${esc(order.customer?.name || 'Cliente')}</b>${vip}</p>${phone}<p>📦 ${esc(order.customer?.fulfillment || 'Não informado')}</p>${address}<div class="customer-actions">${whatsapp}<button class="mini-btn print-btn" data-order-id="${esc(order.order_id)}">Reimprimir</button></div>${notes}</div></div>
-    <div class="status-strip"><div class="status-title"><span>${labels[order.order_status] || esc(order.order_status)}</span><span class="elapsed ${elapsed.cls}">${elapsed.mins} min</span></div>
-    <div class="quick-status">${quick}</div><div class="estimate-row">Tempo estimado <input class="estimate-input" type="number" min="0" max="240" value="${Number(order.estimated_minutes||25)}"> min</div></div>
-  </article>`;
+  const delivery=order.customer?.fulfillment==='Entrega';
+  const shortId=String(order.order_id).slice(-8).toUpperCase();
+  const financial=staffUser?.role!=='cozinha';
+  const uber=staffUser?.role==='admin'&&paid&&delivery&&!['finalizado','cancelado'].includes(order.order_status)?`<button type="button" class="order-uber secondary" data-order-id="${esc(order.order_id)}">Consultar Uber</button>`:'';
+  const cancel=staffUser?.role==='admin'&&!['finalizado','cancelado'].includes(order.order_status)?`<button class="quick-status-btn secondary" data-order-id="${esc(order.order_id)}" data-status="cancelado">Cancelar pedido</button>`:'';
+  return `<article class="order ${paid?'approved':'awaiting'}">
+   <div class="order-head"><div><small>#${esc(shortId)} · ${date(order.created_at)}</small><h2>${esc(order.customer?.name||'Cliente')}</h2></div><span class="elapsed ${elapsed.cls}">${elapsed.mins} min</span></div>
+   <div class="compact-order-meta"><span>${delivery?'Entrega':'Retirada'} · ${labels[order.order_status]||esc(order.order_status)}</span>${financial?`<strong>${fmt(order.total)}</strong>`:''}</div>
+   <div class="badges"><span class="badge ${paid?'paid':'wait'}">${paid?'Pago':esc(order.payment_status||'Pendente')}</span><span class="badge">${esc(paymentLabel(order))}</span></div>
+   <div class="compact-order-actions">${quick}${uber}</div>
+   <details data-details="${esc(order.order_id)}"><summary>Ver detalhes do pedido</summary>
+    <div class="order-body"><p class="full-order-id">${esc(order.order_id)} <button type="button" class="copy-order secondary" data-order-id="${esc(order.order_id)}">Copiar código</button></p><ul class="items">${items}</ul>
+    ${financial?`<div class="price-breakdown"><p>Produtos <b>${fmt(order.subtotal)}</b></p><p>Descontos <b>− ${fmt(order.discount_amount||0)}</b></p><p>Frete <b>${fmt(order.delivery_fee||0)}</b></p><p>Total <b>${fmt(order.total)}</b></p></div>`:''}
+    <div class="customer-box">${phone}${delivery?address:''}${notes}<div class="customer-actions">${whatsapp}<button class="mini-btn print-btn" data-order-id="${esc(order.order_id)}">Reimprimir</button></div></div>
+    <div class="estimate-row">Previsão <input aria-label="Tempo estimado em minutos" class="estimate-input" type="number" min="0" max="240" value="${Number(order.estimated_minutes||25)}"> min</div>
+    <details data-details="more-${esc(order.order_id)}"><summary>Histórico e outras opções</summary><ul>${(order.status_history||[]).map(h=>`<li>${esc(labels[h.status]||h.status)} · ${date(h.at)}</li>`).join('')}</ul>${cancel}</details></div>
+   </details></article>`;
+
 }
 
 $('#orders').addEventListener('click', async (event) => {
@@ -493,6 +506,7 @@ $('#orders').addEventListener('click', async (event) => {
     const card = statusBtn.closest('.order');
     const orderId = statusBtn.dataset.orderId;
     const status = statusBtn.dataset.status;
+    if(status==='cancelado'&&!confirm('Cancelar este pedido? Isso não confirma um estorno do pagamento.'))return;
     card.querySelectorAll('.quick-status-btn').forEach(b => b.disabled = true);
     try {
       await api('/admin/orders/' + encodeURIComponent(orderId), {
@@ -500,7 +514,7 @@ $('#orders').addEventListener('click', async (event) => {
         body: JSON.stringify({ order_status: status, estimated_minutes: Number(card.querySelector('.estimate-input')?.value || 25) })
       });
       await loadOrders(false);
-    } catch (error) { alert(`Não foi possível atualizar o status.\n${error.message}`); }
+    } catch (error) { alert(`Não foi possível atualizar o status.\n${error.message}`); } finally {card.querySelectorAll('.quick-status-btn').forEach(b=>b.disabled=false);}
     return;
   }
   const printBtn = event.target.closest('.print-btn');
@@ -801,6 +815,8 @@ document.getElementById('realtimeBoard')?.addEventListener('click', async (event
     const search = document.getElementById('searchInput');
     if (search) search.value = id;
     render();
+    document.body.classList.remove('board-view');
+    document.querySelector('#orders details')?.setAttribute('open','');
     document.getElementById('orders')?.scrollIntoView({behavior:'smooth',block:'start'});
   }
 });

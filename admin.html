@@ -13,18 +13,18 @@
   <link rel="icon" href="icon-192.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="stylesheet" href="admin.css?v=20260727-v79-admin-studio">
-<link rel="stylesheet" href="staff-ui.css?v=20260920-v149-staff"></head>
-<body><a href="gestao.html" style="position:fixed;right:12px;top:12px;z-index:99999;background:#f2a900;color:#111;padding:10px 14px;border-radius:10px;font-weight:800;text-decoration:none">Painel de gestão</a>
+<link rel="stylesheet" href="staff-ui.css?v=20260920-v149-staff"><link rel="stylesheet" href="admin-mobile.css?v=155"></head>
+<body>
 <header class="top">
   <div class="brand-block">
     <img class="top-logo" src="logo-premium.png" alt="Espetinho Perus">
     <div><small>ESPETINHO PERUS</small><h1>Painel Administrativo</h1></div>
   </div>
-  <div class="top-actions"><a class="panel-switch-link" href="painel/">📦 Painel do delivery</a>
+  <details class="panel-menu"><summary>Menu</summary><div class="top-actions"><a class="panel-switch-link" href="gestao.html">Painel de gestão</a><a class="panel-switch-link" href="painel/">📦 Painel do delivery</a>
     <span id="connection" class="connection"><i></i> Conectando…</span>
     <button id="alertsBtn" class="icon-btn">🔔 <span>Alertas</span></button>
     <button id="logoutBtn" class="secondary">Sair</button>
-  </div>
+  </div></details>
 </header>
 <main>
   <section id="login" class="login">
@@ -58,20 +58,21 @@
 
     
     <section class="delivery-control-card" aria-labelledby="deliveryControlTitle">
-      <div class="delivery-control-copy">
+            <div class="delivery-control-status">
+        <span id="deliveryControlBadge" class="delivery-control-badge checking">VERIFICANDO</span>
+        <strong id="deliveryControlTimer">—</strong>
+      </div>
+<details class="delivery-manage"><summary>Gerenciar delivery</summary><div class="delivery-control-copy">
         <small>CONTROLE DO DELIVERY</small>
         <h2 id="deliveryControlTitle">Abertura e fechamento</h2>
         <p id="deliveryControlDescription">Consultando situação do delivery…</p>
-      </div>
-      <div class="delivery-control-status">
-        <span id="deliveryControlBadge" class="delivery-control-badge checking">VERIFICANDO</span>
-        <strong id="deliveryControlTimer">—</strong>
       </div>
       <div class="delivery-control-actions">
         <button id="openDelivery30Btn" type="button" class="delivery-open-btn">Abrir por 30 minutos</button>
         <button id="closeDeliveryBtn" type="button" class="delivery-close-btn">Fechar agora</button>
         <button id="automaticDeliveryBtn" type="button" class="delivery-auto-btn">Voltar ao automático</button>
       </div>
+      </details>
     </section>
 
     <section class="realtime-command">
@@ -86,7 +87,7 @@
       </div>
     </section>
 
-    <nav class="tabs" aria-label="Navegação do painel"><button class="tab" data-tab="securityTab" data-admin-only>🔐 Acessos</button>
+    <details class="section-menu"><summary>Seções do painel</summary><nav class="tabs" aria-label="Navegação do painel">
       <button class="tab active" data-tab="ordersTab"><span>📦</span> Pedidos</button>
       <button class="tab" data-tab="financeTab"><span>📊</span> Dashboard</button>
       <button class="tab" data-tab="performanceTab"><span>🏆</span> Desempenho</button>
@@ -95,7 +96,7 @@
       <button class="tab" data-tab="appearanceTab"><span>🎨</span> Aparência</button>
       <button class="tab" data-tab="paymentsTab"><span>💳</span> Pagamentos</button>
       <button class="tab" data-tab="settingsTab"><span>⚙️</span> Configurações</button>
-    </nav>
+    <button class="tab" data-tab="securityTab" data-admin-only>Acessos</button></nav></details>
 
     <section id="securityTab" class="tab-panel" data-admin-only>
       <h2>Acessos e segurança</h2><p>Sem autenticação em duas etapas. Sessões válidas por até 8 horas.</p>
@@ -261,7 +262,7 @@
     </section>
 
     <section id="ordersTab" class="tab-panel active-panel">
-      <section class="studio-card" data-admin-only>
+      <dialog id="uberDialog"><button type="button" id="closeUber" class="secondary">Fechar</button><section class="studio-card" data-admin-only>
         <h3>Entrega Uber Direct</h3>
         <p>Consulte o custo e confirme o entregador quando o pedido estiver pronto. O frete do cliente permanece o da tabela.</p>
         <label>Número completo do pedido<input id="uberOrderId" placeholder="EP-..."></label>
@@ -271,6 +272,8 @@
         <p id="uberMessage" role="status"></p><a id="uberTracking" hidden target="_blank" rel="noopener noreferrer">Acompanhar entrega</a>
       </section>
 
+      </dialog>
+      <div class="order-view"><h2>Pedidos</h2><button id="toggleOrderView" type="button" class="secondary">Ver quadro</button></div>
       <section class="realtime-board-section">
         <div class="board-heading">
           <div><small>FLUXO OPERACIONAL</small><h2>Pedidos em tempo real</h2></div>
@@ -301,10 +304,10 @@
     </section>
   </section>
 </main>
-<script src="admin.js?v=20260920-v149-staff"></script>
-<script src="uber-admin.js?v=20260921-uber"></script>
+<script src="admin.js?v=20260921-v155"></script>
+<script src="uber-admin.js?v=20260921-v155"></script>
 <script src="delivery-admin.js?v=20260921-zones"></script>
 <script src="staff-ui.js?v=20260920-v149-staff"></script>
 <script>if('serviceWorker'in navigator){navigator.serviceWorker.register('./sw.js?v=20260727-v79-admin-studio',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});}</script>
-</body>
+<script src="admin-mobile.js?v=155"></script></body>
 </html>
