@@ -40,12 +40,14 @@ function updateRealtimeHeader() {
   if (counter) {
     counter.textContent = `${realtimeUnseen.size} ${realtimeUnseen.size === 1 ? 'novo' : 'novos'}`;
     counter.classList.toggle('has-new', realtimeUnseen.size > 0);
+    counter.parentElement.hidden=!realtimeUnseen.size;
   }
   if (text) {
     text.textContent = realtimeLastSuccess
-      ? `Online • última sincronização ${new Date(realtimeLastSuccess).toLocaleTimeString('pt-BR')}`
+      ? 'Online'
       : 'Conectando ao servidor…';
   }
+  if(text&&realtimeLastSuccess)text.title=`Última sincronização ${new Date(realtimeLastSuccess).toLocaleTimeString('pt-BR')}`;
   document.title = realtimeUnseen.size
     ? `(${realtimeUnseen.size}) Novos pedidos | Espetinho Perus`
     : 'Painel de Pedidos | Espetinho Perus';
@@ -295,7 +297,7 @@ async function notifyNew(list, initial) {
     return;
   }
   for (const order of paid) {
-    if (!knownPaid.has(order.order_id)) {
+    if (!knownPaid.has(order.order_id) && order.order_status === 'recebido') {
       await playOrderAlarm();
       if (Notification.permission === 'granted') {
         const reg = adminSwRegistration || await navigator.serviceWorker.ready.catch(() => null);
@@ -320,15 +322,15 @@ async function loadOrders(initial = false) {
     const data = await api('/admin/orders');
     const incoming = data.pedidos || [];
     if (!initial) {
-      incoming.filter(order => order.payment_status === 'approved').forEach(order => {
+      incoming.filter(order => order.payment_status === 'approved' && order.order_status === 'recebido').forEach(order => {
         const id = String(order.order_id);
         if (!previousIds.has(id) && !knownPaid.has(order.order_id)) realtimeUnseen.add(id);
       });
-      if (realtimeUnseen.size) {
-        saveRealtimeUnseen();
-        startRealtimeAlarm();
-      }
     }
+    const eligible=new Set(incoming.filter(order=>order.payment_status==='approved' && order.order_status==='recebido').map(order=>String(order.order_id)));
+    realtimeUnseen=new Set([...realtimeUnseen].filter(id=>eligible.has(String(id))));
+    saveRealtimeUnseen();
+    if(!realtimeUnseen.size)stopRealtimeAlarm();else if(!initial)startRealtimeAlarm();
     orders = incoming;
     await notifyNew(orders, initial);
     realtimeLastSuccess = Date.now();
@@ -402,10 +404,10 @@ function renderPaymentChart(summary) {
   chart.innerHTML = rows.map(([label,data,kind]) => `<div class="chart-row"><span>${label}</span><div class="chart-track"><i class="chart-bar ${kind}" style="width:${Math.max(data.total ? 4 : 0,(data.total/max)*100)}%"></i></div><b>${fmt(data.total)}</b></div>`).join('');
 }
 
-function visible(order) {
-  const filterOk = filter === 'todos' ? true :
-    filter === 'ativos' ? order.payment_status === 'approved' && !['finalizado','cancelado'].includes(order.order_status) :
-    order.order_status === filter || order.payment_status === filter;
+function visible(order, selectedFilter = filter) {
+  const filterOk = selectedFilter === 'todos' ? true :
+    selectedFilter === 'ativos' ? order.payment_status === 'approved' && !['finalizado','cancelado'].includes(order.order_status) :
+    order.order_status === selectedFilter || order.payment_status === selectedFilter;
   if (!filterOk) return false;
   if (!searchTerm) return true;
   const haystack = [order.order_id, order.customer?.name, order.customer?.phone, order.customer?.address]
@@ -449,10 +451,18 @@ function render() {
     $('#' + kind + 'Count').textContent = `${summary[kind].count} ${summary[kind].count === 1 ? 'pedido' : 'pedidos'}`;
   });
   renderPaymentChart(summary);
-  const list = orders.filter(visible);
+  document.querySelectorAll('#filters [data-filter]').forEach(button=>{
+    button.dataset.label ||= button.textContent;
+    const count=orders.filter(order=>visible(order,button.dataset.filter)).length;
+    button.innerHTML=`${esc(button.dataset.label)} <span class="filter-count">${count}</span>`;
+  });
+  $('#orderSummary').innerHTML=[['ativos','ativos'],['recebido','recebidos'],['em_preparo','em preparo'],['pronto_retirada','prontos']].map(([value,label])=>`<button type="button" data-summary-filter="${value}"><b>${orders.filter(order=>visible(order,value)).length}</b><span>${label}</span></button>`).join('');
+  const list = orders.filter(order=>visible(order));
+  const drafts=new Map([...document.querySelectorAll('#orders .estimate-input[data-dirty]')].map(input=>[input.closest('article').querySelector('details').dataset.details,{value:input.value,focused:document.activeElement===input}]));
   const expanded=new Set([...document.querySelectorAll('#orders details[open]')].map(d=>d.dataset.details));
   $('#orders').innerHTML = list.length ? list.map(card).join('') : '<div class="empty">Nenhum pedido neste filtro.</div>';
   document.querySelectorAll('#orders details').forEach(d=>{d.open=expanded.has(d.dataset.details);});
+  document.querySelectorAll('#orders article').forEach(card=>{const draft=drafts.get(card.querySelector('details').dataset.details);if(draft){const input=card.querySelector('.estimate-input');input.value=draft.value;input.dataset.dirty='true';if(draft.focused)input.focus();}});
   renderEnterprise();
   renderRealtimeBoard();
   updateRealtimeHeader();
@@ -489,18 +499,31 @@ function card(order) {
    <div class="order-head"><div><small>#${esc(shortId)} · ${date(order.created_at)}</small><h2>${esc(order.customer?.name||'Cliente')}</h2></div><span class="elapsed ${elapsed.cls}">${elapsed.mins} min</span></div>
    <div class="compact-order-meta"><span>${delivery?'Entrega':'Retirada'} · ${labels[order.order_status]||esc(order.order_status)}</span>${financial?`<strong>${fmt(order.total)}</strong>`:''}</div>
    <div class="badges"><span class="badge ${paid?'paid':'wait'}">${paid?'Pago':esc(order.payment_status||'Pendente')}</span><span class="badge">${esc(paymentLabel(order))}</span></div>
-   <div class="compact-order-actions">${quick}${uber}</div>
+   <p class="order-items-preview">${esc((order.items||[]).map(item=>`${item.quantity}× ${item.name}`).join(" • "))}</p><div class="compact-order-actions">${quick}${uber}</div>
    <details data-details="${esc(order.order_id)}"><summary>Ver detalhes do pedido</summary>
-    <div class="order-body"><p class="full-order-id">${esc(order.order_id)} <button type="button" class="copy-order secondary" data-order-id="${esc(order.order_id)}">Copiar código</button></p><ul class="items">${items}</ul>
+    <div class="order-body"><p class="full-order-id"><span>${esc(order.order_id)}</span> <button type="button" class="copy-order secondary" data-order-id="${esc(order.order_id)}">Copiar código</button></p><ul class="items">${items}</ul>
     ${financial?`<div class="price-breakdown"><p>Produtos <b>${fmt(order.subtotal)}</b></p><p>Descontos <b>− ${fmt(order.discount_amount||0)}</b></p><p>Frete <b>${fmt(order.delivery_fee||0)}</b></p><p>Total <b>${fmt(order.total)}</b></p></div>`:''}
     <div class="customer-box">${phone}${delivery?address:''}${notes}<div class="customer-actions">${whatsapp}<button class="mini-btn print-btn" data-order-id="${esc(order.order_id)}">Reimprimir</button></div></div>
-    <div class="estimate-row">Previsão <input aria-label="Tempo estimado em minutos" class="estimate-input" type="number" min="0" max="240" value="${Number(order.estimated_minutes||25)}"> min</div>
+    <div class="estimate-row">Previsão <input aria-label="Tempo estimado em minutos" class="estimate-input" type="number" min="0" max="240" value="${Number(order.estimated_minutes??25)}"> min <button type="button" class="save-estimate" data-order-id="${esc(order.order_id)}" ${["finalizado","cancelado"].includes(order.order_status)?"disabled":""}>Salvar</button><span class="estimate-feedback" role="status"></span></div>
     <details data-details="more-${esc(order.order_id)}"><summary>Histórico e outras opções</summary><ul>${(order.status_history||[]).map(h=>`<li>${esc(labels[h.status]||h.status)} · ${date(h.at)}</li>`).join('')}</ul>${cancel}</details></div>
    </details></article>`;
 
 }
 
+$('#orderSummary').addEventListener('click',event=>{const b=event.target.closest('[data-summary-filter]');if(b)document.querySelector(`#filters [data-filter="${b.dataset.summaryFilter}"]`).click();});
+$('#orders').addEventListener('input',event=>{if(event.target.matches('.estimate-input'))event.target.dataset.dirty='true';});
 $('#orders').addEventListener('click', async (event) => {
+  const save=event.target.closest('.save-estimate');
+  if(save){
+    const row=save.closest('.estimate-row'),input=row.querySelector('input'),feedback=row.querySelector('.estimate-feedback');
+    const minutes=Number(input.value);
+    if(input.value===''||!Number.isInteger(minutes)||minutes<0||minutes>240){feedback.textContent='Informe de 0 a 240 minutos.';return;}
+    save.disabled=true;feedback.textContent='Salvando…';
+    try{await api('/admin/orders/'+encodeURIComponent(save.dataset.orderId),{method:'PATCH',body:JSON.stringify({estimated_minutes:minutes})});delete input.dataset.dirty;const order=orders.find(o=>o.order_id===save.dataset.orderId);if(order)order.estimated_minutes=minutes;feedback.textContent='Previsão salva';}
+    catch(error){feedback.textContent=error.message;}finally{save.disabled=false;}
+    return;
+  }
+
   const statusBtn = event.target.closest('.quick-status-btn');
   if (statusBtn) {
     const card = statusBtn.closest('.order');

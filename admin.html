@@ -13,7 +13,7 @@
   <link rel="icon" href="icon-192.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="stylesheet" href="admin.css?v=20260727-v79-admin-studio">
-<link rel="stylesheet" href="staff-ui.css?v=20260920-v149-staff"><link rel="stylesheet" href="admin-mobile.css?v=156"></head>
+<link rel="stylesheet" href="staff-ui.css?v=20260920-v149-staff"><link rel="stylesheet" href="admin-mobile.css?v=157"></head>
 <body>
 <header class="top">
   <div class="brand-block">
@@ -32,7 +32,7 @@
     <button class="tab" data-tab="securityTab" data-admin-only>Acessos</button></nav><a class="panel-switch-link" href="gestao.html">Painel de gestão</a><a class="panel-switch-link" href="painel/">📦 Painel do delivery</a>
     <span id="connection" class="connection"><i></i> Conectando…</span>
     <button id="alertsBtn" class="icon-btn">🔔 <span>Notificações</span></button>
-    <button id="logoutBtn" class="secondary">Sair</button>
+    <p id="staffIdentity" class="staff-identity" hidden></p><button id="logoutBtn" class="secondary">Sair da conta</button>
   </div></details>
 </header>
 <main>
@@ -51,7 +51,7 @@
     </div>
   </section>
 
-  <section id="panel" hidden><p id="staffIdentity" class="staff-identity"></p>
+  <section id="panel" hidden>
 
     <section class="enterprise-welcome">
       <div>
@@ -66,12 +66,12 @@
     </section>
 
     
-    <section class="delivery-control-card" aria-labelledby="deliveryControlTitle">
+    <div class="operations-bar"><section class="delivery-control-card" aria-labelledby="deliveryControlTitle">
             <div class="delivery-control-status">
         <span id="deliveryControlBadge" class="delivery-control-badge checking">VERIFICANDO</span>
         <strong id="deliveryControlTimer">—</strong>
       </div>
-<details class="delivery-manage"><summary>Gerenciar delivery</summary><div class="delivery-control-copy">
+<details class="delivery-manage"><summary>Gerenciar</summary><div class="delivery-control-copy">
         <small>CONTROLE DO DELIVERY</small>
         <h2 id="deliveryControlTitle">Abertura e fechamento</h2>
         <p id="deliveryControlDescription">Consultando situação do delivery…</p>
@@ -96,8 +96,7 @@
       </div>
     </section>
 
-
-
+    </div>
     <section id="securityTab" class="tab-panel" data-admin-only>
       <h2>Acessos e segurança</h2><p>Sem autenticação em duas etapas. Sessões válidas por até 8 horas.</p>
       <form id="staffInviteForm" class="staff-form"><h3>Convidar funcionário</h3><label>E-mail da conta<input id="inviteEmail" type="email" required></label><label>Função<select id="inviteRole"><option value="atendimento">Atendimento</option><option value="cozinha">Cozinha</option><option value="admin">Administrador</option></select></label><button>Gerar convite</button></form>
@@ -274,7 +273,7 @@
 
       </dialog>
       <div class="order-view"><h2>Pedidos</h2><button id="toggleOrderView" type="button" class="secondary">Ver quadro</button></div>
-      <section class="realtime-board-section">
+      <div id="orderSummary" class="order-summary" aria-label="Resumo dos pedidos"></div><section class="realtime-board-section">
         <div class="board-heading">
           <div><small>FLUXO OPERACIONAL</small><h2>Pedidos em tempo real</h2></div>
           <div class="board-legend">
@@ -304,10 +303,10 @@
     </section>
   </section>
 </main>
-<script src="admin.js?v=20260921-v155"></script>
-<script src="uber-admin.js?v=20260921-v155"></script>
+<script src="admin.js?v=20260921-v157"></script>
+<script src="uber-admin.js?v=20260921-v157"></script>
 <script src="delivery-admin.js?v=20260921-zones"></script>
 <script src="staff-ui.js?v=20260920-v149-staff"></script>
 <script>if('serviceWorker'in navigator){navigator.serviceWorker.register('./sw.js?v=20260727-v79-admin-studio',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});}</script>
-<script src="admin-mobile.js?v=156"></script></body>
+<script src="admin-mobile.js?v=157"></script></body>
 </html>

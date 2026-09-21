@@ -80,3 +80,16 @@ test('unverified or forged account cannot bootstrap; storage outage fails closed
  try{const r=await worker.fetch(req('/admin/auth/login',{email:user.email,password:'password',mode:'bootstrap',bootstrap_key:env.ADMIN_KEY}),env,{});assert.equal(r.status,401);assert.equal(s.snapshot().initialized,false);}finally{globalThis.fetch=original;}
  delete env.ORDER_REALTIME;const r=await worker.fetch(req('/admin/orders',null,'a'.repeat(64)),env,{});assert.equal(r.status,503);
 });
+
+test('saving estimate preserves order status, history and money; rejects invalid and closed orders',async()=>{
+ const s=storage(),{env,records}=environment(s),token='b'.repeat(64);
+ await staffStorage(s,{action:'login',bootstrap:true,bootstrapValid:true,user,newTokenHash:await digest(token)});
+ const original={order_id:'estimate',payment_status:'approved',order_status:'em_preparo',estimated_minutes:25,total:20.26,subtotal:11.4,delivery_fee:10,discount_amount:1.14,customer:{name:'Teste'},items:[],status_history:[{status:'em_preparo',at:'2026-09-21T00:00:00Z'}]};
+ records.set('order:estimate',structuredClone(original));
+ const patch=body=>worker.fetch(new Request('https://api.test/admin/orders/estimate',{method:'PATCH',headers:{Authorization:'Bearer '+token},body:JSON.stringify(body)}),env,{});
+ assert.equal((await patch({estimated_minutes:35})).status,200);
+ const saved=records.get('order:estimate');assert.equal(saved.estimated_minutes,35);for(const key of ['order_status','status_history','total','subtotal','delivery_fee','discount_amount','payment_status'])assert.deepEqual(saved[key],original[key]);
+ for(const value of [-1,241,1.5,'30',null])assert.equal((await patch({estimated_minutes:value})).status,400);
+ assert.equal((await patch({estimated_minutes:0})).status,200);
+ saved.order_status='finalizado';records.set('order:estimate',saved);assert.equal((await patch({estimated_minutes:20})).status,409);
+});
