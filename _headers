@@ -65,3 +65,11 @@
   Cache-Control: no-store
 /cozinha.html
   Cache-Control: no-store
+
+/pagamento-cartao.html
+  Cache-Control: no-store
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src https://api.espetinhoperus.com.br; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+/pagamento-cartao.js
+  Cache-Control: no-store
+/pagamento-cartao.css
+  Cache-Control: no-cache

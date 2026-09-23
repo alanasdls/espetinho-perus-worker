@@ -6,7 +6,7 @@ const app=fs.readFileSync(new URL('../app-misticpay-cpf-v102.js','file://'+__fil
 test('Pix and card handlers share an in-flight guard, including reentrant calls',async()=>{
  let release,calls=0,payloads=0;
  const buttons={card:{textContent:'Cartão'},pix:{textContent:'Pix'}};
- const context={pagBankButton:buttons.card,document:{querySelector:()=>buttons.pix},getOrderPayload:()=>{payloads++;return {order_id:'EP-test',items:[]};},epCheckoutHeaders:async()=>({}),fetch:async()=>{calls++;await new Promise(r=>release=r);return {ok:false,json:async()=>({erro:'test rejection'})};},epHandleRewardResponse:()=>false,alert:()=>{}};
+ const context={paymentSelect:{value:'Cartão de débito'},pagBankButton:buttons.card,document:{querySelector:()=>buttons.pix},getOrderPayload:()=>{payloads++;return {order_id:'EP-test',items:[]};},epCheckoutHeaders:async()=>({}),fetch:async()=>{calls++;await new Promise(r=>release=r);return {ok:false,json:async()=>({erro:'test rejection'})};},epHandleRewardResponse:()=>false,alert:()=>{}};
  vm.createContext(context);
  vm.runInContext(app.slice(app.indexOf('let epCheckoutInFlight='),app.indexOf('const pixOverlay=')),context);
  vm.runInContext(app.slice(app.indexOf('const mpButton='),app.indexOf('// ===== Horário de pedidos')),context);

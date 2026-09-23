@@ -67,7 +67,7 @@ export async function handleDelivery(request,env,ctx,next,headers){
  if(url.pathname==='/delivery/quote'&&request.method==='GET'){
   try{return reply(await quoteDelivery(env,url.searchParams.get('cep')));}catch(e){return reply({erro:e.message},400);}
  }
- if(request.method==='POST'&&['/criar-pix','/criar-pedido','/criar-checkout-pagbank','/criar-checkout-mercadopago'].includes(url.pathname)){
+ if(request.method==='POST'&&['/criar-pix','/criar-pedido','/criar-checkout-pagbank','/criar-checkout-asaas','/criar-checkout-mercadopago'].includes(url.pathname)){
   const body=await request.clone().json().catch(()=>null);
   if(body?.customer?.fulfillment==='Entrega'){
    try{

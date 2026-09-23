@@ -7,10 +7,10 @@
     });
     if(selectId==='payment'){
       var whatsapp=document.getElementById('checkout');
-      if(whatsapp) whatsapp.style.display=select.value==='Pix'?'none':'';
+      if(whatsapp) whatsapp.style.display=(select.value==='Pix'||select.value==='Cartão de crédito')?'none':'';
       var card=document.getElementById('pagBankCheckout');
       if(card && (select.value==='Cartão de débito'||select.value==='Cartão de crédito')){
-        card.textContent=select.value==='Cartão de débito'?'Pagar no débito pelo Mercado Pago':'Pagar no crédito pelo Mercado Pago';
+        card.textContent=select.value==='Cartão de débito'?'Pagar no débito pelo Mercado Pago':'Pagar com cartão de crédito';
       }
     }
   }
