@@ -189,6 +189,16 @@ function renderItems(items=[]){
   if(!Array.isArray(items)||!items.length)return '<div class="order-items order-items-empty">Itens deste pedido antigo não estão disponíveis no histórico detalhado.</div>';
   return `<div class="order-items">${items.map(i=>`<p><b>${Number(i.quantity||1)}× ${esc(i.name||'Produto')}</b><span>${fmt(i.unit_price||0)}</span></p>`).join('')}</div>`;
 }
+function renderOrderSummary(o){
+  const customer=o.customer||{};
+  const fulfillment=String(customer.fulfillment||'');
+  const pickup=/retirada/i.test(fulfillment);
+  const row=(label,value)=>`<div><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`;
+  const hasSubtotal=o.subtotal!=null;
+  const payment={CREDIT_CARD:'Cartão de crédito',PIX:'Pix',BOLETO:'Boleto',Dinheiro:'Dinheiro'}[o.payment_method]||o.payment_method;
+  return `<div class="order-costs">${hasSubtotal?row('Produtos',fmt(o.subtotal)):''}${Number(o.discount_amount)>0?row('Descontos','− '+fmt(o.discount_amount)):''}${o.delivery_fee!=null?row('Taxa de entrega',fmt(o.delivery_fee)):''}${row('Total',fmt(o.total??o.valor_total??0))}</div>
+    <div class="order-fulfillment"><b>${pickup?'Retirada na loja':fulfillment?esc(fulfillment):'Entrega / retirada'}</b><p>${pickup?'Retirada no Espetinho Perus.':esc(customer.address||'Endereço não disponível neste histórico.')}</p>${!pickup&&customer.reference?`<p>Referência: ${esc(customer.reference)}</p>`:''}${customer.notes?`<p>Observações: ${esc(customer.notes)}</p>`:''}${payment?`<p>Pagamento: ${esc(payment)}</p>`:''}</div>`;
+}
 function renderOrderCard(o){
   const redeemed=Boolean(o?.loyalty?.redeemed);
   const points=Number(o?.loyalty?.points_used||0);
@@ -196,7 +206,7 @@ function renderOrderCard(o){
   const pointsText=redeemed?'Sem geração de pontos':`+${Number(o?.loyalty?.points||o.pontos_gerados||0)} pontos`;
   return `<article class="client-order-card">
     <div class="order-card-top"><div><strong>Pedido • ${esc(String(o.order_id||o.numero_pedido||'').slice(-6))}</strong><small>${new Date(o.created_at||o.criado_em).toLocaleString('pt-BR')}</small></div><span class="order-status">${esc(statusLabel(o.order_status||o.status))}</span></div>
-    <details class="order-details"><summary>Ver detalhes</summary><small>${esc(o.order_id||o.numero_pedido||'')}</small>${renderItems(o.items)}</details>
+    <details class="order-details"><summary>Ver detalhes</summary><small>${esc(o.order_id||o.numero_pedido||'')}</small>${renderItems(o.items)}${renderOrderSummary(o)}</details>
     <div class="order-card-bottom"><strong>${esc(totalLabel)}</strong><small>${esc(pointsText)}</small></div>
   </article>`;
 }

@@ -531,6 +531,12 @@ function pedidoFidelidadePublico(p) {
     subtotal: Number(p.subtotal || 0),
     delivery_fee: Number(p.delivery_fee || 0),
     discount_amount: Number(p.discount_amount || 0),
+    customer: {
+      fulfillment: p.customer?.fulfillment || '',
+      address: p.customer?.address || '',
+      reference: p.customer?.reference || '',
+      notes: p.customer?.notes || ''
+    },
     items: Array.isArray(p.items) ? p.items.map(i => ({
       name: i.name,
       quantity: Number(i.quantity || 1),
