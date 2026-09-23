@@ -44,6 +44,8 @@ test('server totals and durable duplicate protection; no card sent during creati
  const data=await responses.find(r=>r.status===201).json();assert.equal(data.total,11.4);
  assert.equal(s.calls.filter(c=>c.url.endsWith('/payments')).length,1);assert.ok(s.calls.every(c=>!c.body?.creditCard));
  assert.equal((await s.call('/asaas-status')).status,403);assert.equal((await s.call('/pagar-cartao-asaas',card)).status,403);
+ const summary=await (await s.call('/asaas-status',null,data.tracking_token)).json();
+ assert.equal(summary.items[0].name,'Pão de alho');assert.equal(summary.subtotal,11.4);assert.equal(summary.customer.fulfillment,'Retirada');assert.equal(summary.asaas_customer_id,undefined);
 }));
 test('double click charges once; card and returned token absent from every durable write',()=>scenario(async s=>{
  const data=await (await s.create()).json();

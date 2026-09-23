@@ -43,7 +43,7 @@ export async function callAsaasOrder(env,orderId,body) {
 function canPay(state) {return (!state.attempt||state.attempt==='refused')&&state.order.payment_status==='pending'&&(state.attemptIds||[]).length<3;}
 function publicState(state) {
   const p=state.order;
-  return {order_id:p.order_id,total:p.total,status:p.payment_status,attempt:state.attempt||'none',can_pay:canPay(state),customer:{name:p.customer.name,email:p.customer.email,phone:p.customer.phone,cpf:p.customer.cpf,cep:p.customer.cep,number:p.customer.number},tracking_token:p.tracking_token};
+  return {order_id:p.order_id,total:p.total,subtotal:p.subtotal,delivery_fee:p.delivery_fee,discount_amount:p.discount_amount,items:(p.items||[]).map(i=>({name:i.name,quantity:i.quantity,unit_price:i.unit_price,subtotal:i.subtotal})),status:p.payment_status,attempt:state.attempt||'none',can_pay:canPay(state),customer:{name:p.customer.name,email:p.customer.email,phone:p.customer.phone,cpf:p.customer.cpf,cep:p.customer.cep,number:p.customer.number,fulfillment:p.customer.fulfillment,address:p.customer.address,reference:p.customer.reference,notes:p.customer.notes},tracking_token:p.tracking_token};
 }
 async function applyPayment(storage,env,state,payment,deps) {
   const original=state.order;

@@ -1094,3 +1094,6 @@ function epCartEditable(){
   if(pending?.started){alert('Existe um resgate em pagamento. Conclua ou acompanhe esse pedido antes de alterar o carrinho.');return false;}
   return true;
 }
+
+// Return from the card page to the existing cart without changing its contents.
+if(location.hash==="#carrinho")openCartPanel();
