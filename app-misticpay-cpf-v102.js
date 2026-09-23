@@ -535,9 +535,18 @@ function atualizarFormaPagamento(){
   pixButton.classList.toggle('hidden',!isPix);
   pagBankButton?.classList.toggle('hidden',!isCard);
   pixSecurity.classList.toggle('hidden',!(isPix||isCard));
+  pixSecurity.textContent=isCard?'Pagamento por cartão processado pelo Asaas.':'Pagamento seguro via Pix.';
   if(!(isPix||isCard)) cpfInput.value='';
 }
 paymentSelect.onchange=atualizarFormaPagamento;
+// Only offer the new method after the server confirms credentials and activation.
+fetch('https://api.espetinhoperus.com.br/asaas-capabilities',{cache:'no-store'})
+  .then(r=>r.ok?r.json():null).then(config=>{
+    const creditOption=[...paymentSelect.options].find(option=>option.value==='Cartão de crédito');
+    const allowed=config?.enabled&&creditOption&&!creditOption.disabled;
+    if(allowed)document.getElementById('paymentChoices').hidden=false;
+    else {if(creditOption)creditOption.disabled=true;paymentSelect.value='Pix';atualizarFormaPagamento();}
+  }).catch(()=>{paymentSelect.value='Pix';atualizarFormaPagamento();});
 atualizarFormaPagamento();
 updateOrderSummary();
 cpfInput.addEventListener('input',()=>{
@@ -678,11 +687,11 @@ function getOrderPayload(requireCpf=true){
   const name=document.querySelector('#customerName').value.trim();
   if(!name){ alert('Informe seu nome.'); return null; }
   const email=document.querySelector('#customerEmail').value.trim();
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ alert('Informe um e-mail válido para gerar o Pix.'); return null; }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ alert('Informe um e-mail válido para pagar.'); return null; }
   const phone=document.querySelector('#customerPhone')?.value.trim()||'';
   if(!phone){ alert('Informe seu telefone.'); return null; }
   const cpf=(document.querySelector('#customerCpf')?.value||'').replace(/\D/g,'');
-  if(requireCpf&&!validarCpf(cpf)){ alert('Informe um CPF válido para gerar o Pix.'); document.querySelector('#customerCpf')?.focus(); return null; }
+  if(requireCpf&&!validarCpf(cpf)){ alert('Informe um CPF válido para pagar.'); document.querySelector('#customerCpf')?.focus(); return null; }
   const fulfillment=fulfillmentSelect.value;
   const address=composeAddress();
   if(isDelivery()){
@@ -713,6 +722,34 @@ function getOrderPayload(requireCpf=true){
 }
 
 let epCheckoutInFlight=false;
+async function iniciarCheckoutAsaas(){
+  if(epCheckoutInFlight)return;
+  const pending=epLoadJson('ep-asaas-pending-v1',null);
+  if(pending){
+    if(pending.tracking_token){window.location.href=`/pagamento-cartao.html#order_id=${encodeURIComponent(pending.order_id)}&token=${encodeURIComponent(pending.tracking_token)}`;return;}
+    alert('Existe um pedido de cartão em confirmação. Consulte a loja antes de iniciar outro pagamento.');return;
+  }
+  epCheckoutInFlight=true;pagBankButton.disabled=true;
+  let started=false;
+  try{
+    const capabilities=await fetch('https://api.espetinhoperus.com.br/asaas-capabilities',{cache:'no-store'});
+    if(!capabilities.ok||!(await capabilities.json()).enabled)throw Error('Pagamento por cartão ainda não está disponível.');
+    const payload=getOrderPayload(true);if(!payload)return;
+    const headers=await epCheckoutHeaders(payload);
+    const savedCart={};for(const key of ['ep-cart-v1']){const value=localStorage.getItem(key);if(value)savedCart[key]=value;}
+    localStorage.setItem('ep-asaas-pending-v1-cart',JSON.stringify(savedCart));
+    localStorage.setItem('ep-asaas-pending-v1',JSON.stringify({order_id:payload.order_id}));started=true;
+    pagBankButton.textContent='Preparando pagamento…';
+    const response=await fetch('https://api.espetinhoperus.com.br/criar-checkout-asaas',{method:'POST',headers,body:JSON.stringify(payload)});
+    const data=await response.json().catch(()=>({}));
+    if(data.tracking_token){localStorage.setItem('ep-asaas-pending-v1',JSON.stringify({order_id:payload.order_id,tracking_token:data.tracking_token}));epAttachTrackingToken(payload.order_id,data.tracking_token,{payment_provider:'asaas'});}
+    if(epHandleRewardResponse(payload,data,response)){if(data.status==='approved')localStorage.removeItem('ep-asaas-pending-v1');return;}
+    if(!response.ok||!data.checkout_url){if([400,401,403].includes(response.status)&&!data.tracking_token)localStorage.removeItem('ep-asaas-pending-v1');throw Error(data.erro||'Não foi possível preparar o pagamento.');}
+    epRememberRewardPayment(payload,data);
+    window.location.href=data.checkout_url;
+  }catch(e){alert(e.message+(started?' Seu carrinho foi mantido.':''));}
+  finally{epCheckoutInFlight=false;pagBankButton.disabled=false;pagBankButton.textContent='Pagar com cartão de crédito';}
+}
 async function iniciarCheckoutMercadoPago(){
   if(epCheckoutInFlight)return;
   const payload=getOrderPayload(true);
@@ -735,7 +772,7 @@ async function iniciarCheckoutMercadoPago(){
   }catch(e){alert(e.message);}
   finally{epCheckoutInFlight=false;pagBankButton.disabled=false;pagBankButton.textContent=original;}
 }
-if(pagBankButton) pagBankButton.onclick=iniciarCheckoutMercadoPago;
+if(pagBankButton) pagBankButton.onclick=()=>paymentSelect.value==='Cartão de crédito'?iniciarCheckoutAsaas():iniciarCheckoutMercadoPago();
 
 const pixOverlay=document.querySelector('#pixOverlay');
 // Coloca o modal Pix no nível mais alto da página, evitando sobreposição pelo carrinho no celular.

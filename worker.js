@@ -1,3 +1,4 @@
+import { asaasConfig, asaasApi, asaasOperation, callAsaasOrder, handleAsaas, validCpf } from './asaas-payments.js';
 import { handleUber, uberOperation } from './uber-direct.js';
 import { DELIVERY_CONTEXT, handleDelivery } from './delivery-rates.js';
 import { ADMIN_CONTEXT, handleStaff, staffStorage } from './admin-security.js';
@@ -11,6 +12,12 @@ export class OrderRealtime {
 
   async fetch(request) {
     const url = new URL(request.url);
+    if (url.pathname === '/asaas-operation' && request.method === 'POST') {
+      const body=await request.json();
+      const run=(this.asaasQueue||Promise.resolve()).then(()=>asaasOperation(this.ctx.storage,this.env,body,asaasDependencies()));
+      this.asaasQueue=run.catch(()=>{});
+      return run;
+    }
     if (url.pathname === '/uber' && request.method === 'POST') {
       const body = await request.json();
       const run = (this.uberQueue || Promise.resolve()).then(() => uberOperation(this.ctx.storage, this.env, body));
@@ -1144,8 +1151,15 @@ async function marcarConsumer(env, p, patch = {}) {
 }
 // ===== FIM INTEGRACAO CONSUMER =====
 
+function asaasDependencies() {
+  return {find:buscarPedido,save:gravarPedido,credit:creditarPontosFidelidade,reply:responder,notify:async(env,p)=>{
+    await enviarNotificacoes(env,p,"Pagamento aprovado!","Recebemos seu pedido. Acompanhe o preparo por aqui.");
+    await notificarNovoPedidoPago(env,p);
+  }};
+}
 async function coreFetch(request,env,ctx) {
   if(request.method==="OPTIONS")return new Response(null,{status:204,headers:CORS}); const url=new URL(request.url);
+  const asaasResponse=await handleAsaas(request,env,asaasDependencies());if(asaasResponse)return asaasResponse;
   // Payment identifiers are not credentials. Require the order's bearer token.
   if(request.method==="GET"&&["/pagamento-status","/mercadopago-status","/pagbank-status"].includes(url.pathname)){
     const token=request.headers.get("X-Order-Token")||url.searchParams.get("token")||"";
@@ -1154,7 +1168,7 @@ async function coreFetch(request,env,ctx) {
     const expected=url.pathname==="/pagbank-status"?p?.checkout_id:p?.payment_id;
     if(!p||!id||!expected||String(expected)!==id)return responder({erro:"Acesso ao pagamento não autorizado."},403);
   }
-  if(request.method==="POST"&&["/criar-pix","/criar-checkout-pagbank","/criar-checkout-mercadopago","/criar-pedido"].includes(url.pathname)){
+  if(request.method==="POST"&&["/criar-pix","/criar-checkout-pagbank","/criar-checkout-mercadopago","/criar-checkout-asaas","/criar-pedido"].includes(url.pathname)){
     const b=await request.clone().json().catch(()=>null);
     if(!b||!Array.isArray(b.items)||!b.items.length||b.items.length>100||b.items.some(i=>!i||!Object.hasOwn(PRECOS,i.name||i.nome||i.title)))return responder({erro:"Carrinho ou produto inválido."},400);
     const suppliedId=b.order_id||b.numero_pedido;
@@ -1162,7 +1176,7 @@ async function coreFetch(request,env,ctx) {
     const orderId=typeof suppliedId==="string"?suppliedId.trim():null;
     if(orderId&&await buscarPedido(env,orderId))return responder({erro:"Pedido duplicado."},409);
   }
-  if(request.method==="POST"&&["/criar-pix","/criar-checkout-pagbank","/criar-checkout-mercadopago","/criar-pedido"].includes(url.pathname)){const delivery=await estadoDelivery(env);if(!delivery.aberto)return responder({erro:delivery.modo==="manual_closed"?"Delivery fechado manualmente no momento.":`Pedidos fechados no momento. Próxima abertura: ${proximaAbertura()}.`,delivery},403);}
+  if(request.method==="POST"&&["/criar-pix","/criar-checkout-pagbank","/criar-checkout-mercadopago","/criar-checkout-asaas","/criar-pedido"].includes(url.pathname)){const delivery=await estadoDelivery(env);if(!delivery.aberto)return responder({erro:delivery.modo==="manual_closed"?"Delivery fechado manualmente no momento.":`Pedidos fechados no momento. Próxima abertura: ${proximaAbertura()}.`,delivery},403);}
   if(request.method==="GET"&&url.pathname==="/")return responder({status:"online",versao:"V149-staff",servico:"Pix MisticPay, acompanhamento e notificacoes - Espetinho Perus",misticpay:Boolean(env.MISTICPAY_CI&&env.MISTICPAY_CS),pedidos_kv:Boolean(env.ORDERS_KV),admin:Boolean(env.ADMIN_KEY),web_push:Boolean(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_KEY),pagbank_sandbox:Boolean(env.PAGBANK_SANDBOX_TOKEN),pagbank_producao:Boolean(env.PAGBANK_TOKEN),consumer_api:Boolean(env.CONSUMER_API_TOKEN),mercadopago:Boolean(env.MERCADOPAGO_ACCESS_TOKEN)});
   if(request.method==="GET"&&url.pathname==="/vapid-public-key")return responder({publicKey:env.VAPID_PUBLIC_KEY||""});
 
@@ -1476,6 +1490,42 @@ async function coreFetch(request,env,ctx) {
       if(ctx?.waitUntil) ctx.waitUntil(tarefasPosteriores); else await tarefasPosteriores;
       return responder({ok:true,numero_pedido:orderId,order_id:orderId,tracking_token:tracking,status:"approved",order_status:"recebido",total},201);
     }catch(e){console.error("criar-pedido",e);if(e?.code==="CUPOM_INVALIDO")return responder({erro:e.message},400);return responder({erro:"Erro ao registrar pedido.",detalhes:e instanceof Error?e.message:String(e)},500)}
+  }
+  if(request.method==="POST"&&url.pathname==="/criar-checkout-asaas"){
+    let p;
+    try{
+      if(!env.ORDERS_KV)return responder({erro:"ORDERS_KV nao configurado."},500);
+      if(!asaasConfig(env).ready)return responder({erro:"Pagamento por cartão ainda não está disponível."},503);
+      const entrada=await request.json();const clienteAuth=await clienteSupabaseAutenticado(request,env);
+      if(!Array.isArray(entrada.items)||!entrada.items.length)return responder({erro:"O carrinho esta vazio."},400);
+      const email=texto(entrada.customer?.email||entrada.email,150).toLowerCase();if(!emailValido(email))return responder({erro:"Informe um e-mail valido."},400);
+      let subtotal=0;const itens=entrada.items.map(item=>{const nome=texto(item.name||item.nome||item.title,150),q=Number(item.quantity||item.quantidade);if(!nome)throw new Error("Produto sem nome.");if(!Number.isInteger(q)||q<1||q>50)throw new Error(`Quantidade invalida para ${nome}`);const precoSite=Number(item.unit_price??item.price??item.preco);const unit_price=Object.prototype.hasOwnProperty.call(PRECOS,nome)?PRECOS[nome]:precoSite;if(!Number.isFinite(unit_price)||unit_price<=0)throw new Error(`Preco invalido para ${nome}`);subtotal+=unit_price*q;return{name:nome,quantity:q,unit_price,subtotal:Math.round(unit_price*q*100)/100,external_code:codigoImpressaoProduto(nome,item),unregistered:!Object.prototype.hasOwnProperty.call(PRECOS,nome)}});subtotal=Math.round(subtotal*100)/100;
+      const entrega=calcularEntrega(entrada,env),deliveryFee=entrega.fee,descontos=calcularDescontosPedido(env,entrada,subtotal,Boolean(clienteAuth?.id)),discountedSubtotal=Math.round((subtotal-descontos.total_discount)*100)/100,total=Math.round((discountedSubtotal+deliveryFee)*100)/100;
+      const orderId=checkoutOrderId(entrada),nome=texto(entrada.customer?.name||"Cliente",100),agora=new Date().toISOString();
+      const partesNome=nome.trim().split(/\s+/).filter(Boolean),primeiroNome=texto(entrada.customer?.first_name||partesNome[0]||nome,60),sobrenome=texto(entrada.customer?.last_name||partesNome.slice(1).join(" "),60);
+      const cpf=texto(entrada.customer?.cpf||entrada.customer?.document,20).replace(/\D/g,"");if(!validCpf(cpf))return responder({erro:"Informe um CPF valido para o pagamento com cartao."},400);
+      const telefone=texto(entrada.customer?.phone,30).replace(/\D/g,"");const ddd=telefone.length>=10?telefone.slice(0,2):"";const numeroTelefone=telefone.length>=10?telefone.slice(2):telefone;
+      const cep=texto(entrada.customer?.cep,12).replace(/\D/g,"");const rua=texto(entrada.customer?.street,160),numeroEndereco=texto(entrada.customer?.number,30),complemento=texto(entrada.customer?.complement,100),bairro=texto(entrada.customer?.bairro||entrega.bairro,100),cidade=texto(entrada.customer?.city,100),estado=texto(entrada.customer?.state,2).toUpperCase();
+      if(await buscarPedido(env,orderId))return responder({erro:"Pedido duplicado.",order_id:orderId},409);
+      const tracking=crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","").slice(0,16);
+      p={order_id:orderId,tracking_token:tracking,site_url:"https://espetinhoperus.com.br",created_at:agora,updated_at:agora,customer:{name:nome,first_name:primeiroNome,last_name:sobrenome,email,phone:texto(entrada.customer?.phone,30),cpf,birth_date:texto(entrada.customer?.birth_date,10),fulfillment:texto(entrada.customer?.fulfillment,50),address:texto(entrada.customer?.address,500),cep,street:rua,number:numeroEndereco,complement:complemento,bairro,city:cidade,state:estado,reference:texto(entrada.customer?.reference,150),notes:texto(entrada.customer?.notes,500),loyalty_customer_id:clienteAuth?.id||null},items:itens,subtotal,registered_discount_amount:descontos.registered_discount,coupon_discount_amount:descontos.coupon_discount,discount_amount:descontos.total_discount,discounted_subtotal:discountedSubtotal,loyalty_subtotal_eligible:discountedSubtotal,coupon_code:descontos.coupon?.code||null,coupon_description:descontos.coupon?.description||null,promotion_code:descontos.coupon?.code?"CUPOM":(descontos.registered_discount>0?"CADASTRADO10":null),delivery_fee:deliveryFee,total,payment_id:null,asaas_environment:env.ASAAS_ENV,payment_provider:"asaas",payment_method:"CREDIT_CARD",payment_status:"creating",payment_status_detail:"",order_status:"aguardando_pagamento",paid_at:null,estimated_minutes:25,push_subscriptions:[],status_history:[{status:"aguardando_pagamento",at:agora}]};if(!Number.isFinite(total)||total<=0)return responder({erro:"Total inválido para pagamento."},400);const blocked=await reservarNovoPedido(env,orderId);if(blocked)return blocked;await gravarPedido(env,p);
+      const found=await asaasApi(env,`/customers?cpfCnpj=${encodeURIComponent(cpf)}&limit=1`);
+      if(!found.ok)throw Error('Customer lookup failed');
+      let customer=found.data?.data?.find(c=>c.cpfCnpj?.replace(/\D/g,'')===cpf);
+      if(!customer){const created=await asaasApi(env,'/customers',{name:nome,cpfCnpj:cpf,email,mobilePhone:telefone,notificationDisabled:true});if(!created.ok||!created.data?.id)throw Error('Customer creation failed');customer=created.data;}
+      p.asaas_customer_id=customer.id;await gravarPedido(env,p);
+      const payment=await asaasApi(env,'/payments',{customer:customer.id,billingType:'CREDIT_CARD',value:total,dueDate:new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'}),externalReference:orderId,description:`Pedido ${orderId} - Espetinho Perus`});
+      if(!payment.ok||!payment.data?.id)throw Error('Payment creation failed');
+      p.payment_id=payment.data.id;p.payment_status='pending';p.payment_status_detail='Aguardando cartão';
+      await gravarPedido(env,p);
+      const initialized=await callAsaasOrder(env,orderId,{action:'init',order:p});
+      if(!initialized.ok)throw Error('State initialization failed');
+      return responder({numero_pedido:orderId,order_id:orderId,tracking_token:tracking,status:'pending',total,checkout_url:`/pagamento-cartao.html#order_id=${encodeURIComponent(orderId)}&token=${encodeURIComponent(tracking)}`},201);
+    }catch(e){
+      if(!p)return responder({erro:e?.code==='CUPOM_INVALIDO'?e.message:'Confira os dados do pedido.'},400);
+      // No card is sent during this stage. Never retry provider creation automatically.
+      return responder({erro:'Não foi possível preparar o pagamento. Consulte o pedido antes de tentar novamente.',tracking_token:p.tracking_token,order_id:p.order_id,resume:true},503);
+    }
   }
   if(request.method==="POST"&&url.pathname==="/criar-checkout-mercadopago"){
     try{

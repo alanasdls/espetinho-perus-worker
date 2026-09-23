@@ -1,6 +1,7 @@
+import {asaasConfig} from './asaas-payments.js';
 // Server-only reward checkout. Browser prices and point costs are never trusted.
 export const REWARD_CONTEXT = Symbol('reward-checkout');
-export const CHECKOUT_PATHS = ['/criar-pix','/criar-pedido','/criar-checkout-mercadopago','/criar-checkout-pagbank'];
+export const CHECKOUT_PATHS = ['/criar-pix','/criar-pedido','/criar-checkout-mercadopago','/criar-checkout-pagbank','/criar-checkout-asaas'];
 export function quoteRewards(body, prices, codes) {
   const lines = body.items;
   if (!Array.isArray(lines) || !lines.length || lines.length > 100) throw Error('Carrinho inválido.');
@@ -52,6 +53,7 @@ export async function handleRewardCheckout(request,env,ctx,core,deps){
   const respond=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{...deps.headers,"Content-Type":"application/json"}});
   if(request.method==='GET'&&url.pathname==='/fidelidade/checkout-capabilities')return respond({reward_cart:true,version:1});
   if(request.method!=='POST'||!CHECKOUT_PATHS.includes(url.pathname))return core(request,env,ctx);
+  if(url.pathname==='/criar-checkout-asaas'&&!asaasConfig(env).ready)return respond({erro:'Pagamento por cartão indisponível.',retry_allowed:true},503);
   const body=await request.clone().json().catch(()=>null);
   if(!body?.items?.some?.(item=>item.reward===true))return core(request,env,ctx);
   let context,attemptedOpen=false;
