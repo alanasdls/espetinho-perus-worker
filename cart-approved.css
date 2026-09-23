@@ -64,3 +64,5 @@
 #cartOverlay [hidden]{display:none!important}
 #cartOverlay button:focus-visible,#cartOverlay summary:focus-visible,#cartOverlay a:focus-visible{outline:2px solid #e51028;outline-offset:3px}
 @media(max-width:370px){#cartOverlay .cart-scroll{padding-left:14px;padding-right:14px}#cartOverlay .cart-item{grid-template-columns:44px minmax(0,1fr) 82px 28px;gap:7px}#cartOverlay .cart-item-photo{width:44px;height:56px}#cartOverlay .cart-item h4{font-size:13px}#cartOverlay .cart-reward-badge{font-size:10px;padding:3px 4px}#cartOverlay .cart-head{padding-left:14px;padding-right:14px}#cartOverlay .cart-payment-footer{padding-left:14px;padding-right:14px}}
+
+#cartOverlay #mercadoPagoCheckout{background:#1565c0!important}
