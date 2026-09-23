@@ -6,7 +6,7 @@ const app=fs.readFileSync(new URL('../app-misticpay-cpf-v102.js','file://'+__fil
 test('Pix and card handlers share an in-flight guard, including reentrant calls',async()=>{
  let release,calls=0,payloads=0;
  const buttons={card:{textContent:'Cartão'},pix:{textContent:'Pix'}};
- const context={paymentSelect:{value:'Cartão de débito'},pagBankButton:buttons.card,document:{querySelector:()=>buttons.pix},getOrderPayload:()=>{payloads++;return {order_id:'EP-test',items:[]};},epCheckoutHeaders:async()=>({}),fetch:async()=>{calls++;await new Promise(r=>release=r);return {ok:false,json:async()=>({erro:'test rejection'})};},epHandleRewardResponse:()=>false,alert:()=>{}};
+ const context={epLoadJson:()=>null,paymentSelect:{value:'Cartão de débito'},pagBankButton:buttons.card,document:{querySelector:()=>buttons.pix},getOrderPayload:()=>{payloads++;return {order_id:'EP-test',items:[]};},epCheckoutHeaders:async()=>({}),fetch:async()=>{calls++;await new Promise(r=>release=r);return {ok:false,json:async()=>({erro:'test rejection'})};},epHandleRewardResponse:()=>false,alert:()=>{}};
  vm.createContext(context);
  vm.runInContext(app.slice(app.indexOf('let epCheckoutInFlight='),app.indexOf('const pixOverlay=')),context);
  vm.runInContext(app.slice(app.indexOf('const mpButton='),app.indexOf('// ===== Horário de pedidos')),context);
@@ -16,4 +16,19 @@ test('Pix and card handlers share an in-flight guard, including reentrant calls'
  release();await first;
  const second=buttons.card.onclick();await new Promise(r=>setImmediate(r));assert.equal(calls,2);release();await second;
  assert.equal(buttons.pix.disabled,false);assert.equal(buttons.card.disabled,false);
+});
+
+test('Pix remains visible alongside enabled credit card',()=>{
+ const elements={};
+ const element=id=>elements[id]||(elements[id]={classList:{toggle(name,hidden){this[name]=hidden},add(name){this[name]=true}}});
+ const context={epPaymentConfig:{},epEnabledPayments:new Set(),document:{querySelector:element},cpfWrap:element('cpf'),pixButton:element('pix'),pagBankButton:element('card'),pixSecurity:element('security')};
+ vm.createContext(context);
+ vm.runInContext(app.slice(app.indexOf('let epCardAvailable='),app.indexOf('paymentSelect.onchange=')),context);
+ vm.runInContext('atualizarFormaPagamento()',context);
+ assert.equal(elements.pix.classList.hidden,false);
+ assert.equal(elements.card.classList.hidden,true);
+ vm.runInContext('epCardAvailable=true;atualizarFormaPagamento()',context);
+ assert.equal(elements.pix.classList.hidden,false);
+ assert.equal(elements.card.classList.hidden,false);
+ assert.equal(elements['#checkout'].classList.hidden,true);
 });

@@ -527,26 +527,24 @@ const cpfInput=document.querySelector('#customerCpf');
 const pixButton=document.querySelector('#mercadoPagoCheckout');
 const pixSecurity=document.querySelector('#pixSecurity');
 const pagBankButton=document.querySelector('#pagBankCheckout');
+let epCardAvailable=false;
 function atualizarFormaPagamento(){
-  const isPix=paymentSelect.value==='Pix';
-  const isCard=['Cartão de débito','Cartão de crédito'].includes(paymentSelect.value);
-  document.querySelector('#changeWrap').classList.toggle('hidden',paymentSelect.value!=='Dinheiro');
-  cpfWrap.classList.toggle('hidden',!(isPix||isCard));
-  pixButton.classList.toggle('hidden',!isPix);
-  pagBankButton?.classList.toggle('hidden',!isCard);
-  pixSecurity.classList.toggle('hidden',!(isPix||isCard));
-  pixSecurity.textContent=isCard?'Pagamento por cartão processado pelo Asaas.':'Pagamento seguro via Pix.';
-  if(!(isPix||isCard)) cpfInput.value='';
+  const pixAllowed=!epPaymentConfig.methods||epEnabledPayments.has('pix');
+  document.querySelector('#changeWrap').classList.add('hidden');
+  cpfWrap.classList.toggle('hidden',!(pixAllowed||epCardAvailable));
+  pixButton.classList.toggle('hidden',!pixAllowed);
+  pagBankButton?.classList.toggle('hidden',!epCardAvailable);
+  document.querySelector('#checkout').classList.add('hidden');
+  pixSecurity.classList.toggle('hidden',!(pixAllowed||epCardAvailable));
+  pixSecurity.textContent=epCardAvailable?'Pagamento seguro via Pix ou cartão.':'Pagamento seguro via Pix.';
 }
 paymentSelect.onchange=atualizarFormaPagamento;
 // Only offer the new method after the server confirms credentials and activation.
 fetch('https://api.espetinhoperus.com.br/asaas-capabilities',{cache:'no-store'})
   .then(r=>r.ok?r.json():null).then(config=>{
-    const creditOption=[...paymentSelect.options].find(option=>option.value==='Cartão de crédito');
-    const allowed=config?.enabled&&creditOption&&!creditOption.disabled;
-    if(allowed)document.getElementById('paymentChoices').hidden=false;
-    else {if(creditOption)creditOption.disabled=true;paymentSelect.value='Pix';atualizarFormaPagamento();}
-  }).catch(()=>{paymentSelect.value='Pix';atualizarFormaPagamento();});
+    epCardAvailable=!!config?.enabled&&(!epPaymentConfig.methods||epEnabledPayments.has('credit'));
+    atualizarFormaPagamento();
+  }).catch(()=>{epCardAvailable=false;atualizarFormaPagamento();});
 atualizarFormaPagamento();
 updateOrderSummary();
 cpfInput.addEventListener('input',()=>{
@@ -772,7 +770,11 @@ async function iniciarCheckoutMercadoPago(){
   }catch(e){alert(e.message);}
   finally{epCheckoutInFlight=false;pagBankButton.disabled=false;pagBankButton.textContent=original;}
 }
-if(pagBankButton) pagBankButton.onclick=()=>paymentSelect.value==='Cartão de crédito'?iniciarCheckoutAsaas():iniciarCheckoutMercadoPago();
+if(pagBankButton) pagBankButton.onclick=()=>{
+  if(epCheckoutInFlight)return;
+  paymentSelect.value='Cartão de crédito';
+  return iniciarCheckoutAsaas();
+};
 
 const pixOverlay=document.querySelector('#pixOverlay');
 // Coloca o modal Pix no nível mais alto da página, evitando sobreposição pelo carrinho no celular.
@@ -825,6 +827,7 @@ const mpButton=document.querySelector('#mercadoPagoCheckout');
 if(mpButton){
   mpButton.onclick=async()=>{
     if(epCheckoutInFlight)return;
+    paymentSelect.value='Pix';
     const payload=getOrderPayload();
     if(!payload) return;
     epCheckoutInFlight=true;

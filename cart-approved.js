@@ -25,7 +25,7 @@
     note.textContent=delivery?(quote?.allowed?`${quote.region} • Frete ${fmt(quote.fee)}`:'Informe o CEP para consultar o frete'):'Retirada no Espetinho Perus • Sem frete';
     if(pix&&!/Gerando|Abrindo|Confirmando/.test(pix.textContent)){
       const hasRewards=typeof cart!=='undefined'&&Object.keys(cart).some(id=>products[id]?.reward);
-      const security=document.getElementById('pixSecurity');if(security)security.textContent=Number(total)===0&&hasRewards?'Resgate com pontos • Sem cobrança':(value('payment')==='Cartão de crédito'?'Pagamento por cartão processado pelo Asaas.':'Pagamento seguro via Pix.');
+      const security=document.getElementById('pixSecurity');if(security)security.textContent=Number(total)===0&&hasRewards?'Resgate com pontos • Sem cobrança':(typeof epCardAvailable!=='undefined'&&epCardAvailable?'Pagamento seguro via Pix ou cartão.':'Pagamento seguro via Pix.');
       pix.textContent=Number(total)===0&&hasRewards?'Confirmar resgate':`Pagar ${Number(total).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} com Pix`;
     }
   };
